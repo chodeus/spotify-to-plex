@@ -6,6 +6,8 @@ import { SearchResponse } from "@spotify-to-plex/plex-music-search/types/SearchR
 import { getById } from "@spotify-to-plex/plex-music-search/functions/getById";
 import { PlexMusicSearchConfig } from "@spotify-to-plex/plex-music-search/types/PlexMusicSearchConfig";
 
+const DURATION_LINK_THRESHOLD = 0.65;
+
 export async function getCachedPlexTracks(plexSearchConfig: PlexMusicSearchConfig, data: GetSpotifyPlaylist | GetSpotifyAlbum) {
     const { add, found: cachedTrackLinks } = getCachedTrackLinks(data.tracks, 'plex');
     const result: SearchResponse[] = [];
@@ -31,8 +33,21 @@ export async function getCachedPlexTracks(plexSearchConfig: PlexMusicSearchConfi
             try {
                 const metaData = await getById(plexSearchConfig, plexId);
 
-                if (metaData)
-                    foundTracks.push(metaData);
+                if (!metaData)
+                    continue;
+
+                // Drop links whose duration is far off the Spotify track — a wrong-version
+                // match cached before the right album existed (mirrors search()'s formula)
+                if (searchItem.duration_ms && metaData.duration_ms) {
+                    const similarity = 1 - Math.abs(searchItem.duration_ms - metaData.duration_ms) / Math.max(searchItem.duration_ms, metaData.duration_ms);
+
+                    if (similarity < DURATION_LINK_THRESHOLD) {
+                        console.log(`Dropping cached link for "${searchItem.title}": duration mismatch (${Math.round(similarity * 100)}%)`);
+                        continue;
+                    }
+                }
+
+                foundTracks.push(metaData);
             } catch (_e) {
             }
         }
