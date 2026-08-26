@@ -7,16 +7,20 @@ export async function searchForTrack(uri: string, token: string, artist: string,
     // Search for artist + track
     const searchResult = await hubSearch(uri, token, search, 20);
 
+    // Album hits are expanded into their tracks: Plex's track search index can
+    // miss tracks whose album IS indexed, and one stray track hit used to
+    // suppress expansion entirely
     const albums = searchResult.filter(item => item.type == "album");
-    const [foundAlbum] = albums;
-    if (searchResult.length == albums.length && foundAlbum) {
-        
-        const trackResult: HubSearchResult[] = await getAlbumTracks(uri, token, foundAlbum.id)
-        trackResult.forEach(item => {
-            if (searchResult.filter(existingItem => existingItem.guid == item.guid).length == 0)
-                searchResult.push(item);
-        });
-
+    for (const album of albums.slice(0, 3)) {
+        try {
+            const trackResult: HubSearchResult[] = await getAlbumTracks(uri, token, album.id)
+            trackResult.forEach(item => {
+                if (searchResult.filter(existingItem => existingItem.guid == item.guid).length == 0)
+                    searchResult.push(item);
+            });
+        } catch (_e) {
+            // Ignore albums that fail to load
+        }
     }
 
     // Search for track name
