@@ -280,7 +280,7 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
             title: spotifyTrack.title,
             artist: artist,
             plexTrack: plexTrack
-        }).catch(error => {
+        }).catch((error: unknown) => {
             console.error('Failed to cache manual match:', error);
         });
 
@@ -405,20 +405,24 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
 
             return !data || data.result.length !== 1
         })
-        , [playlist.tracks, findMatchFor])
+    , [playlist.tracks, findMatchFor])
 
     const filtering = !!query.trim();
 
+    // PlexTrack hands back the Spotify id so this stays one stable callback
+    // instead of a new closure per row on every render
+    const onManualSelectById = useCallback((spotifyTrackId: string, plexTrack: SearchResponse['result'][0]) => {
+        const spotifyTrack = playlist.tracks.find(item => item.id === spotifyTrackId)
+        if (spotifyTrack)
+            onManualTrackSelect(spotifyTrack, plexTrack)
+    }, [playlist.tracks, onManualTrackSelect])
+
     // Shared by the paged list and the review dialog so both stay interactive
-    const renderTrack = useCallback((track: GetSpotifyPlaylist['tracks'][0] | GetSpotifyAlbum['tracks'][0]) => {
+    const renderTrack = useCallback((track: Track) => {
         const data = findMatchFor(track)
         const trackSelectIdx = trackSelections.find(item => item.trackId === track.id)
         const songIdx = trackSelectIdx ? trackSelectIdx.idx : 0;
         const loading = loadingTracks && !(tracksLoaded.some(item => item === track.id))
-
-        const handleManualSelect = (plexTrack: SearchResponse['result'][0]) => {
-            onManualTrackSelect(track, plexTrack);
-        }
 
         return <PlexTrack
             key={`${playlist.id}-plex-${track.title}-${track.id}}`}
@@ -427,9 +431,9 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
             setSongIdx={onSetSongIndex}
             songIdx={songIdx}
             data={data}
-            onManualSelect={handleManualSelect}
+            onManualSelect={onManualSelectById}
         />
-    }, [findMatchFor, trackSelections, loadingTracks, tracksLoaded, onSetSongIndex, onManualTrackSelect, playlist.id])
+    }, [findMatchFor, trackSelections, loadingTracks, tracksLoaded, onSetSongIndex, onManualSelectById, playlist.id])
     const totalPages = Math.ceil(filteredTracks.length / pageSize)
     const visibleTracks = filteredTracks.slice(page * pageSize, (page * pageSize) + pageSize)
     let curEnd = (page * pageSize) + pageSize;
