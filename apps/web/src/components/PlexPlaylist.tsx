@@ -7,7 +7,7 @@ import { Track } from "@spotify-to-plex/shared-types/spotify/Track";
 import type { SearchResponse } from "@spotify-to-plex/plex-music-search/types/SearchResponse";
 import { Edit, Refresh, Search } from "@mui/icons-material";
 import CloseIcon from '@mui/icons-material/Close';
-import { Alert, Box, Button, Chip, CircularProgress, Divider, IconButton, Input, InputAdornment, Modal, Paper, Stack, TextField, Tooltip, Typography } from "@mui/material";
+import { Alert, Box, Button, CircularProgress, Divider, FormControlLabel, IconButton, Input, InputAdornment, Modal, Paper, Stack, Switch, TextField, Tooltip, Typography } from "@mui/material";
 import axios from "axios";
 import { enqueueSnackbar } from "notistack";
 import { ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -579,14 +579,10 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
                     }}
                 />
                 <Box display="flex" alignItems="center" gap={1.5} mt={1} mb={1}>
-                    {/* A chip reads as a filter; a button flush against the field reads as "submit search" */}
                     <Tooltip describeChild title="Show only tracks that are missing or have more than one candidate">
-                        <Chip
-                            size="small"
-                            label="Needs review"
-                            variant={onlyUnresolved ? 'filled' : 'outlined'}
-                            color={onlyUnresolved ? 'primary' : 'default'}
-                            onClick={onToggleUnresolved}
+                        <FormControlLabel
+                            control={<Switch size="small" checked={onlyUnresolved} onChange={onToggleUnresolved} />}
+                            label={<Typography variant="body2">Needs review</Typography>}
                         />
                     </Tooltip>
                     {!!filtering &&
