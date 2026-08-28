@@ -7,7 +7,7 @@ import { Track } from "@spotify-to-plex/shared-types/spotify/Track";
 import type { SearchResponse } from "@spotify-to-plex/plex-music-search/types/SearchResponse";
 import { Edit, Refresh, Search } from "@mui/icons-material";
 import CloseIcon from '@mui/icons-material/Close';
-import { Alert, Box, Button, CircularProgress, Divider, IconButton, Input, InputAdornment, Modal, Paper, Stack, TextField, Tooltip, Typography } from "@mui/material";
+import { Alert, Box, Button, Chip, CircularProgress, Divider, IconButton, Input, InputAdornment, Modal, Paper, Stack, TextField, Tooltip, Typography } from "@mui/material";
 import axios from "axios";
 import { enqueueSnackbar } from "notistack";
 import { ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -565,29 +565,36 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
 
             <Divider sx={{ mt: 1, mb: 1 }} />
             <Stack>
-                <Box display="flex" gap={1} mb={1}>
-                    <TextField
-                        size="small"
-                        fullWidth
-                        placeholder="Search this playlist"
-                        value={query}
-                        onChange={onQueryChange}
-                        InputProps={{
-                            startAdornment: <InputAdornment position="start"><Search fontSize="small" /></InputAdornment>,
-                            endAdornment: !!query && <InputAdornment position="end">
-                                <IconButton size="small" onClick={onClearQuery} aria-label="Clear search"><CloseIcon fontSize="small" /></IconButton>
-                            </InputAdornment>
-                        }}
-                    />
-                    <Tooltip title="Show only tracks that are missing or have more than one candidate">
-                        <Button variant={onlyUnresolved ? 'contained' : 'outlined'} onClick={onToggleUnresolved} sx={{ flexShrink: 0, whiteSpace: 'nowrap' }}>Needs review</Button>
+                <TextField
+                    size="small"
+                    fullWidth
+                    placeholder="Search this playlist"
+                    value={query}
+                    onChange={onQueryChange}
+                    InputProps={{
+                        startAdornment: <InputAdornment position="start"><Search fontSize="small" /></InputAdornment>,
+                        endAdornment: !!query && <InputAdornment position="end">
+                            <IconButton size="small" onClick={onClearQuery} aria-label="Clear search"><CloseIcon fontSize="small" /></IconButton>
+                        </InputAdornment>
+                    }}
+                />
+                <Box display="flex" alignItems="center" gap={1.5} mt={1} mb={1}>
+                    {/* A chip reads as a filter; a button flush against the field reads as "submit search" */}
+                    <Tooltip describeChild title="Show only tracks that are missing or have more than one candidate">
+                        <Chip
+                            size="small"
+                            label="Needs review"
+                            variant={onlyUnresolved ? 'filled' : 'outlined'}
+                            color={onlyUnresolved ? 'primary' : 'default'}
+                            onClick={onToggleUnresolved}
+                        />
                     </Tooltip>
+                    {!!filtering &&
+                        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                            {filteredTracks.length === 0 ? 'No tracks match' : `${filteredTracks.length} of ${playlist.tracks.length} tracks`}
+                        </Typography>
+                    }
                 </Box>
-                {!!filtering &&
-                    <Typography variant="body2" sx={{ mb: 1, color: 'text.secondary' }}>
-                        {filteredTracks.length === 0 ? 'No tracks match' : `${filteredTracks.length} of ${playlist.tracks.length} tracks`}
-                    </Typography>
-                }
                 {totalPages > 1 &&
                     <Box display="flex" mb={1} justifyContent="space-between">
                         <Button variant="contained" disabled={page <= 0} onClick={prevPageClick}>Previous</Button>
