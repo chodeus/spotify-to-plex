@@ -610,6 +610,7 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
                 <TextField
                     size="small"
                     fullWidth
+                    sx={{ mb: 1 }}
                     placeholder="Search this playlist"
                     value={query}
                     onChange={onQueryChange}
@@ -621,7 +622,7 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
                     }}
                 />
                 {!!filtering &&
-                    <Typography variant="body2" sx={{ mt: 1, mb: 1, color: 'text.secondary' }}>
+                    <Typography variant="body2" sx={{ mb: 1, color: 'text.secondary' }}>
                         {filteredTracks.length === 0 ? 'No tracks match' : `${filteredTracks.length} of ${playlist.tracks.length} tracks`}
                     </Typography>
                 }
