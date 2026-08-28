@@ -7,7 +7,7 @@ import { Track } from "@spotify-to-plex/shared-types/spotify/Track";
 import type { SearchResponse } from "@spotify-to-plex/plex-music-search/types/SearchResponse";
 import { Edit, Refresh, Search } from "@mui/icons-material";
 import CloseIcon from '@mui/icons-material/Close';
-import { Alert, Box, Button, CircularProgress, Divider, FormControlLabel, IconButton, Input, InputAdornment, Modal, Paper, Stack, Switch, TextField, Tooltip, Typography } from "@mui/material";
+import { Alert, Box, Button, CircularProgress, Dialog, Divider, IconButton, Input, InputAdornment, Modal, Paper, Stack, TextField, Tooltip, Typography } from "@mui/material";
 import axios from "axios";
 import { enqueueSnackbar } from "notistack";
 import { ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -37,7 +37,7 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
     const [page, setPage] = useState<number>(0);
     const [error, setError] = useState('')
     const [query, setQuery] = useState<string>('')
-    const [onlyUnresolved, setOnlyUnresolved] = useState<boolean>(false)
+    const [showReview, setShowReview] = useState<boolean>(false)
     const prevPageClick = useCallback(() => {
         setPage(prev => prev - 1)
     }, [])
@@ -55,9 +55,8 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
         setQuery('')
         setPage(0)
     }, [])
-    const onToggleUnresolved = useCallback(() => {
-        setOnlyUnresolved(prev => !prev)
-        setPage(0)
+    const onToggleReview = useCallback(() => {
+        setShowReview(prev => !prev)
     }, [])
 
     ///////////////////////////////////////////////
@@ -383,17 +382,11 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
     // playlist rather than the current page
     const filteredTracks = useMemo(() => {
         const search = query.trim().toLowerCase();
-        if (!search && !onlyUnresolved)
+        if (!search)
             return playlist.tracks;
 
         return playlist.tracks.filter(track => {
             const data = findMatchFor(track)
-
-            if (onlyUnresolved && !!data && data.result.length === 1)
-                return false;
-
-            if (!search)
-                return true;
 
             const haystack: (string | undefined)[] = [track.title, track.album, ...track.artists];
             if (data)
@@ -403,9 +396,40 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
 
             return haystack.some(value => !!value && value.toLowerCase().includes(search));
         })
-    }, [playlist.tracks, findMatchFor, query, onlyUnresolved])
+    }, [playlist.tracks, findMatchFor, query])
 
-    const filtering = !!query.trim() || onlyUnresolved;
+    // Missing, or matched to more than one candidate - the rows worth a human look
+    const reviewTracks = useMemo(() =>
+        playlist.tracks.filter(track => {
+            const data = findMatchFor(track)
+
+            return !data || data.result.length !== 1
+        })
+        , [playlist.tracks, findMatchFor])
+
+    const filtering = !!query.trim();
+
+    // Shared by the paged list and the review dialog so both stay interactive
+    const renderTrack = useCallback((track: GetSpotifyPlaylist['tracks'][0] | GetSpotifyAlbum['tracks'][0]) => {
+        const data = findMatchFor(track)
+        const trackSelectIdx = trackSelections.find(item => item.trackId === track.id)
+        const songIdx = trackSelectIdx ? trackSelectIdx.idx : 0;
+        const loading = loadingTracks && !(tracksLoaded.some(item => item === track.id))
+
+        const handleManualSelect = (plexTrack: SearchResponse['result'][0]) => {
+            onManualTrackSelect(track, plexTrack);
+        }
+
+        return <PlexTrack
+            key={`${playlist.id}-plex-${track.title}-${track.id}}`}
+            loading={loading}
+            track={track}
+            setSongIdx={onSetSongIndex}
+            songIdx={songIdx}
+            data={data}
+            onManualSelect={handleManualSelect}
+        />
+    }, [findMatchFor, trackSelections, loadingTracks, tracksLoaded, onSetSongIndex, onManualTrackSelect, playlist.id])
     const totalPages = Math.ceil(filteredTracks.length / pageSize)
     const visibleTracks = filteredTracks.slice(page * pageSize, (page * pageSize) + pageSize)
     let curEnd = (page * pageSize) + pageSize;
@@ -538,6 +562,20 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
             </Box>
         }
 
+        {!!(reviewTracks.length > 0) && !loadingTracks &&
+            <Box sx={{ mt: 1, mb: 1 }}>
+                <Alert variant="outlined" color="info">
+                    <Box sx={{ p: 1 }}>
+                        <Typography variant="h6" sx={{ mb: 0.5 }}>{reviewTracks.length} tracks need review</Typography>
+                        <Typography variant="body2" sx={{ mb: 1 }}>
+                            These are missing from your library, or more than one track in Plex matched. Pick the right one or search Plex yourself.
+                        </Typography>
+                        <Button variant="outlined" size="small" onClick={onToggleReview}>Review matches</Button>
+                    </Box>
+                </Alert>
+            </Box>
+        }
+
         {missingTracks.length === 0 && !loadingTracks &&
             <Box sx={{ mt: 1, mb: 1 }}>
                 <Alert variant="outlined" color="success">
@@ -578,19 +616,11 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
                         </InputAdornment>
                     }}
                 />
-                <Box display="flex" alignItems="center" gap={1.5} mt={1} mb={1}>
-                    <Tooltip describeChild title="Show only tracks that are missing or have more than one candidate">
-                        <FormControlLabel
-                            control={<Switch size="small" checked={onlyUnresolved} onChange={onToggleUnresolved} />}
-                            label={<Typography variant="body2">Needs review</Typography>}
-                        />
-                    </Tooltip>
-                    {!!filtering &&
-                        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                            {filteredTracks.length === 0 ? 'No tracks match' : `${filteredTracks.length} of ${playlist.tracks.length} tracks`}
-                        </Typography>
-                    }
-                </Box>
+                {!!filtering &&
+                    <Typography variant="body2" sx={{ mt: 1, mb: 1, color: 'text.secondary' }}>
+                        {filteredTracks.length === 0 ? 'No tracks match' : `${filteredTracks.length} of ${playlist.tracks.length} tracks`}
+                    </Typography>
+                }
                 {totalPages > 1 &&
                     <Box display="flex" mb={1} justifyContent="space-between">
                         <Button variant="contained" disabled={page <= 0} onClick={prevPageClick}>Previous</Button>
@@ -598,18 +628,7 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
                         <Button variant="contained" disabled={page >= totalPages - 1} onClick={nextPageClick}>Next</Button>
                     </Box>
                 }
-                {visibleTracks.map(track => {
-                    const data = findMatchFor(track)
-                    const trackSelectIdx = trackSelections.find(item => item.trackId === track.id)
-                    const songIdx = trackSelectIdx ? trackSelectIdx.idx : 0;
-                    const loading = loadingTracks && !(tracksLoaded.some(item => item === track.id))
-
-                    const handleManualSelect = (plexTrack: SearchResponse['result'][0]) => {
-                        onManualTrackSelect(track, plexTrack);
-                    }
-
-                    return <PlexTrack key={`${playlist.id}-plex-${track.title}-${track.id}}`} loading={loading} track={track} setSongIdx={onSetSongIndex} songIdx={songIdx} data={data} onManualSelect={handleManualSelect} />
-                })}
+                {visibleTracks.map(renderTrack)}
             </Stack>
         </Paper>
 
@@ -629,6 +648,22 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
                     <Button variant="contained" onClick={onSavePlaylistNameClick} sx={{ mt: 2 }}>Save</Button>
                 </Box>
             </Modal>
+        }
+
+        {!!showReview &&
+            <Dialog open fullWidth maxWidth="md" onClose={onToggleReview}>
+                <Box sx={{ p: 2, position: 'relative' }}>
+                    <IconButton size="small" onClick={onToggleReview} sx={{ position: 'absolute', right: 8, top: 8 }} aria-label="Close">
+                        <CloseIcon fontSize="small" />
+                    </IconButton>
+                    <Typography variant="h6" sx={{ mb: 0.5 }}>{reviewTracks.length} tracks need review</Typography>
+                    <Typography variant="body2" sx={{ mb: 2, color: 'text.secondary' }}>
+                        Missing from your library, or matched to more than one track in Plex.
+                    </Typography>
+                    <Divider sx={{ mb: 1 }} />
+                    {reviewTracks.map(renderTrack)}
+                </Box>
+            </Dialog>
         }
 
         {!!showExportMissingTracks && missingTracks.length > 0 &&
