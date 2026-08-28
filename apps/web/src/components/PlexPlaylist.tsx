@@ -478,10 +478,12 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
 
         return playlist.tracks
             .filter(item => {
-                return tracks.some(track => track.title === item.title && item.artists.indexOf(track.artist) > - 1 && track.result.length === 0)
+                const data = findMatchFor(item)
+
+                return !!data && data.result.length === 0
             })
 
-    }, [playlist, tracks])
+    }, [playlist, findMatchFor])
 
     if (error) {
         return (

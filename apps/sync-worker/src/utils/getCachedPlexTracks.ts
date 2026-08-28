@@ -25,6 +25,11 @@ export async function getCachedPlexTracks(plexSearchConfig: PlexMusicSearchConfi
         // Load the plex tracks data
         const foundTracks: PlexTrack[] = [];
 
+        // Ids worth keeping in the cache. A rejected link is dropped so it is not
+        // re-fetched and re-logged on every sync; a lookup that *failed* is kept,
+        // because Plex being briefly unreachable is not evidence the link is wrong
+        const keptIds: string[] = [];
+
         for (let j = 0; j < trackLink.plex_id.length; j++) {
             const plexId = trackLink.plex_id[j];
             if (!plexId)
@@ -33,8 +38,10 @@ export async function getCachedPlexTracks(plexSearchConfig: PlexMusicSearchConfi
             try {
                 const metaData = await getById(plexSearchConfig, plexId);
 
-                if (!metaData)
+                if (!metaData) {
+                    keptIds.push(plexId);
                     continue;
+                }
 
                 // Drop links whose duration is far off the Spotify track — a wrong-version
                 // match cached before the right album existed (mirrors search()'s formula).
@@ -48,10 +55,16 @@ export async function getCachedPlexTracks(plexSearchConfig: PlexMusicSearchConfi
                     }
                 }
 
+                keptIds.push(plexId);
                 foundTracks.push(metaData);
             } catch (_e) {
+                keptIds.push(plexId);
             }
         }
+
+        // Persisted by the add() call that follows the re-search these drops trigger
+        if (keptIds.length !== trackLink.plex_id.length)
+            trackLink.plex_id = keptIds;
 
         // Try searching again if no tracks are found
         if (foundTracks.length == 0)
