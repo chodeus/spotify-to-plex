@@ -82,6 +82,14 @@ docker run -d \
     ghcr.io/chodeus/spotify-to-plex:latest
 ```
 
+`PLEX_APP_ID` is not required — the image already sets it, which is why it is absent above. It is the `X-Plex-Client-Identifier` this app presents to Plex, not a credential, and it is the same value for everyone running the image. Pass it explicitly only if you want your install to appear in Plex's authorised devices as its own client:
+
+```sh
+    -e PLEX_APP_ID=$(head -c 32 /dev/urandom | base64) \
+```
+
+Set it before your first login and keep it — changing it later invalidates the stored Plex token and you will have to sign in again.
+
 Everything else — setup, Spotify app creation, Lidarr and slskd integration — follows the [upstream documentation](https://jjdenhertog.github.io/spotify-to-plex/) unchanged.
 
 ### Matching configuration
