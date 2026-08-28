@@ -333,7 +333,7 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
 
             return track.artists.indexOf(item.artist) > -1 && track.title === item.title
         })
-        , [tracks])
+    , [tracks])
 
     // Every track is already loaded client-side, so searching covers the whole
     // playlist rather than the current page
@@ -351,7 +351,7 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
             if (!search)
                 return true;
 
-            const haystack = [track.title, track.album, ...track.artists];
+            const haystack: (string | undefined)[] = [track.title, track.album, ...track.artists];
             if (data)
                 data.result.forEach(item => {
                     haystack.push(item.title, item.artist?.title, item.album?.title)
