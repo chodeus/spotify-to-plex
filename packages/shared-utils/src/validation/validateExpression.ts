@@ -16,14 +16,14 @@ export function validateExpression(expression: string): ValidationResult {
         }
         
         // Validate field names - check both standalone fields and fields with operations
-        const validFields = ['artist', 'title', 'album', 'artistWithTitle', 'artistInTitle'];
+        const validFields = ['artist', 'title', 'album', 'artistWithTitle', 'artistInTitle', 'version'];
         
         // Extract fields with operations
         const fieldWithOpRegex = /([A-Za-z]+):/g;
         const fieldsWithOps = Array.from(expression.matchAll(fieldWithOpRegex), m => m[1]);
         
         // Extract standalone fields (not followed by colon)
-        const standaloneFieldRegex = /\b(artist|title|album|artistWithTitle|artistInTitle)\b(?!:)/g;
+        const standaloneFieldRegex = /\b(artist|title|album|artistWithTitle|artistInTitle|version)\b(?!:)/g;
         const standaloneFields = Array.from(expression.matchAll(standaloneFieldRegex), m => m[1]);
         
         // Combine and validate all fields
