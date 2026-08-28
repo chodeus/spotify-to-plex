@@ -7,7 +7,7 @@ import { Track } from "@spotify-to-plex/shared-types/spotify/Track";
 import type { SearchResponse } from "@spotify-to-plex/plex-music-search/types/SearchResponse";
 import { Edit, Refresh, Search } from "@mui/icons-material";
 import CloseIcon from '@mui/icons-material/Close';
-import { Alert, Box, Button, CircularProgress, Divider, IconButton, Input, InputAdornment, Modal, Paper, Stack, TextField, Tooltip, Typography } from "@mui/material";
+import { Alert, Box, Button, CircularProgress, Dialog, Divider, IconButton, Input, InputAdornment, Modal, Paper, Stack, TextField, Tooltip, Typography } from "@mui/material";
 import axios from "axios";
 import { enqueueSnackbar } from "notistack";
 import { ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -36,7 +36,9 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
     const [page, setPage] = useState<number>(0);
     const [error, setError] = useState('')
     const [query, setQuery] = useState<string>('')
-    const [onlyUnresolved, setOnlyUnresolved] = useState<boolean>(false)
+    const [showReview, setShowReview] = useState<boolean>(false)
+    const reviewPageSize = 10;
+    const [reviewPage, setReviewPage] = useState<number>(0);
     const prevPageClick = useCallback(() => {
         setPage(prev => prev - 1)
     }, [])
@@ -54,9 +56,15 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
         setQuery('')
         setPage(0)
     }, [])
-    const onToggleUnresolved = useCallback(() => {
-        setOnlyUnresolved(prev => !prev)
-        setPage(0)
+    const onToggleReview = useCallback(() => {
+        setShowReview(prev => !prev)
+        setReviewPage(0)
+    }, [])
+    const reviewPrevPageClick = useCallback(() => {
+        setReviewPage(prev => prev - 1)
+    }, [])
+    const reviewNextPageClick = useCallback(() => {
+        setReviewPage(prev => prev + 1)
     }, [])
 
     ///////////////////////////////////////////////
@@ -339,17 +347,11 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
     // playlist rather than the current page
     const filteredTracks = useMemo(() => {
         const search = query.trim().toLowerCase();
-        if (!search && !onlyUnresolved)
+        if (!search)
             return playlist.tracks;
 
         return playlist.tracks.filter(track => {
             const data = findMatchFor(track)
-
-            if (onlyUnresolved && !!data && data.result.length === 1)
-                return false;
-
-            if (!search)
-                return true;
 
             const haystack: (string | undefined)[] = [track.title, track.album, ...track.artists];
             if (data)
@@ -359,9 +361,46 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
 
             return haystack.some(value => !!value && value.toLowerCase().includes(search));
         })
-    }, [playlist.tracks, findMatchFor, query, onlyUnresolved])
+    }, [playlist.tracks, findMatchFor, query])
 
-    const filtering = !!query.trim() || onlyUnresolved;
+    // Matched to more than one candidate - the rows worth a human look. Tracks with
+    // nothing at all are the missing-tracks dialog's job, and listing them in both
+    // is the same problem shown twice
+    const reviewTracks = useMemo(() =>
+        playlist.tracks.filter(track => {
+            const data = findMatchFor(track)
+
+            return !!data && data.result.length > 1
+        })
+    , [playlist.tracks, findMatchFor])
+
+    const reviewTotalPages = Math.ceil(reviewTracks.length / reviewPageSize)
+    const visibleReviewTracks = reviewTracks.slice(reviewPage * reviewPageSize, (reviewPage * reviewPageSize) + reviewPageSize)
+
+    // Resolving a track drops it from the list, which can empty the current page
+    useEffect(() => {
+        if (reviewPage > 0 && reviewPage >= reviewTotalPages)
+            setReviewPage(Math.max(0, reviewTotalPages - 1))
+    }, [reviewPage, reviewTotalPages])
+
+    const filtering = !!query.trim();
+
+    // Shared by the paged list and the review dialog so both stay interactive
+    const renderTrack = useCallback((track: Track) => {
+        const data = findMatchFor(track)
+        const trackSelectIdx = trackSelections.find(item => track.artists.indexOf(item.artist) > -1 && item.title === track.title)
+        const songIdx = trackSelectIdx ? trackSelectIdx.idx : 0;
+        const loading = loadingTracks && !(tracksLoaded.some(item => item === track.id))
+
+        return <PlexTrack
+            key={`${playlist.id}-plex-${track.title}-${track.id}}`}
+            loading={loading}
+            track={track}
+            setSongIdx={onSetSongIndex}
+            songIdx={songIdx}
+            data={data}
+        />
+    }, [findMatchFor, trackSelections, loadingTracks, tracksLoaded, onSetSongIndex, playlist.id])
     const totalPages = Math.ceil(filteredTracks.length / pageSize)
     const visibleTracks = filteredTracks.slice(page * pageSize, (page * pageSize) + pageSize)
     let curEnd = (page * pageSize) + pageSize;
@@ -387,10 +426,12 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
 
         return playlist.tracks
             .filter(item => {
-                return tracks.some(track => track.title === item.title && item.artists.indexOf(track.artist) > - 1 && track.result.length === 0)
+                const data = findMatchFor(item)
+
+                return !!data && data.result.length === 0
             })
 
-    }, [playlist, tracks])
+    }, [playlist, findMatchFor])
 
     if (error) {
         return (
@@ -494,6 +535,20 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
             </Box>
         }
 
+        {!!(reviewTracks.length > 0) && !loadingTracks &&
+            <Box sx={{ mt: 1, mb: 1 }}>
+                <Alert variant="outlined" severity="info">
+                    <Box sx={{ p: 1 }}>
+                        <Typography variant="h6" sx={{ mb: 0.5 }}>{reviewTracks.length} tracks to review</Typography>
+                        <Typography variant="body2" sx={{ mb: 1 }}>
+                            More than one track in your library matched these, so the wrong version may have been picked.
+                        </Typography>
+                        <Button variant="outlined" size="small" onClick={onToggleReview}>Review tracks</Button>
+                    </Box>
+                </Alert>
+            </Box>
+        }
+
         {missingTracks.length === 0 && !loadingTracks &&
             <Box sx={{ mt: 1, mb: 1 }}>
                 <Alert variant="outlined" color="success">
@@ -521,24 +576,20 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
 
             <Divider sx={{ mt: 1, mb: 1 }} />
             <Stack>
-                <Box display="flex" gap={1} mb={1}>
-                    <TextField
-                        size="small"
-                        fullWidth
-                        placeholder="Search this playlist"
-                        value={query}
-                        onChange={onQueryChange}
-                        InputProps={{
-                            startAdornment: <InputAdornment position="start"><Search fontSize="small" /></InputAdornment>,
-                            endAdornment: !!query && <InputAdornment position="end">
-                                <IconButton size="small" onClick={onClearQuery} aria-label="Clear search"><CloseIcon fontSize="small" /></IconButton>
-                            </InputAdornment>
-                        }}
-                    />
-                    <Tooltip title="Show only tracks that are missing or have more than one candidate">
-                        <Button variant={onlyUnresolved ? 'contained' : 'outlined'} onClick={onToggleUnresolved} sx={{ flexShrink: 0, whiteSpace: 'nowrap' }}>Needs review</Button>
-                    </Tooltip>
-                </Box>
+                <TextField
+                    size="small"
+                    fullWidth
+                    sx={{ mb: 1 }}
+                    placeholder="Search this playlist"
+                    value={query}
+                    onChange={onQueryChange}
+                    InputProps={{
+                        startAdornment: <InputAdornment position="start"><Search fontSize="small" /></InputAdornment>,
+                        endAdornment: !!query && <InputAdornment position="end">
+                            <IconButton size="small" onClick={onClearQuery} aria-label="Clear search"><CloseIcon fontSize="small" /></IconButton>
+                        </InputAdornment>
+                    }}
+                />
                 {!!filtering &&
                     <Typography variant="body2" sx={{ mb: 1, color: 'text.secondary' }}>
                         {filteredTracks.length === 0 ? 'No tracks match' : `${filteredTracks.length} of ${playlist.tracks.length} tracks`}
@@ -551,14 +602,7 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
                         <Button variant="contained" disabled={page >= totalPages - 1} onClick={nextPageClick}>Next</Button>
                     </Box>
                 }
-                {visibleTracks.map(track => {
-                    const data = findMatchFor(track)
-                    const trackSelectIdx = trackSelections.find(item => track.artists.indexOf(item.artist) > -1 && item.title === track.title)
-                    const songIdx = trackSelectIdx ? trackSelectIdx.idx : 0;
-                    const loading = loadingTracks && !(tracksLoaded.some(item => item === track.id))
-
-                    return <PlexTrack key={`${playlist.id}-plex-${track.title}-${track.id}}`} loading={loading} track={track} setSongIdx={onSetSongIndex} songIdx={songIdx} data={data} />
-                })}
+                {visibleTracks.map(renderTrack)}
             </Stack>
         </Paper>
 
@@ -578,6 +622,30 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
                     <Button variant="contained" onClick={onSavePlaylistNameClick} sx={{ mt: 2 }}>Save</Button>
                 </Box>
             </Modal>
+        }
+
+        {!!showReview &&
+            <Dialog open onClose={onToggleReview}>
+                <Box sx={{ maxWidth: 600, p: 2, position: 'relative' }}>
+                    <IconButton size="small" onClick={onToggleReview} sx={{ position: 'absolute', right: 8, top: 8 }}>
+                        <CloseIcon fontSize="small" />
+                    </IconButton>
+                    <Typography variant="h6">Tracks to review</Typography>
+                    <Typography variant="body2">
+                        Below you find the tracks where more than one track in your library matched. Pick the right one.
+                    </Typography>
+                    <Box sx={{ mt: 1 }}>
+                        {visibleReviewTracks.map(renderTrack)}
+
+                        {reviewTotalPages > 1 &&
+                            <Box mt={1} display="flex" justifyContent="space-between">
+                                <Button size="small" variant="outlined" color="inherit" disabled={reviewPage <= 0} onClick={reviewPrevPageClick}>Previous</Button>
+                                <Button size="small" variant="outlined" color="inherit" disabled={reviewPage >= reviewTotalPages - 1} onClick={reviewNextPageClick}>Next</Button>
+                            </Box>
+                        }
+                    </Box>
+                </Box>
+            </Dialog>
         }
 
         {!!showExportMissingTracks && missingTracks.length > 0 &&
