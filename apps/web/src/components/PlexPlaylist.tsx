@@ -407,12 +407,13 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
         })
     }, [playlist.tracks, findMatchFor, query])
 
-    // Missing, or matched to more than one candidate - the rows worth a human look
+    // Only ambiguous matches - tracks with nothing at all are the missing-tracks
+    // dialog's job, and listing them in both is just the same problem twice
     const reviewTracks = useMemo(() =>
         playlist.tracks.filter(track => {
             const data = findMatchFor(track)
 
-            return !data || data.result.length !== 1
+            return !!data && data.result.length > 1
         })
     , [playlist.tracks, findMatchFor])
 
@@ -590,7 +591,7 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
                     <Box sx={{ p: 1 }}>
                         <Typography variant="h6" sx={{ mb: 0.5 }}>{reviewTracks.length} tracks to review</Typography>
                         <Typography variant="body2" sx={{ mb: 1 }}>
-                            Some tracks are missing from your library, or more than one track in Plex matched and the wrong one may have been picked.
+                            More than one track in your library matched these, so the wrong version may have been picked.
                         </Typography>
                         <Button variant="outlined" size="small" onClick={onToggleReview}>Review tracks</Button>
                     </Box>
@@ -681,7 +682,7 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
                     </IconButton>
                     <Typography variant="h6">Tracks to review</Typography>
                     <Typography variant="body2">
-                        Below you find the tracks that are missing from your library, or where more than one track in Plex matched.
+                        Below you find the tracks where more than one track in your library matched. Pick the right one, or search Plex yourself.
                     </Typography>
                     <Box sx={{ mt: 1 }}>
                         {visibleReviewTracks.map(renderTrack)}
