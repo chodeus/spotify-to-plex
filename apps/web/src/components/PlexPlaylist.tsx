@@ -258,7 +258,8 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
         const searchResponse: SearchResponse = {
             id: spotifyTrack.id,
             title: spotifyTrack.title,
-            artist: artist,
+            artist: artist ?? '',
+            album: spotifyTrack.album,
             result: [plexTrack]
         };
 
