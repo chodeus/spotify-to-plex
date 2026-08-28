@@ -392,14 +392,7 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
         const songIdx = trackSelectIdx ? trackSelectIdx.idx : 0;
         const loading = loadingTracks && !(tracksLoaded.some(item => item === track.id))
 
-        return <PlexTrack
-            key={`${playlist.id}-plex-${track.title}-${track.id}}`}
-            loading={loading}
-            track={track}
-            setSongIdx={onSetSongIndex}
-            songIdx={songIdx}
-            data={data}
-        />
+        return <PlexTrack key={`${playlist.id}-plex-${track.title}-${track.id}}`} loading={loading} track={track} setSongIdx={onSetSongIndex} songIdx={songIdx} data={data} />
     }, [findMatchFor, trackSelections, loadingTracks, tracksLoaded, onSetSongIndex, playlist.id])
     const totalPages = Math.ceil(filteredTracks.length / pageSize)
     const visibleTracks = filteredTracks.slice(page * pageSize, (page * pageSize) + pageSize)
