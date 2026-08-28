@@ -2,7 +2,7 @@ name: Publish Docker image
 
 on:
   push:
-    branches: [testing]
+    branches: [main, testing]
     tags: ['v*']
   workflow_dispatch:
 
