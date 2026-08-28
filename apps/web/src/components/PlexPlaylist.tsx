@@ -55,8 +55,17 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
         setQuery('')
         setPage(0)
     }, [])
+    const reviewPageSize = 10;
+    const [reviewPage, setReviewPage] = useState<number>(0);
     const onToggleReview = useCallback(() => {
         setShowReview(prev => !prev)
+        setReviewPage(0)
+    }, [])
+    const reviewPrevPageClick = useCallback(() => {
+        setReviewPage(prev => prev - 1)
+    }, [])
+    const reviewNextPageClick = useCallback(() => {
+        setReviewPage(prev => prev + 1)
     }, [])
 
     ///////////////////////////////////////////////
@@ -407,6 +416,15 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
         })
     , [playlist.tracks, findMatchFor])
 
+    const reviewTotalPages = Math.ceil(reviewTracks.length / reviewPageSize)
+    const visibleReviewTracks = reviewTracks.slice(reviewPage * reviewPageSize, (reviewPage * reviewPageSize) + reviewPageSize)
+
+    // Fixing a match drops it from the list, which can empty the current page
+    useEffect(() => {
+        if (reviewPage > 0 && reviewPage >= reviewTotalPages)
+            setReviewPage(Math.max(0, reviewTotalPages - 1))
+    }, [reviewPage, reviewTotalPages])
+
     const filtering = !!query.trim();
 
     // PlexTrack hands back the Spotify id so this stays one stable callback
@@ -568,13 +586,13 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
 
         {!!(reviewTracks.length > 0) && !loadingTracks &&
             <Box sx={{ mt: 1, mb: 1 }}>
-                <Alert variant="outlined" color="info">
+                <Alert variant="outlined" severity="info">
                     <Box sx={{ p: 1 }}>
-                        <Typography variant="h6" sx={{ mb: 0.5 }}>{reviewTracks.length} tracks need review</Typography>
+                        <Typography variant="h6" sx={{ mb: 0.5 }}>{reviewTracks.length} tracks to review</Typography>
                         <Typography variant="body2" sx={{ mb: 1 }}>
-                            These are missing from your library, or more than one track in Plex matched. Pick the right one or search Plex yourself.
+                            Some tracks are missing from your library, or more than one track in Plex matched and the wrong one may have been picked.
                         </Typography>
-                        <Button variant="outlined" size="small" onClick={onToggleReview}>Review matches</Button>
+                        <Button variant="outlined" size="small" onClick={onToggleReview}>Review tracks</Button>
                     </Box>
                 </Alert>
             </Box>
@@ -656,17 +674,25 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
         }
 
         {!!showReview &&
-            <Dialog open fullWidth maxWidth="md" onClose={onToggleReview}>
-                <Box sx={{ p: 2, position: 'relative' }}>
-                    <IconButton size="small" onClick={onToggleReview} sx={{ position: 'absolute', right: 8, top: 8 }} aria-label="Close">
+            <Dialog open onClose={onToggleReview}>
+                <Box sx={{ maxWidth: 600, p: 2, position: 'relative' }}>
+                    <IconButton size="small" onClick={onToggleReview} sx={{ position: 'absolute', right: 8, top: 8 }}>
                         <CloseIcon fontSize="small" />
                     </IconButton>
-                    <Typography variant="h6" sx={{ mb: 0.5 }}>{reviewTracks.length} tracks need review</Typography>
-                    <Typography variant="body2" sx={{ mb: 2, color: 'text.secondary' }}>
-                        Missing from your library, or matched to more than one track in Plex.
+                    <Typography variant="h6">Tracks to review</Typography>
+                    <Typography variant="body2">
+                        Below you find the tracks that are missing from your library, or where more than one track in Plex matched.
                     </Typography>
-                    <Divider sx={{ mb: 1 }} />
-                    {reviewTracks.map(renderTrack)}
+                    <Box sx={{ mt: 1 }}>
+                        {visibleReviewTracks.map(renderTrack)}
+
+                        {reviewTotalPages > 1 &&
+                            <Box mt={1} display="flex" justifyContent="space-between">
+                                <Button size="small" variant="outlined" color="inherit" disabled={reviewPage <= 0} onClick={reviewPrevPageClick}>Previous</Button>
+                                <Button size="small" variant="outlined" color="inherit" disabled={reviewPage >= reviewTotalPages - 1} onClick={reviewNextPageClick}>Next</Button>
+                            </Box>
+                        }
+                    </Box>
                 </Box>
             </Dialog>
         }
