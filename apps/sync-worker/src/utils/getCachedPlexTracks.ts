@@ -37,8 +37,9 @@ export async function getCachedPlexTracks(plexSearchConfig: PlexMusicSearchConfi
                     continue;
 
                 // Drop links whose duration is far off the Spotify track — a wrong-version
-                // match cached before the right album existed (mirrors search()'s formula)
-                if (searchItem.duration_ms && metaData.duration_ms) {
+                // match cached before the right album existed (mirrors search()'s formula).
+                // Manual picks are exempt: someone chose that version on purpose.
+                if (!trackLink.manual && searchItem.duration_ms && metaData.duration_ms) {
                     const similarity = 1 - Math.abs(searchItem.duration_ms - metaData.duration_ms) / Math.max(searchItem.duration_ms, metaData.duration_ms);
 
                     if (similarity < DURATION_LINK_THRESHOLD) {

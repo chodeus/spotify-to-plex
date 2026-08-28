@@ -33,6 +33,7 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
 
                 // Add the plex_id (replace if it exists, since this is a manual selection)
                 trackLink.plex_id = [plexTrack.id];
+                trackLink.manual = true;
 
                 // Write back to cache
                 writeFileSync(path, JSON.stringify(allLinks, undefined, 4));
