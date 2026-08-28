@@ -71,10 +71,11 @@ export default function PlexTrack(props: Props) {
     }, []);
     const onManualSelectTrack = useCallback((plexTrack: PlexTrackType) => {
         if (onManualSelect) {
-            onManualSelect(track.id, plexTrack);
+            onManualSelect(id, plexTrack);
         }
+
         setShowManualSearch(false);
-    }, [onManualSelect, track.id]);
+    }, [onManualSelect, id]);
 
     ////////////////////////////////////
     // Handle multiple song results
@@ -207,7 +208,10 @@ export default function PlexTrack(props: Props) {
         <Divider sx={{ mt: 1, mb: 1 }} />
 
         {!!showManualSearch && (
-            <Modal open onClose={onCloseManualSearch}>
+            <Modal
+                open
+                onClose={onCloseManualSearch}
+            >
                 <Box sx={{
                     position: 'absolute',
                     top: '50%',
