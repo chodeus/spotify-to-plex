@@ -33,6 +33,9 @@
 
 ---
 
+> [!TIP]
+> Running the [fork image](#about-this-fork)? The [recommended matching configuration](#recommended-matching-configuration) is what actually improves match quality — the image alone keeps upstream's defaults.
+
 ## Quick Start
 
 ```sh
@@ -54,6 +57,9 @@ Access the web interface at `http://[your-ip]:9030`
 ## About this fork
 
 This is a fork of [jjdenhertog/spotify-to-plex](https://github.com/jjdenhertog/spotify-to-plex) carrying matching fixes that are open as pull requests upstream. **If they land there, use upstream instead** — this exists so the changes are usable in the meantime.
+
+> [!IMPORTANT]
+> Installing the image on its own changes very little. It ships the same default match filters as upstream, so matching behaves the same until you apply the [matching configuration](#recommended-matching-configuration) below. That configuration is the part that stops wrong versions ending up in your playlists.
 
 What it adds:
 
@@ -92,12 +98,20 @@ Set it before your first login and keep it — changing it later invalidates the
 
 Everything else — setup, Spotify app creation, Lidarr and slskd integration — follows the [upstream documentation](https://jjdenhertog.github.io/spotify-to-plex/) unchanged.
 
-### Matching configuration
+---
+
+## Recommended matching configuration
+
+**This is the part that does the work.** The fork's code makes two new matching signals *available*; this configuration is what switches them on. Without it you are running upstream's matching with extra capabilities sitting unused.
+
+Defaults are deliberately left identical to upstream, so nothing about your matching changes until you choose it.
 
 > [!WARNING]
 > The filters below use the `duration` and `version` fields, which **only exist in this fork**. On the upstream image an unknown field makes the whole rule fail to parse and match nothing — so if you apply these and then switch back to `jjdenhertog/spotify-to-plex`, every row silently stops matching and your playlists come out empty. Switch the filters back first.
 
-Settings → Music Search → Match Filters. This is the set running on my own library (~1,000 tracks across 9 playlists):
+### Applying it
+
+Go to **Settings → Music Search → Match Filters** and replace the eight rows with these. This is the exact set running on my own library — ~1,000 tracks across 9 playlists:
 
 ```json
 [
@@ -111,6 +125,8 @@ Settings → Music Search → Match Filters. This is the set running on my own l
   "artist:similarity>=0.7 AND album:match AND title:similarity>=0.85 AND duration:similarity>=0.65 AND version:match"
 ]
 ```
+
+### Why these rows
 
 Three things are going on:
 
