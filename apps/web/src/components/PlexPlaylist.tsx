@@ -5,9 +5,9 @@ import { GetSpotifyAlbum } from "@spotify-to-plex/shared-types/spotify/GetSpotif
 import { GetSpotifyPlaylist } from "@spotify-to-plex/shared-types/spotify/GetSpotifyPlaylist";
 import { Track } from "@spotify-to-plex/shared-types/spotify/Track";
 import type { SearchResponse } from "@spotify-to-plex/plex-music-search/types/SearchResponse";
-import { Edit, Refresh } from "@mui/icons-material";
+import { Edit, Refresh, Search } from "@mui/icons-material";
 import CloseIcon from '@mui/icons-material/Close';
-import { Alert, Box, Button, CircularProgress, Divider, IconButton, Input, Modal, Paper, Stack, Tooltip, Typography } from "@mui/material";
+import { Alert, Box, Button, CircularProgress, Divider, IconButton, Input, InputAdornment, Modal, Paper, Stack, TextField, Tooltip, Typography } from "@mui/material";
 import axios from "axios";
 import { enqueueSnackbar } from "notistack";
 import { ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -30,17 +30,33 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
     const { playlist, fast } = props
 
     ///////////////////////////////////////////////
-    // Pagination
+    // Searching & pagination
     ///////////////////////////////////////////////
     const pageSize = 30;
     const [page, setPage] = useState<number>(0);
     const [error, setError] = useState('')
-    const [totalPages, setTotalPages] = useState<number>(0);
+    const [query, setQuery] = useState<string>('')
+    const [onlyUnresolved, setOnlyUnresolved] = useState<boolean>(false)
     const prevPageClick = useCallback(() => {
         setPage(prev => prev - 1)
     }, [])
     const nextPageClick = useCallback(() => {
         setPage(prev => prev + 1)
+    }, [])
+
+    // Any filter change restarts at page 1, otherwise a narrow result set
+    // lands on a page that no longer exists
+    const onQueryChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
+        setQuery(e.currentTarget.value)
+        setPage(0)
+    }, [])
+    const onClearQuery = useCallback(() => {
+        setQuery('')
+        setPage(0)
+    }, [])
+    const onToggleUnresolved = useCallback(() => {
+        setOnlyUnresolved(prev => !prev)
+        setPage(0)
     }, [])
 
     ///////////////////////////////////////////////
@@ -49,8 +65,6 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
     const [plexPlaylist, setPlexPlaylist] = useState<GetPlexPlaylistIdResponse>()
     useEffect(() => {
         if (!playlist) return;
-
-        setTotalPages(Math.ceil(playlist.tracks.length / pageSize))
 
         errorBoundary(async () => {
             const playlistResult = await axios.get<GetPlexPlaylistIdResponse>(`/api/playlists/${playlist.id}`)
@@ -309,10 +323,56 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
 
     }, [playlist, newPlaylistName, plexPlaylist, trackSelections, tracks])
 
-    const visibleTracks = playlist.tracks.slice(page * pageSize, (page * pageSize) + pageSize)
+    // Single owner for "which search result belongs to this track" - the filter
+    // and the row renderer must agree or the counts lie
+    const findMatchFor = useCallback((track: { title: string, artists: string[] }) =>
+        tracks.find(item => {
+            const mergedArtistsMatch = track.artists.join(',') == item.artist && track.title === item.title
+            if (mergedArtistsMatch)
+                return true;
+
+            return track.artists.indexOf(item.artist) > -1 && track.title === item.title
+        })
+        , [tracks])
+
+    // Every track is already loaded client-side, so searching covers the whole
+    // playlist rather than the current page
+    const filteredTracks = useMemo(() => {
+        const search = query.trim().toLowerCase();
+        if (!search && !onlyUnresolved)
+            return playlist.tracks;
+
+        return playlist.tracks.filter(track => {
+            const data = findMatchFor(track)
+
+            if (onlyUnresolved && !!data && data.result.length === 1)
+                return false;
+
+            if (!search)
+                return true;
+
+            const haystack = [track.title, track.album, ...track.artists];
+            if (data)
+                data.result.forEach(item => {
+                    haystack.push(item.title, item.artist?.title, item.album?.title)
+                });
+
+            return haystack.some(value => !!value && value.toLowerCase().includes(search));
+        })
+    }, [playlist.tracks, findMatchFor, query, onlyUnresolved])
+
+    const filtering = !!query.trim() || onlyUnresolved;
+    const totalPages = Math.ceil(filteredTracks.length / pageSize)
+    const visibleTracks = filteredTracks.slice(page * pageSize, (page * pageSize) + pageSize)
     let curEnd = (page * pageSize) + pageSize;
-    if (curEnd > playlist.tracks.length)
-        curEnd = playlist.tracks.length;
+    if (curEnd > filteredTracks.length)
+        curEnd = filteredTracks.length;
+
+    // Results can shrink under the current page while tracks are still resolving
+    useEffect(() => {
+        if (page > 0 && page >= totalPages)
+            setPage(Math.max(0, totalPages - 1))
+    }, [page, totalPages])
 
     //////////////////////////////////////////////
     // Handle missing tracks
@@ -461,6 +521,29 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
 
             <Divider sx={{ mt: 1, mb: 1 }} />
             <Stack>
+                <Box display="flex" gap={1} mb={1}>
+                    <TextField
+                        size="small"
+                        fullWidth
+                        placeholder="Search this playlist"
+                        value={query}
+                        onChange={onQueryChange}
+                        InputProps={{
+                            startAdornment: <InputAdornment position="start"><Search fontSize="small" /></InputAdornment>,
+                            endAdornment: !!query && <InputAdornment position="end">
+                                <IconButton size="small" onClick={onClearQuery} aria-label="Clear search"><CloseIcon fontSize="small" /></IconButton>
+                            </InputAdornment>
+                        }}
+                    />
+                    <Tooltip title="Show only tracks that are missing or have more than one candidate">
+                        <Button variant={onlyUnresolved ? 'contained' : 'outlined'} onClick={onToggleUnresolved} sx={{ flexShrink: 0, whiteSpace: 'nowrap' }}>Needs review</Button>
+                    </Tooltip>
+                </Box>
+                {!!filtering &&
+                    <Typography variant="body2" sx={{ mb: 1, color: 'text.secondary' }}>
+                        {filteredTracks.length === 0 ? 'No tracks match' : `${filteredTracks.length} of ${playlist.tracks.length} tracks`}
+                    </Typography>
+                }
                 {totalPages > 1 &&
                     <Box display="flex" mb={1} justifyContent="space-between">
                         <Button variant="contained" disabled={page <= 0} onClick={prevPageClick}>Previous</Button>
@@ -469,15 +552,7 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
                     </Box>
                 }
                 {visibleTracks.map(track => {
-                    const data = tracks.find(item => {
-
-                        const mergedArtistsMatch = track.artists.join(',') == item.artist && track.title === item.title
-                        if (mergedArtistsMatch)
-                            return true;
-
-                        return track.artists.indexOf(item.artist) > -1 && track.title === item.title
-
-                    })
+                    const data = findMatchFor(track)
                     const trackSelectIdx = trackSelections.find(item => track.artists.indexOf(item.artist) > -1 && item.title === track.title)
                     const songIdx = trackSelectIdx ? trackSelectIdx.idx : 0;
                     const loading = loadingTracks && !(tracksLoaded.some(item => item === track.id))
