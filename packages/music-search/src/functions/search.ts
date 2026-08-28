@@ -1,6 +1,7 @@
 import { Track } from "../types/Track";
 import { compareTitles } from '@spotify-to-plex/shared-utils/music/compareTitles';
 import { removeFeaturing } from '@spotify-to-plex/shared-utils/music/removeFeaturing';
+import { compareVersions } from '../utils/compareVersions';
 import { getRuntimeFilters } from "./getRuntimeFilters";
 
 export function search(find: Track, options: Track[], analyze: boolean = false) {
@@ -24,6 +25,7 @@ export function search(find: Track, options: Track[], analyze: boolean = false) 
                 artist: compareTitles(item.artist, find.artist, true),
                 alternativeArtist: compareTitles(removeFeaturing(item.artist), find.artist, true),
                 duration: { similarity: durationSimilarity, available: hasBothDurations },
+                version: compareVersions(item.title, find.title),
             };
 
             return {

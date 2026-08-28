@@ -23,7 +23,8 @@ const FieldSelectorPopup: React.FC<FieldSelectorPopupProps> = ({
         { value: 'album', label: 'Album', description: 'Match by album name' },
         { value: 'artistWithTitle', label: 'Artist with Title', description: 'Match by artist and title combined' },
         { value: 'artistInTitle', label: 'Artist in Title', description: 'Match artist name within track title' },
-        { value: 'duration', label: 'Duration', description: 'Match by track length (similarity only)' }
+        { value: 'duration', label: 'Duration', description: 'Match by track length (similarity only)' },
+        { value: 'version', label: 'Version', description: 'Both titles name the same version (remix, edit, acoustic)' }
     ];
 
     const createFieldClickHandler = useCallback((field: FieldType) => () => {

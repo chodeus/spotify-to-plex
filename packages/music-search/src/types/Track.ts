@@ -13,6 +13,7 @@ export type Track = {
         artistInTitle: { match: boolean; contains: boolean; similarity: number; };
         artistWithTitle: { match: boolean; contains: boolean; similarity: number; };
         duration?: { similarity: number; available: boolean; };
+        version?: { match: boolean; contains: boolean; similarity: number; };
         isMatchingApproach?:boolean;
     };
 };
