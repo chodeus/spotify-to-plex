@@ -3,8 +3,13 @@
 # Two Dockerfiles are built and pushed to a registry from docker-publish.yml.
 language: en-US
 reviews:
-  profile: chill
+  # assertive: chill passed a diff clean that assertive flagged with two Major findings (2026-09-03); the "**" rule keeps style nits out
+  profile: assertive
   request_changes_workflow: false
+  pre_merge_checks:
+    # off: the 80% docstring-coverage warning contradicts the one-line-docstring rule under "**"
+    docstrings:
+      mode: "off"
   high_level_summary: true
   poem: false
   review_status: true
@@ -69,6 +74,32 @@ reviews:
         - Pin third-party actions by commit SHA, not a mutable tag.
         - Never echo a token or interpolate untrusted input (PR title, branch name, issue body) directly into a `run:` block — use an env var.
         - A path filter added or renamed must stay in step with the files the build actually needs, or an image silently stops being rebuilt when they change.
+    - path: "apps/spotify-scraper/**"
+      instructions: |-
+        Flask scraper service (no Spotify credentials; scrapes public playlist pages):
+        - Keep the URL allowlist strict: netloc in open.spotify.com/spotify.com
+          AND first path segment "playlist". Flag anything that accepts other
+          hosts, other resource types, or skips is_valid_spotify_url.
+        - Error bodies stay scrubbed ("Failed to scrape playlist"); the real
+          message goes to the log only. Never return an exception string.
+        - CORS is unrestricted on purpose for the private network; flag a change
+          that pairs it with credentials or a new endpoint that mutates state.
+        - Distinguish "scrape failed" (5xx, retryable) from "playlist is empty"
+          (200 with zero tracks) — the sync worker treats an empty result as
+          "user removed everything".
+    - path: "packages/{http-client,plex-config,plex-helpers,shared-utils}/**/*.ts"
+      instructions: |-
+        Shared Plex plumbing:
+        - The Plex token travels only in the X-Plex-Token HEADER (axiosGet/Post/
+          Put/Delete). Flag any call that puts it in a query string or a logged
+          URL, and any log line that prints request config.
+        - plex.json holds the token in plaintext under STORAGE_DIR; writeJSON is
+          atomic (tmp + rename) and must stay so. Never widen file permissions
+          or write settings from client-side code.
+        - getSettings() returns an EMPTY token when plex.json is missing — callers
+          must treat "" as unauthenticated and stop, never proceed with defaults.
+        - plexTvClient must keep Accept: application/json exactly; plex.tv
+          answers XML to anything else and response.data becomes a string.
     - path: "**"
       instructions: |-
         Applies to every file, whatever the language:
@@ -76,9 +107,16 @@ reviews:
           what a non-obvious block does, or the gotcha it guards. No why/history
           essays, no before/after narrative, no restating the code, no section
           banners. Docstrings: one line unless the signature genuinely cannot
-          carry it.
+          carry it. Never ask for a docstring to be added; a missing docstring
+          is not a finding.
         - The 1-2 line cap wins even inside an already heavily-commented file —
           matching local density is not licence to exceed it.
+        - A comment, docstring, help text, column header, log message or UI label
+          that disagrees with what the code does is a correctness finding, not a
+          stale-comment nit: report it and say which side is wrong.
+        - Do not flag stylistic preferences that are consistent across the file
+          (naming, quoting, import order, formatting, line length). Report
+          correctness, security, data-loss and the classes named above.
 
   tools:
     gitleaks:
