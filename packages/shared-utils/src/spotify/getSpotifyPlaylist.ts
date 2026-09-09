@@ -2,6 +2,34 @@ import { GetSpotifyPlaylist } from "@spotify-to-plex/shared-types/spotify/GetSpo
 import { Page, PlaylistedTrack, SpotifyApi, Track } from "@spotify/web-api-ts-sdk";
 
 
+/**
+ * The first page of a playlist's tracks from the dedicated endpoint. Returns
+ * undefined rather than throwing so a refusal just falls through to whatever
+ * the caller was going to do anyway.
+ */
+async function fetchTracksPage(id: string, accessToken?: string): Promise<Page<PlaylistedTrack<Track>> | null> {
+    if (!accessToken)
+        return null;
+
+    try {
+        const response = await fetch(`https://api.spotify.com/v1/playlists/${id}/tracks?limit=100`, {
+            headers: { 'Authorization': `Bearer ${accessToken}` }
+        });
+
+        if (!response.ok) {
+            console.error(`❌ Playlist ${id} tracks endpoint refused: ${response.status} ${response.statusText}`);
+
+            return null;
+        }
+
+        return await response.json() as Page<PlaylistedTrack<Track>>;
+    } catch (_e: unknown) {
+        console.error(`❌ Playlist ${id} tracks endpoint unreachable`);
+
+        return null;
+    }
+}
+
 export async function getSpotifyPlaylist(api: SpotifyApi, id: string, simplified: boolean) {
 
 
@@ -25,8 +53,14 @@ export async function getSpotifyPlaylist(api: SpotifyApi, id: string, simplified
         // Pick whichever field actually holds a page of tracks: `??` alone would
         // take an `items` field that is present but not a tracks page, and skip
         // a perfectly good legacy `tracks` alongside it.
-        const tracksPage = [(result as any).items, (result as any).tracks]
+        let tracksPage: Page<PlaylistedTrack<Track>> | null | undefined = [(result as any).items, (result as any).tracks]
             .find((page) => Array.isArray(page?.items)) as Page<PlaylistedTrack<Track>> | undefined;
+
+        // A playlist the connected user follows but does not own can come back
+        // with no tracks page at all. Ask the dedicated endpoint before giving
+        // up: the scraper we fall back to only ever sees the first 100 tracks
+        if (!tracksPage?.items)
+            tracksPage = await fetchTracksPage(id, tokenInfo?.access_token);
 
         if (!tracksPage?.items) {
             console.error(`❌ Playlist ${id} response missing tracks page. Most likely fetched with client_credentials — Spotify no longer returns playlist tracks to that auth mode. A user access token is required.`);
