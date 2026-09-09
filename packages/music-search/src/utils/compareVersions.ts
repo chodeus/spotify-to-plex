@@ -139,9 +139,12 @@ export function extractVersion(title: string, filterOutWords: string[], credits:
 /**
  * Whether two titles name the same version. Duration cannot separate two
  * different remixes of equal length, so this compares what the titles claim.
- * `credits` are the acts known to be on the track, which is what tells a
- * collaborator apart from a remixer. Takes its noise words as an argument -
- * callers outside a search have no music-search state set yet.
+ * `credits` are the acts credited on the track being looked for, which is what
+ * tells a collaborator apart from a remixer. Only ever the wanted track's own
+ * credits: the candidate is what is on trial here, so letting its artist tag
+ * vouch for a qualifier lets "Return of the Mack (Mark Morrison vs. Bad
+ * Royale)" pass as a credit. Takes its noise words as an argument - callers
+ * outside a search have no music-search state set yet.
  */
 export function versionsMatch(a: string, b: string, filterOutWords: string[], credits: string[] = []) {
     const versionA = extractVersion(a, filterOutWords, credits);

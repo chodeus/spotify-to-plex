@@ -22,7 +22,7 @@ export function search(find: Track, options: Track[], analyze: boolean = false) 
                 artistWithTitle: compareTitles(item.title, `${find.artist} ${find.title}`, true),
                 artist: compareTitles(item.artist, find.artist, true),
                 alternativeArtist: compareTitles(removeFeaturing(item.artist), find.artist, true),
-                version: compareVersions(item.title, find.originalTitle ?? find.title, [...(find.artists ?? [find.artist]), item.artist]),
+                version: compareVersions(item.title, find.originalTitle ?? find.title, find.artists ?? [find.artist]),
                 duration: { similarity, available: hasBothDurations },
             };
 

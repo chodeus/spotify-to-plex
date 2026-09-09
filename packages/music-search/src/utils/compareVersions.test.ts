@@ -66,6 +66,12 @@ describe('versionsMatch', () => {
             expect(match('DJ Turn It Up', 'DJ Turn It Up - Ben Nicky Remix', ['Dimension', 'Ben Nicky'])).toBe(false);
         });
 
+        // Credits are the wanted track's own. A candidate whose artist tag names
+        // the collaborator must not thereby licence its own qualifier
+        it('rejects a collaboration offered for the plain track', () => {
+            expect(match('Return of the Mack (Mark Morrison vs. Bad Royale)', 'Return of the Mack', ['Mark Morrison'])).toBe(false);
+        });
+
         // Spotify names the live album in the title, Plex leaves it to the album
         // tag. Nothing in the titles can tell these apart, so they stay rejected
         it('rejects a live take whose album carries the only clue', () => {
