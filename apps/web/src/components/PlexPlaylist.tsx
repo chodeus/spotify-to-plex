@@ -38,6 +38,8 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
     const [error, setError] = useState('')
     const [query, setQuery] = useState<string>('')
     const [showReview, setShowReview] = useState<boolean>(false)
+    const reviewPageSize = 10;
+    const [reviewPage, setReviewPage] = useState<number>(0);
     const prevPageClick = useCallback(() => {
         setPage(prev => prev - 1)
     }, [])
@@ -55,8 +57,6 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
         setQuery('')
         setPage(0)
     }, [])
-    const reviewPageSize = 10;
-    const [reviewPage, setReviewPage] = useState<number>(0);
     const onToggleReview = useCallback(() => {
         setShowReview(prev => !prev)
         setReviewPage(0)
@@ -407,8 +407,9 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
         })
     }, [playlist.tracks, findMatchFor, query])
 
-    // Only ambiguous matches - tracks with nothing at all are the missing-tracks
-    // dialog's job, and listing them in both is just the same problem twice
+    // Matched to more than one candidate - the rows worth a human look. Tracks with
+    // nothing at all are the missing-tracks dialog's job, and listing them in both
+    // is the same problem shown twice
     const reviewTracks = useMemo(() =>
         playlist.tracks.filter(track => {
             const data = findMatchFor(track)
@@ -420,7 +421,7 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
     const reviewTotalPages = Math.ceil(reviewTracks.length / reviewPageSize)
     const visibleReviewTracks = reviewTracks.slice(reviewPage * reviewPageSize, (reviewPage * reviewPageSize) + reviewPageSize)
 
-    // Fixing a match drops it from the list, which can empty the current page
+    // Resolving a track drops it from the list, which can empty the current page
     useEffect(() => {
         if (reviewPage > 0 && reviewPage >= reviewTotalPages)
             setReviewPage(Math.max(0, reviewTotalPages - 1))

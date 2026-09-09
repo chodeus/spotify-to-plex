@@ -21,7 +21,7 @@ type ParsedExpression = {
 /**
  * Safely parse expression syntax into executable filter function
  * Expression format: "artist:match AND title:contains"
- * Supported fields: artist, title, album, artistWithTitle, artistInTitle, duration, version
+ * Supported fields: artist, title, album, artistWithTitle, artistInTitle, version, duration
  * Supported operations: :match, :contains, :is, :not, :similarity>=threshold
  * Supported combinators: AND, OR
  */
@@ -94,7 +94,7 @@ function parseCondition(conditionStr: string): ParsedCondition {
     }
 
     // Validate field
-    const validFields = ['artist', 'title', 'album', 'artistWithTitle', 'artistInTitle', 'duration', 'version'];
+    const validFields = ['artist', 'title', 'album', 'artistWithTitle', 'artistInTitle', 'version', 'duration'];
 
     if (!validFields.includes(field)) {
         throw new Error(`Invalid field: ${field}`);
@@ -220,7 +220,9 @@ function getMatchingField(item: Track, field: string) {
         case 'version':
             return item.matching.version ?? null;
         case 'duration': {
-            // duration only supports :similarity — 0 when either side lacks a duration
+            // Only :similarity is meaningful here. A missing duration on either
+            // side scores 0, so a duration-guarded row fails closed and the
+            // later rows still get their turn
             const { duration } = item.matching;
 
             return duration ? { match: false, contains: false, similarity: duration.similarity } : null;

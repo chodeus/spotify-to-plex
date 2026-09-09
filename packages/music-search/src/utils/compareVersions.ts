@@ -1,17 +1,36 @@
 import { getState } from "../functions/state/getState";
 
 // "(radio edit)", "[live]", "{dub}" and the trailing " - Radio Edit" form Spotify uses
-const BRACKETED = /\(([^)]*)\)|\[([^\]]*)]|\{([^}]*)}/g;
+const BRACKETED = /\(([^)]*)\)|\[([^\]]*)]|{([^}]*)}/g;
 const TRAILING_DASH = /\s-\s(.+)$/;
 
 // "(feat. X)", "(with X)", "(& X)" - a credit, not a version of the recording
-const CREDIT = /^(feat|feats|featuring|ft|with|w)\b|^[&+]/;
+const CREDIT = /^(?:feat|feats|featuring|ft|with|w)\b|^[&+]/;
 // "From \"8 Mile\" Soundtrack" - provenance, not a version
 const PROVENANCE = /^from\b/;
-const YEAR = /\b(19|20)\d{2}\b/g;
-// Qualifiers that name no particular version
-// Longest first: "main mix" must be removed whole, or "main" leaves a bare "mix"
+const YEAR = /\b(?:19|20)\d{2}\b/g;
+
+// Qualifiers that name no particular version. Longest first so "main mix" is
+// removed whole rather than leaving a bare "mix" behind
 const STRUCTURAL = ['album version', 'bonus track', 'main mix', 'radio mix', 'main', 'deluxe', 'explicit', 'clean', 'mono', 'stereo'];
+
+// A fragment shorter than this carries no version meaning on its own
+const MIN_QUALIFIER_LENGTH = 3;
+
+function escapeForRegex(word: string) {
+    return word.replace(/[$()*+.?[\\\]^{|}]/g, String.raw`\$&`);
+}
+
+/**
+ * Remove a noise word, but only where it stands as a whole word. Removing it as
+ * a plain substring would eat the middle of real words - "main" out of
+ * "Germaine", "clean" out of "cleaner" - and silently invent a version match
+ */
+function removeWord(text: string, word: string) {
+    const pattern = new RegExp(String.raw`\b${escapeForRegex(word.toLowerCase())}\b`, 'g');
+
+    return text.replace(pattern, ' ');
+}
 
 /**
  * The version qualifier of a title - "acoustic", "jauz remix", "uk edit" - or ''
@@ -33,13 +52,17 @@ export function extractVersion(title: string, filterOutWords: string[]): string 
         .filter(segment => !CREDIT.test(segment) && !PROVENANCE.test(segment))
         .map(segment => {
             let result = segment;
-            for (const word of [...filterOutWords, ...STRUCTURAL])
-                result = result.split(word.toLowerCase()).join(' ');
 
-            return result.replace(YEAR, ' ').replace(/[^\d a-z]/g, '').replace(/\s+/g, ' ').trim();
+            for (const word of [...filterOutWords, ...STRUCTURAL])
+                result = removeWord(result, word);
+
+            return result
+                .replace(YEAR, ' ')
+                .replace(/[^\d a-z]/g, '')
+                .replace(/\s+/g, ' ')
+                .trim();
         })
-        // A qualifier reduced to a fragment carries no version meaning
-        .filter(segment => segment.length > 2);
+        .filter(segment => segment.length >= MIN_QUALIFIER_LENGTH);
 
     return meaningful.join(' ');
 }
