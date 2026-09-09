@@ -15,7 +15,7 @@
         "@spotify-to-plex/plex-config": "workspace:*",
         "@spotify-to-plex/shared-types": "workspace:*",
         "@spotify-to-plex/shared-utils": "workspace:*",
-        "axios": "^1.0.0"
+        "axios": "^1.20.0"
     },
     "devDependencies": {
         "typescript": "^5.0.0"
