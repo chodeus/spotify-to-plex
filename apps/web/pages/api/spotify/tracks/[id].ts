@@ -1,9 +1,10 @@
 import { generateError } from '@/helpers/errors/generateError';
 import { Track } from '@spotify-to-plex/shared-types/spotify/Track';
-import { extractTrackId, isLocalTrack } from '@spotify-to-plex/shared-utils/spotify/extractTrackId';
 import { SpotifyApi } from '@spotify/web-api-ts-sdk';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createRouter } from 'next-connect';
+import { isLocalTrack } from '@spotify-to-plex/shared-utils/spotify/isLocalTrack';
+import { extractTrackId } from '@spotify-to-plex/shared-utils/spotify/extractTrackId';
 
 export type GetSpotifyTrackByIdResponse = Track
 
@@ -15,18 +16,14 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
             if (typeof id !== 'string')
                 return res.status(400).json({ error: "Track ID missing" })
 
+            // A local file is not in spotify's catalogue, so there is nothing to fetch
+            if (isLocalTrack(id))
+                return res.status(404).json({ error: "Local files have no Spotify track data" })
+
             if (!process.env.SPOTIFY_API_CLIENT_ID || !process.env.SPOTIFY_API_CLIENT_SECRET)
                 return res.status(400).json({ error: "Spotify Credentials missing. Please add the environment variables to use this feature." })
 
-            // Check if it's a local track
-            if (isLocalTrack(id)) {
-                return res.status(400).json({ error: "Local Spotify tracks cannot be looked up via API" })
-            }
-
-            // Extract track ID from Spotify URI
-            const trackId = extractTrackId(id);
-            if (!trackId)
-                return res.status(400).json({ error: "Invalid track ID" })
+            const trackId = extractTrackId(id) ?? id;
 
             try {
                 const api = SpotifyApi.withClientCredentials(process.env.SPOTIFY_API_CLIENT_ID, process.env.SPOTIFY_API_CLIENT_SECRET);

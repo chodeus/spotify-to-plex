@@ -1,7 +1,6 @@
 import { GetTidalTracksResponse } from "@/pages/api/tidal";
 import { Alert, Box, Button, Divider, Typography } from "@mui/material";
 import { Track } from "@spotify-to-plex/shared-types/spotify/Track";
-import { extractTrackId } from "@spotify-to-plex/shared-utils/spotify/extractTrackId";
 import axios from "axios";
 import { forwardRef, useCallback, useImperativeHandle, useMemo, useRef, useState } from "react";
 
@@ -217,10 +216,10 @@ const MissingTrack = forwardRef<MissingTrackHandle, MissingTrackProps>((props, r
     }, [sendToSlskd]);
 
 
-    const spotifyId = useMemo(() => {
+    const spotifyId = useMemo(()=>{
         if (!track.id) return null;
 
-        return extractTrackId(track.id);
+        return track.id.replace('spotify:track:', '');
     }, [track.id]);
 
     return (
@@ -284,7 +283,7 @@ const MissingTrack = forwardRef<MissingTrackHandle, MissingTrackProps>((props, r
                     )}
 
                     {/* Spotify Button */}
-                    {!!spotifyId &&
+                    {!!spotifyId && 
                         <Box>
                             <Button
                                 component="a"

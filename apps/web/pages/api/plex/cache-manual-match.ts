@@ -1,52 +1,30 @@
 import { generateError } from '@/helpers/errors/generateError';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { getStorageDir } from '@spotify-to-plex/shared-utils/utils/getStorageDir';
-import type { TrackLink } from '@spotify-to-plex/shared-types/common/track';
+import { setManualTrackLink } from '@spotify-to-plex/shared-utils/cache/setManualTrackLink';
+
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createRouter } from 'next-connect';
 
 const router = createRouter<NextApiRequest, NextApiResponse>()
     .post(
         async (req, res) => {
+            const { spotifyId, plexId } = req.body;
+
+            if (typeof spotifyId !== 'string' || !spotifyId.trim() || typeof plexId !== 'string' || !plexId.trim())
+                return res.status(400).json({ error: "Missing spotifyId or plexId" });
+
             try {
-                const { spotifyId, title, artist, plexTrack } = req.body;
+                setManualTrackLink(spotifyId, plexId);
 
-                if (!spotifyId || !title || !artist || !plexTrack) {
-                    return res.status(400).json({ error: 'Missing required fields' });
-                }
-
-                // Read the existing cache
-                const path = join(getStorageDir(), 'track_links.json');
-                let allLinks: TrackLink[] = [];
-
-                if (existsSync(path)) {
-                    allLinks = JSON.parse(readFileSync(path, 'utf8'));
-                }
-
-                // Find or create the track link
-                let trackLink = allLinks.find(item => item.spotify_id === spotifyId);
-                if (!trackLink) {
-                    trackLink = { spotify_id: spotifyId };
-                    allLinks.push(trackLink);
-                }
-
-                // Add the plex_id (replace if it exists, since this is a manual selection)
-                trackLink.plex_id = [plexTrack.id];
-                trackLink.manual = true;
-
-                // Write back to cache
-                writeFileSync(path, JSON.stringify(allLinks, undefined, 4));
-
-                res.status(200).json({ success: true });
+                return res.json({ success: true });
             } catch (error) {
-                res.status(500).json({ error: error instanceof Error ? error.message : 'Failed to cache manual match' });
+                console.error('Error caching manual match:', error);
+
+                return res.status(500).json({ error: 'Failed to save the manual match' });
             }
         })
 
 export default router.handler({
     onError: (err: unknown, req: NextApiRequest, res: NextApiResponse) => {
-        console.log(err)
-        generateError(req, res, "Cache Manual Match", err);
+        generateError(req, res, "Cache manual match", err);
     }
 });

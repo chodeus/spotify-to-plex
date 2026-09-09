@@ -1,7 +1,8 @@
 import { generateError } from '@/helpers/errors/generateError';
 import { TrackLink } from '@spotify-to-plex/shared-types/common/track';
-import { extractTrackId, isLocalTrack } from '@spotify-to-plex/shared-utils/spotify/extractTrackId';
 import { getStorageDir } from "@spotify-to-plex/shared-utils/utils/getStorageDir";
+import { isLocalTrack } from '@spotify-to-plex/shared-utils/spotify/isLocalTrack';
+import { extractTrackId } from '@spotify-to-plex/shared-utils/spotify/extractTrackId';
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createRouter } from 'next-connect';
@@ -54,18 +55,10 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
 
                 default:
                 case "spotify":
-                    res.send(trackIds.map(id => {
-                        // Skip local tracks - they cannot be shared as Spotify links
-                        if (isLocalTrack(id)) {
-                            return `(local track: ${id})`;
-                        }
-
-                        const cleanId = extractTrackId(id);
-                        if (!cleanId) return '';
-
-                        return `https://open.spotify.com/track/${cleanId}`
-
-                    }).filter(Boolean)
+                    res.send(trackIds
+                        // A local file has no public spotify url
+                        .filter(id => !isLocalTrack(id))
+                        .map(id => `https://open.spotify.com/track/${extractTrackId(id)}`)
                         .join('\n'))
                     break;
             }
