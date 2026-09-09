@@ -30,19 +30,11 @@ module.exports = {
         '@spotify-to-plex/http-client',
         '@spotify-to-plex/plex-config',
         '@spotify-to-plex/plex-helpers'
-    ],
-    
-    async headers() {
-        return [
-            {
-                source: "/:path*",
-                headers: [
-                    { key: "Access-Control-Allow-Credentials", value: "true" },
-                    { key: "Access-Control-Allow-Origin", value: "*" }, // replace this your actual origin
-                    { key: "Access-Control-Allow-Methods", value: "GET,DELETE,PATCH,POST,PUT,OPTIONS" },
-                    { key: "Access-Control-Allow-Headers", value: "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version" }
-                ]
-            }
-        ]
-    }
+    ]
+
+    // No CORS headers: the UI is served from the same origin as the API, so it
+    // needs none. This previously sent Access-Control-Allow-Origin "*" on every
+    // path, which let any site the user visited read from and post to the
+    // instance. Add an explicit origin allowlist here if a cross-origin client
+    // is ever needed.
 }
