@@ -1,8 +1,7 @@
-import axios from 'axios';
 import { MusicBrainzTextSearchResponse } from '@spotify-to-plex/shared-types/musicbrainz/MusicBrainzTextSearchResponse';
 import { MusicBrainzLookup } from '@spotify-to-plex/shared-types/musicbrainz/MusicBrainzLookup';
 import { rateLimitDelay } from './utils/rateLimitDelay';
-import { withRetry } from './utils/withRetry';
+import { musicBrainzGet } from './utils/musicBrainzGet';
 import { validateMusicBrainzMatch } from './validateMusicBrainzMatch';
 
 // Enough candidates to get past a stronger-scoring wrong answer. The right
@@ -33,7 +32,7 @@ export async function getMusicBrainzIdsByTextSearch(artistName: string, albumNam
         let searchResponse;
         try {
             const searchUrl = `https://musicbrainz.org/ws/2/release-group/?query=${encodeURIComponent(query)}&fmt=json&limit=${SEARCH_LIMIT}`;
-            searchResponse = await withRetry(() => axios.get<MusicBrainzTextSearchResponse>(searchUrl));
+            searchResponse = await musicBrainzGet<MusicBrainzTextSearchResponse>(searchUrl);
         } catch (_e: unknown) {
             // A MusicBrainz that errored told us nothing - saying "not found"
             // here would cache an outage as a permanent miss

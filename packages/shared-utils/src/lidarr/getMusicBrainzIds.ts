@@ -1,8 +1,7 @@
-import axios from 'axios';
 import { MusicBrainzLookup } from '@spotify-to-plex/shared-types/musicbrainz/MusicBrainzLookup';
 import { getMusicBrainzCache } from '../cache/getMusicBrainzCache';
 import { rateLimitDelay } from './utils/rateLimitDelay';
-import { withRetry } from './utils/withRetry';
+import { musicBrainzGet } from './utils/musicBrainzGet';
 import { isTransientError } from './utils/isTransientError';
 import { getMusicBrainzIdsByTextSearch } from './getMusicBrainzIdsByTextSearch';
 
@@ -65,7 +64,7 @@ type MusicBrainzReleaseResponse = {
 async function lookupBySpotifyUrl(spotifyAlbumId: string): Promise<MusicBrainzLookup> {
     try {
         const urlApiUrl = `https://musicbrainz.org/ws/2/url?resource=https://open.spotify.com/album/${spotifyAlbumId}&fmt=json&inc=release-rels`;
-        const urlResponse = await withRetry(() => axios.get<MusicBrainzUrlResponse>(urlApiUrl));
+        const urlResponse = await musicBrainzGet<MusicBrainzUrlResponse>(urlApiUrl);
 
         const releaseRelation = urlResponse.data.relations?.find(
             rel => rel.direction === 'backward' && rel['target-type'] === 'release' && rel.release
@@ -78,7 +77,7 @@ async function lookupBySpotifyUrl(spotifyAlbumId: string): Promise<MusicBrainzLo
         await rateLimitDelay();
 
         const releaseApiUrl = `https://musicbrainz.org/ws/2/release/${releaseId}?inc=release-groups+artist-credits&fmt=json`;
-        const releaseResponse = await withRetry(() => axios.get<MusicBrainzReleaseResponse>(releaseApiUrl));
+        const releaseResponse = await musicBrainzGet<MusicBrainzReleaseResponse>(releaseApiUrl);
 
         const releaseGroupId = releaseResponse.data['release-group']?.id;
         const artistId = releaseResponse.data['artist-credit']?.[0]?.artist?.id;
