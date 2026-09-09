@@ -6,6 +6,11 @@ export type Track = {
     album?: string
     duration_ms?: number
     reason?: string
+    // The title before search text-processing. The trimming approaches cut a
+    // title at "(", which would hide the very qualifier a version check reads
+    originalTitle?: string
+    // Every credited act, so a collaborator in brackets reads as a credit
+    artists?: string[]
     matching?: {
         album: { match: boolean; contains: boolean; similarity: number; };
         title: { match: boolean; contains: boolean; similarity: number; };

@@ -35,7 +35,7 @@ export async function newTrackSearch(approaches: PlexMusicSearchApproach[], sear
                 if (!artist)
                     continue;
 
-                const searchResult = await tryApproachWithArtist(approach, { id, artist, title, album, duration_ms }, analyze);
+                const searchResult = await tryApproachWithArtist(approach, { id, artist, title, album, duration_ms, artists, originalTitle: title }, analyze);
                 if (searchResult) {
                     allQueries.push(...searchResult.queries);
 
@@ -77,7 +77,7 @@ export async function newTrackSearch(approaches: PlexMusicSearchApproach[], sear
 
 
 // Helper function to safely try an approach with an artist
-type SearchParams = { id: string; artist: string; title: string; album: string; duration_ms?: number };
+type SearchParams = { id: string; artist: string; title: string; album: string; duration_ms?: number; artists: string[]; originalTitle: string };
 
 async function tryApproachWithArtist(approach: PlexMusicSearchApproach, searchParams: SearchParams, analyze: boolean = false): Promise<{ queries: SearchQuery[]; result: PlexTrack[] } | null> {
     try {
@@ -88,7 +88,7 @@ async function tryApproachWithArtist(approach: PlexMusicSearchApproach, searchPa
 }
 
 async function performApproachSearch(approach: PlexMusicSearchApproach, searchParams: SearchParams, analyze: boolean = false): Promise<{ queries: SearchQuery[]; result: PlexTrack[] }> {
-    const { id, artist, title, album, duration_ms } = searchParams;
+    const { id, artist, title, album, duration_ms, artists, originalTitle } = searchParams;
     const config = getConfig();
 
     if (!config)
@@ -113,7 +113,7 @@ async function performApproachSearch(approach: PlexMusicSearchApproach, searchPa
 
         // const searchHandler = searchAlbumTracks ? searchForAlbumTracks : searchForTrack;
         const searchResults = await searchForTrack(config.uri, config.token, artist, title, album);
-        const musicSearchResult = musicSearch({ id, artist, title, album, duration_ms }, searchResultToTracks(searchResults), analyze);
+        const musicSearchResult = musicSearch({ id, artist, title, album, duration_ms, artists, originalTitle }, searchResultToTracks(searchResults), analyze);
 
         const plexTracks = musicSearchResult
             .map((item: Track) => {
