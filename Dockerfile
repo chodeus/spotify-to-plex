@@ -52,6 +52,8 @@ ENV DEBIAN_FRONTEND=noninteractive \
 RUN apt-get update && apt-get install -y --no-install-recommends \
     # Basic tools
     curl wget git ca-certificates gnupg \
+    # Without this TZ names nothing: date and the scraper's log stamps stay UTC
+    tzdata \
     # Python 3.11 and pip first (needed for newer supervisor)
     python3.11 python3-pip \
     # Build tools for Python packages
