@@ -1,4 +1,4 @@
-import axios from 'axios';
+import { isTransientError } from './isTransientError';
 
 /**
  * Helper to perform HTTP request with one retry attempt
@@ -8,12 +8,8 @@ export async function withRetry<T>(fn: () => Promise<T>, retryDelay: number = 20
     try {
         return await fn();
     } catch (error) {
-        // Check if error is retryable (503, 429, network errors)
-        const isRetryable = axios.isAxiosError(error) &&
-            (error.response?.status === 503 ||
-                error.response?.status === 429 ||
-                error.code === 'ECONNRESET' ||
-                error.code === 'ETIMEDOUT');
+        // Same test the callers use to decide a failure is not an answer
+        const isRetryable = isTransientError(error);
 
         if (isRetryable) {
             await new Promise(resolve => { setTimeout(resolve, retryDelay) });

@@ -9,6 +9,15 @@ type MusicBrainzAlbumCache = {
     cached_at: number; // Unix timestamp
 }
 
+type MusicBrainzAlbumMiss = {
+    spotify_album_id: string;
+    cached_at: number;
+}
+
+// Long enough that a compilation MusicBrainz will never carry stops costing two
+// requests every night, short enough that a release added later is still found
+const MISS_TTL_MS = 14 * 24 * 60 * 60 * 1000;
+
 export function getMusicBrainzCache() {
     //////////////////////////////////////
     // Handling cached MusicBrainz links
@@ -18,6 +27,32 @@ export function getMusicBrainzCache() {
 
     if (existsSync(path))
         all = JSON.parse(readFileSync(path, 'utf8'))
+
+    // Misses live in their own file so a miss can never be read as a mapping,
+    // and so deleting them is a matter of deleting one file
+    const missPath = join(getStorageDir(), 'album_musicbrainz_misses.json')
+    let misses: MusicBrainzAlbumMiss[] = []
+
+    if (existsSync(missPath))
+        misses = JSON.parse(readFileSync(missPath, 'utf8'))
+
+    /**
+     * Whether a lookup for this album recently completed and found nothing.
+     * Only ever set for a search that actually answered - never for one that
+     * failed - so an unreachable MusicBrainz cannot become a lasting miss
+     */
+    const hasRecentMiss = (spotifyAlbumId: string) => {
+        const miss = misses.find(item => item.spotify_album_id === spotifyAlbumId)
+
+        return !!miss && Date.now() - miss.cached_at < MISS_TTL_MS
+    }
+
+    const addMiss = (spotifyAlbumId: string) => {
+        misses = misses.filter(item => item.spotify_album_id !== spotifyAlbumId)
+        misses.push({ spotify_album_id: spotifyAlbumId, cached_at: Date.now() })
+
+        writeFileSync(missPath, JSON.stringify(misses, undefined, 4))
+    }
 
     /**
      * Get cached MusicBrainz data for a Spotify album
@@ -75,5 +110,5 @@ export function getMusicBrainzCache() {
         writeFileSync(path, JSON.stringify(all, undefined, 4))
     }
 
-    return { path, all, get, add, addBatch }
+    return { path, all, get, add, addBatch, hasRecentMiss, addMiss }
 }

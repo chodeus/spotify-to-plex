@@ -48,7 +48,14 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
 
             // Step 1: Get MusicBrainz IDs (with fallback using artist/album names)
             const musicBrainzIds = await getMusicBrainzIds(spotify_album_id, artist_name, album_name);
-            if (!musicBrainzIds) {
+            if (musicBrainzIds.status === 'unavailable') {
+                return res.status(503).json({
+                    success: false,
+                    message: 'MusicBrainz is unavailable, please try again',
+                });
+            }
+
+            if (musicBrainzIds.status !== 'found') {
                 return res.status(404).json({
                     success: false,
                     message: `No MusicBrainz mapping found for Spotify album: ${spotify_album_id}`,

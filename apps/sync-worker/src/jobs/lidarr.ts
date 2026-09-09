@@ -136,11 +136,16 @@ export async function syncLidarr() {
                 // STEP 1: Get MusicBrainz IDs (with fallback using artist/album names)
                 const musicBrainzIds = await getMusicBrainzIds(album.spotify_album_id, album.artist_name, album.album_name);
 
-                if (!musicBrainzIds) {
-                    albumLog.status = 'not_found';
-                    albumLog.error = 'No MusicBrainz mapping found';
+                if (musicBrainzIds.status !== 'found') {
+                    // An unreachable MusicBrainz is this run's problem, not a
+                    // verdict on the album - logging it as not_found reads as
+                    // "this album does not exist", and it is retried next sync
+                    const unavailable = musicBrainzIds.status === 'unavailable';
+                    albumLog.status = unavailable ? 'error' : 'not_found';
+                    albumLog.error = unavailable ? 'MusicBrainz unavailable, retrying next sync' : 'No MusicBrainz mapping found';
                     albumLog.end = Date.now();
-                    notFoundCount++;
+                    errorCount += unavailable ? 1 : 0;
+                    notFoundCount += unavailable ? 0 : 1;
                     lidarrLogs[logId] = albumLog;
                     continue;
                 }
