@@ -12,11 +12,23 @@ export function savedItemsHelpers() {
     if (existsSync(savedItemsPath))
         items = JSON.parse(readFileSync(savedItemsPath, 'utf8'));
 
+    let added = false;
+
     const add = (toAdd: SavedItem) => {
-        if (!items.some(item => item.uri == toAdd.uri))
+        if (!items.some(item => item.uri == toAdd.uri)) {
             items.push(toAdd)
+            added = true
+        }
     }
+
+    // `items` is a snapshot taken when this job started, so writing it back
+    // whole would undo anything removed in the meantime - a sync run is long
+    // enough to cover someone deleting an item in the UI. Nothing added means
+    // nothing to write.
     const save = () => {
+        if (!added)
+            return;
+
         writeFileSync(savedItemsPath, JSON.stringify(items, undefined, 4))
     }
 

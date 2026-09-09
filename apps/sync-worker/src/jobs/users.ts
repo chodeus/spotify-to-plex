@@ -46,6 +46,13 @@ export async function syncUsers() {
                 if (!user.sync)
                     continue;
 
+                // The settings dialog offers this as a switch of its own and reads
+                // it back as off when unset, but nothing here ever asked. Adding a
+                // playlist to the sync list is not something to do unrequested:
+                // one track played from a shared link was enough to enrol it
+                if (!user.recentContext)
+                    continue;
+
                 const accessToken = await getAccessToken(user.id)
                 if (!accessToken)
                     continue;
