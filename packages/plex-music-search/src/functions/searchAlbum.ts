@@ -42,7 +42,7 @@ export async function searchAlbum(config: PlexMusicSearchConfig, tracks: PlexMus
 
         for (let i = 0; i < find.artists.length; i++) {
             const artist = find.artists[i];
-            const result = search({ id, title, album: album || '', artist: artist || '' }, tracks);
+            const result = search({ id, title, album: album || '', artist: artist || '', artists: find.artists }, tracks);
             if (result.length > 0) {
                 return result;
             }

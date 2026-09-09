@@ -34,7 +34,7 @@ export async function newTrackSearch(approaches: TidalMusicSearchApproach[], sea
                 if (!artist)
                     continue;
 
-                const searchResult = await tryApproachWithArtist(approach, { id, artist, title, album }, analyze);
+                const searchResult = await tryApproachWithArtist(approach, { id, artist, title, album, artists, originalTitle: title }, analyze);
                 if (searchResult) {
                     allQueries.push(...searchResult.queries);
 
@@ -74,7 +74,7 @@ export async function newTrackSearch(approaches: TidalMusicSearchApproach[], sea
 
 
 // Helper function to safely try an approach with an artist
-type SearchParams = { id: string; artist: string; title: string; album: string };
+type SearchParams = { id: string; artist: string; title: string; album: string; artists: string[]; originalTitle: string };
 
 async function tryApproachWithArtist(approach: TidalMusicSearchApproach, searchParams: SearchParams, analyze: boolean = false): Promise<{ queries: SearchQuery[]; result: TidalTrack[] } | null> {
     try {
@@ -85,7 +85,7 @@ async function tryApproachWithArtist(approach: TidalMusicSearchApproach, searchP
 }
 
 async function performApproachSearch(approach: TidalMusicSearchApproach, searchParams: SearchParams, analyze: boolean = false): Promise<{ queries: SearchQuery[]; result: TidalTrack[] }> {
-    const { id, artist, title, album } = searchParams;
+    const { id, artist, title, album, artists, originalTitle } = searchParams;
     const config = getConfig();
 
     if (!config)
@@ -109,7 +109,7 @@ async function performApproachSearch(approach: TidalMusicSearchApproach, searchP
             return foundCache;
 
         const searchResults = await searchForTrack(artist, title, album);
-        const musicSearchResult = musicSearch({ id, artist, title, album }, searchResultToTracks(searchResults), analyze);
+        const musicSearchResult = musicSearch({ id, artist, title, album, artists, originalTitle }, searchResultToTracks(searchResults), analyze);
 
         const tidalTracks = musicSearchResult
             .map((item: Track) => {

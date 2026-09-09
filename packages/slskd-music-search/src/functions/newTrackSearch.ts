@@ -54,7 +54,7 @@ export async function newTrackSearch(approaches: SlskdMusicSearchApproach[], sea
 
             const searchResult = await tryApproachWithArtist(
                 approach,
-                { id, artist, title, album },
+                { id, artist, title, album, artists, originalTitle: title },
                 analyze,
                 executedQueries
             );
@@ -122,7 +122,7 @@ async function tryApproachWithArtist(approach: SlskdMusicSearchApproach, searchP
 }
 
 async function performApproachSearch(approach: SlskdMusicSearchApproach, searchParams: SearchParams, analyze: boolean, executedQueries: Set<string>) {
-    const { id, artist, title, album } = searchParams;
+    const { id, artist, title, album, artists, originalTitle } = searchParams;
     const config = getConfig();
 
     if (!config)
@@ -154,7 +154,7 @@ async function performApproachSearch(approach: SlskdMusicSearchApproach, searchP
     const performSearch = async (approach: string, artist: string, title: string, album: string) => {
         const searchResults = await searchForTrack(artist, title, album);
         const convertedTracks = slskdResultToTracks(searchResults);
-        const musicSearchResult = musicSearch({ id, artist, title, album }, convertedTracks, analyze);
+        const musicSearchResult = musicSearch({ id, artist, title, album, artists, originalTitle }, convertedTracks, analyze);
 
         console.log(`[performSearch] approach=${approach}, analyze=${analyze}:`, {
             searchResultsCount: searchResults.length,
@@ -208,4 +208,4 @@ async function performApproachSearch(approach: SlskdMusicSearchApproach, searchP
 ////////////////////////////////////////////
 // Types
 ////////////////////////////////////////////
-type SearchParams = { id: string; artist: string; title: string; album: string };
+type SearchParams = { id: string; artist: string; title: string; album: string; artists: string[]; originalTitle: string };

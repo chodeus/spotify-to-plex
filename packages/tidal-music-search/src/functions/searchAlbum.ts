@@ -52,7 +52,7 @@ export async function searchAlbum(config: TidalMusicSearchConfig, tracks: TidalM
         for (let i = 0; i < find.artists.length; i++) {
             const artist = find.artists[i];
             if (artist && album) {
-                const result = musicSearch({ id, title, album, artist }, tracks);
+                const result = musicSearch({ id, title, album, artist, artists: find.artists }, tracks);
                 if (result.length > 0) {
                     return result;
                 }
