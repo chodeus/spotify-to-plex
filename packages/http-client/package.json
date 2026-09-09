@@ -34,8 +34,8 @@
     "axios": "^1.20.0"
   },
   "devDependencies": {
-    "@types/node": "^20.19.11",
-    "typescript": "^5.3.3"
+    "@types/node": "^20.19.43",
+    "typescript": "^5.9.3"
   },
   "peerDependencies": {
     "typescript": ">=5.0.0"

@@ -16,7 +16,9 @@
       "default": "./dist/*/*/*.js"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc",
     "type-check": "tsc --noEmit",
@@ -26,12 +28,12 @@
   },
   "dependencies": {
     "@spotify-to-plex/shared-utils": "workspace:*",
-    "fs-extra": "^11.3.1"
+    "fs-extra": "^11.4.0"
   },
   "devDependencies": {
     "@types/fs-extra": "^11.0.4",
-    "@types/node": "^20.19.11",
-    "typescript": "^5.7.2"
+    "@types/node": "^20.19.43",
+    "typescript": "^5.9.3"
   },
   "peerDependencies": {
     "typescript": ">=4.5.0"

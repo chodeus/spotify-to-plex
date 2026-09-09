@@ -17,7 +17,7 @@
     "@emotion/styled": "^11.14.1",
     "@monaco-editor/react": "^4.7.0",
     "@mui/icons-material": "^6.5.0",
-    "@mui/lab": "^6.0.0-alpha.134",
+    "@mui/lab": "6.0.0-dev.20240529-082515-213b5e33ab",
     "@mui/material": "^6.5.0",
     "@spotify-to-plex/http-client": "workspace:*",
     "@spotify-to-plex/plex-config": "workspace:*",
@@ -30,22 +30,22 @@
     "@spotify/web-api-ts-sdk": "^1.2.0",
     "axios": "^1.20.0",
     "moment": "^2.30.1",
-    "next": "^14.2.32",
+    "next": "^15.5.25",
     "next-connect": "^1.0.0",
     "notistack": "^3.0.2",
-    "qs": "^6.14.0",
+    "qs": "^6.16.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-selection-manager": "^0.0.6",
-    "sass": "^1.90.0"
+    "sass": "^1.104.0"
   },
   "devDependencies": {
-    "@types/node": "^20.19.11",
-    "@types/qs": "^6.14.0",
-    "@types/react": "^18.3.23",
+    "@types/node": "^20.19.43",
+    "@types/qs": "^6.15.1",
+    "@types/react": "^18.3.31",
     "@types/react-dom": "^18.3.7",
-    "eslint": "^8.57.0",
-    "typescript": "^5.7.2"
+    "eslint": "^8.57.1",
+    "typescript": "^5.9.3"
   },
   "engines": {
     "node": ">=18.0.0",

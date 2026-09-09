@@ -39,17 +39,16 @@
         "@spotify-to-plex/tidal-music-search": "workspace:*",
         "@spotify/web-api-ts-sdk": "^1.2.0",
         "axios": "^1.20.0",
-        "mqtt": "^5.10.1",
+        "mqtt": "^5.15.2",
         "node-cron": "^3.0.3",
-        "tsx": "^4.20.6"
+        "tsx": "^4.23.13"
     },
     "devDependencies": {
-        "@types/mqtt": "^2.5.0",
-        "@types/node": "^20.19.11",
+        "@types/node": "^20.19.43",
         "@types/node-cron": "^3.0.11",
         "dotenv-cli": "^7.4.4",
-        "eslint": "^8.57.0",
-        "typescript": "^5.7.2",
+        "eslint": "^8.57.1",
+        "typescript": "^5.9.3",
         "vitest": "^2.1.9"
     },
     "engines": {

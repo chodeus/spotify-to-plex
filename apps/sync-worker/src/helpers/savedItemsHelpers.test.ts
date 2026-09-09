@@ -10,7 +10,7 @@ let file: string;
 
 const item = (uri: string): SavedItem => ({
     type: 'spotify-playlist', uri, id: uri.split(':').pop() ?? uri, title: uri, image: ''
-} as SavedItem);
+});
 
 const write = (items: SavedItem[]) => { writeFileSync(file, JSON.stringify(items, undefined, 4)) };
 const read = (): SavedItem[] => JSON.parse(readFileSync(file, 'utf8'));
