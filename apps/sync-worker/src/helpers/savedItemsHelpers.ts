@@ -12,24 +12,33 @@ export function savedItemsHelpers() {
     if (existsSync(savedItemsPath))
         items = JSON.parse(readFileSync(savedItemsPath, 'utf8'));
 
-    let added = false;
+    const additions: SavedItem[] = []
 
     const add = (toAdd: SavedItem) => {
         if (!items.some(item => item.uri == toAdd.uri)) {
             items.push(toAdd)
-            added = true
+            additions.push(toAdd)
         }
     }
 
-    // `items` is a snapshot taken when this job started, so writing it back
-    // whole would undo anything removed in the meantime - a sync run is long
-    // enough to cover someone deleting an item in the UI. Nothing added means
-    // nothing to write.
+    /**
+     * `items` is a snapshot from when this job started, and a run is long enough
+     * to cover someone deleting an item in the UI - writing the snapshot back
+     * whole would resurrect it. Re-read and append only what is genuinely new.
+     */
     const save = () => {
-        if (!added)
+        if (additions.length == 0)
             return;
 
-        writeFileSync(savedItemsPath, JSON.stringify(items, undefined, 4))
+        const current: SavedItem[] = existsSync(savedItemsPath)
+            ? JSON.parse(readFileSync(savedItemsPath, 'utf8'))
+            : [];
+
+        const toAppend = additions.filter(item => !current.some(existing => existing.uri == item.uri));
+        if (toAppend.length == 0)
+            return;
+
+        writeFileSync(savedItemsPath, JSON.stringify([...current, ...toAppend], undefined, 4))
     }
 
     return { items, add, save };
