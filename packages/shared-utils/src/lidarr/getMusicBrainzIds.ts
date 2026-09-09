@@ -1,6 +1,5 @@
 import { MusicBrainzLookup } from '@spotify-to-plex/shared-types/musicbrainz/MusicBrainzLookup';
 import { getMusicBrainzCache } from '../cache/getMusicBrainzCache';
-import { rateLimitDelay } from './utils/rateLimitDelay';
 import { musicBrainzGet } from './utils/musicBrainzGet';
 import { isTransientError } from './utils/isTransientError';
 import { getMusicBrainzIdsByTextSearch } from './getMusicBrainzIdsByTextSearch';
@@ -74,7 +73,6 @@ async function lookupBySpotifyUrl(spotifyAlbumId: string): Promise<MusicBrainzLo
             return { status: 'not-found' };
 
         const releaseId = releaseRelation.release.id;
-        await rateLimitDelay();
 
         const releaseApiUrl = `https://musicbrainz.org/ws/2/release/${releaseId}?inc=release-groups+artist-credits&fmt=json`;
         const releaseResponse = await musicBrainzGet<MusicBrainzReleaseResponse>(releaseApiUrl);

@@ -11,6 +11,7 @@ import { getNestedSyncLogsForType } from "../utils/getNestedSyncLogsForType";
 import { startSyncType } from "../utils/startSyncType";
 import { clearSyncTypeLogs } from "../utils/clearSyncTypeLogs";
 import { completeSyncType } from "../utils/completeSyncType";
+import { hasNothingEnrolled } from "../utils/hasNothingEnrolled";
 import { errorSyncType } from "../utils/errorSyncType";
 import { updateSyncTypeProgress } from "../utils/updateSyncTypeProgress";
 import { loadSpotifyData } from "../utils/loadSpotifyData";
@@ -30,12 +31,8 @@ export async function syncAlbums() {
         const force = args.includes("force")
 
         const { toSyncAlbums } = getSavedAlbums()
-        if (toSyncAlbums.length == 0) {
-            console.log('No albums are enrolled for syncing')
-            completeSyncType('albums');
-
+        if (hasNothingEnrolled(toSyncAlbums, 'albums', 'albums'))
             return;
-        }
 
         const { putLog, logError, logComplete } = getNestedSyncLogsForType('albums')
 

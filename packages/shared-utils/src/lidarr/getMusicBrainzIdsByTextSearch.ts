@@ -1,6 +1,5 @@
 import { MusicBrainzTextSearchResponse } from '@spotify-to-plex/shared-types/musicbrainz/MusicBrainzTextSearchResponse';
 import { MusicBrainzLookup } from '@spotify-to-plex/shared-types/musicbrainz/MusicBrainzLookup';
-import { rateLimitDelay } from './utils/rateLimitDelay';
 import { musicBrainzGet } from './utils/musicBrainzGet';
 import { validateMusicBrainzMatch } from './validateMusicBrainzMatch';
 
@@ -27,8 +26,6 @@ export async function getMusicBrainzIdsByTextSearch(artistName: string, albumNam
     ];
 
     for (const query of queries) {
-        await rateLimitDelay();
-
         let searchResponse;
         try {
             const searchUrl = `https://musicbrainz.org/ws/2/release-group/?query=${encodeURIComponent(query)}&fmt=json&limit=${SEARCH_LIMIT}`;
