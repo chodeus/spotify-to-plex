@@ -45,8 +45,19 @@ class SpotifyScraperService:
                 tracks.append(track)
 
         data['tracks'] = tracks
+        reported = data.get('track_count') or data.get('total_tracks')
         if not data.get('track_count'):
-            data['track_count'] = data.get('total_tracks') or len(tracks)
+            data['track_count'] = reported or len(tracks)
+
+        # The embed page carries only the first page of a playlist. Say so out
+        # loud - silently syncing 100 of 300 tracks looks like a matching problem
+        if reported and len(tracks) < reported:
+            logger.warning(
+                "Playlist truncated: scraped %d of %d tracks. The Spotify embed "
+                "exposes only the first page; connect a user with access to this "
+                "playlist to load it in full.",
+                len(tracks), reported
+            )
 
         return data
 
