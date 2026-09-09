@@ -17,7 +17,7 @@ const ACT_SEPARATOR = /\s*(?:&|\+|,|\/|\bvs\.?|\bversus\b|\bx\b)\s*/;
 
 // Qualifiers that name no particular version. Longest first so "main mix" is
 // removed whole rather than leaving a bare "mix" behind
-const STRUCTURAL = ['album version', 'bonus track', 'main mix', 'radio mix', 'main', 'deluxe', 'explicit', 'clean', 'mono', 'stereo'];
+const STRUCTURAL = ['digital album version', 'album version', 'bonus track', 'main mix', 'radio mix', 'main', 'deluxe', 'explicit', 'clean', 'mono', 'stereo', 'version'];
 
 // A fragment shorter than this carries no version meaning on its own
 const MIN_QUALIFIER_LENGTH = 3;

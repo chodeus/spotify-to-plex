@@ -31,6 +31,11 @@ describe('versionsMatch', () => {
             expect(match('03 - Stronger', 'Stronger', ['Kanye West'])).toBe(true);
         });
 
+        it('ignores a qualifier that only says "version"', () => {
+            expect(match('Fear of the Dark', 'Fear Of The Dark - 1998 Remastered Version', ['Iron Maiden'])).toBe(true);
+            expect(match('Black Skinhead (Digital Album Version (Explicit))', 'Black Skinhead', ['Kanye West'])).toBe(true);
+        });
+
         it('accepts a version stated outside the brackets', () => {
             expect(match('The Island, Pt. II: Dusk', 'The Island, Pt. II (Dusk)', ['Pendulum'])).toBe(true);
             expect(match('The Island, Pt. I: Dawn', 'The Island, Pt. I (Dawn)', ['Pendulum'])).toBe(true);
@@ -45,6 +50,8 @@ describe('versionsMatch', () => {
             expect(match('Make Luv', 'Make Luv - Live', ['Room 5', 'Oliver Cheatham'])).toBe(false);
             expect(match('Dream Bigger', 'Dream Bigger - Instrumental', ['Axwell /\\ Ingrosso'])).toBe(false);
             expect(match('The Hum', 'The Hum - Short Edit', ['Dimitri Vegas & Like Mike'])).toBe(false);
+            expect(match('Overdrive', 'Overdrive (feat. Norma Jean Martine) - Acoustic Version', ['Ofenbach', 'Norma Jean Martine'])).toBe(false);
+            expect(match('Decode', 'Decode - Twilight Soundtrack Version', ['Paramore'])).toBe(false);
         });
 
         it('rejects the original offered for a remix', () => {
