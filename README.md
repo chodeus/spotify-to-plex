@@ -34,7 +34,7 @@
 ---
 
 > [!TIP]
-> Running the [fork image](#about-this-fork)? The [recommended matching configuration](#recommended-matching-configuration) is what actually improves match quality — the image alone keeps upstream's defaults.
+> The [recommended matching configuration](#recommended-matching-configuration) is what actually improves match quality. Every build ships upstream's defaults, this one included, so nothing changes until you apply it.
 
 ## Quick Start
 
@@ -56,24 +56,28 @@ Access the web interface at `http://[your-ip]:9030`
 
 ## About this fork
 
-This is a fork of [jjdenhertog/spotify-to-plex](https://github.com/jjdenhertog/spotify-to-plex) carrying matching fixes that are open as pull requests upstream. **If they land there, use upstream instead** — this exists so the changes are usable in the meantime.
+This fork carries **no code changes**. It builds [jjdenhertog/spotify-to-plex](https://github.com/jjdenhertog/spotify-to-plex) `main` unmodified — everything it used to carry is upstream now, either merged or reimplemented there by the maintainer.
 
-> [!IMPORTANT]
-> Installing the image on its own changes very little. It ships the same default match filters as upstream, so matching behaves the same until you apply the [matching configuration](#recommended-matching-configuration) below. That configuration is the part that stops wrong versions ending up in your playlists.
+It exists for two reasons, both temporary:
 
-What it adds:
+- The matching work is on upstream `main` but **not yet in a tagged release**. The published `jjdenhertog/spotify-to-plex` image is v1.0.107, which predates it; this image is built from `main`, so it has it today.
+- The [matching configuration](#recommended-matching-configuration) below is not anyone's default, and it is the part that actually stops wrong versions ending up in playlists.
+
+**Once upstream tags a release containing this work, use upstream instead.** The code is identical.
+
+What landed upstream:
 
 | | |
 |---|---|
-| [#128](https://github.com/jjdenhertog/spotify-to-plex/pull/128) | `duration` as a match filter field, so an 8:42 album cut can't be accepted for a 3:03 single |
-| [#135](https://github.com/jjdenhertog/spotify-to-plex/pull/135) | `version` as a match filter field — duration can't separate two remixes of equal length |
+| [#128](https://github.com/jjdenhertog/spotify-to-plex/pull/128), [#135](https://github.com/jjdenhertog/spotify-to-plex/pull/135) → [#138](https://github.com/jjdenhertog/spotify-to-plex/pull/138) | `duration` and `version` as match filter fields — an 8:42 album cut can't be accepted for a 3:03 single, and duration alone can't separate two remixes of equal length |
+| [#130](https://github.com/jjdenhertog/spotify-to-plex/pull/130), [#134](https://github.com/jjdenhertog/spotify-to-plex/pull/134), [@bfayers](https://github.com/bfayers)' [#113](https://github.com/jjdenhertog/spotify-to-plex/pull/113) | cached links are re-checked against duration so a wrong match stops being permanent, and you can match a track by hand |
 | [#129](https://github.com/jjdenhertog/spotify-to-plex/pull/129) | expands album search hits into their tracks; Plex's track index can miss tracks whose album it has indexed |
-| [#130](https://github.com/jjdenhertog/spotify-to-plex/pull/130) | re-checks cached links and drops ones the duration contradicts, so a wrong match stops being permanent |
 | [#131](https://github.com/jjdenhertog/spotify-to-plex/pull/131) | falls back to single-track lookups when Spotify's batch endpoint returns 403 for development-mode apps |
 | [#132](https://github.com/jjdenhertog/spotify-to-plex/pull/132) | raises the API body limit so multi-thousand-track playlists stop returning HTTP 413 |
 | [#133](https://github.com/jjdenhertog/spotify-to-plex/pull/133) | matches cache writes by Spotify id instead of title/artist equality |
-| [#134](https://github.com/jjdenhertog/spotify-to-plex/pull/134) | manual match, building on [@bfayers](https://github.com/bfayers)' [#113](https://github.com/jjdenhertog/spotify-to-plex/pull/113) |
 | [#136](https://github.com/jjdenhertog/spotify-to-plex/pull/136) | search a playlist, and review tracks that matched more than one candidate |
+| [#139](https://github.com/jjdenhertog/spotify-to-plex/pull/139) | lets the new fields through match filter validation, so the configuration below can be saved |
+| [#140](https://github.com/jjdenhertog/spotify-to-plex/pull/140) | wires `slskd-music-search` into the build graph |
 
 ### Running it
 
@@ -85,8 +89,10 @@ docker run -d \
     -e ENCRYPTION_KEY=YOUR_ENCRYPTION_KEY \
     -v /your/config/path:/app/config:rw \
     --network=host \
-    ghcr.io/chodeus/spotify-to-plex:latest
+    ghcr.io/chodeus/spotify-to-plex:testing
 ```
+
+Use the `:testing` tag, not `:latest` — every branch push tags `latest`, so it is whichever branch built most recently. `testing` is the branch kept in sync with upstream `main`.
 
 `PLEX_APP_ID` is not required — the image already sets it, which is why it is absent above. It is the `X-Plex-Client-Identifier` this app presents to Plex, not a credential, and it is the same value for everyone running the image. Pass it explicitly only if you want your install to appear in Plex's authorised devices as its own client:
 
@@ -102,12 +108,12 @@ Everything else — setup, Spotify app creation, Lidarr and slskd integration �
 
 ## Recommended matching configuration
 
-**This is the part that does the work.** The fork's code makes two new matching signals *available*; this configuration is what switches them on. Without it you are running upstream's matching with extra capabilities sitting unused.
+**This is the part that does the work.** The app makes two new matching signals *available*; this configuration is what switches them on. Without it you are running the same matching as before, with the new capabilities sitting unused.
 
-Defaults are deliberately left identical to upstream, so nothing about your matching changes until you choose it.
+The shipped defaults are untouched, so nothing about your matching changes until you choose it.
 
 > [!WARNING]
-> The filters below use the `duration` and `version` fields, which **only exist in this fork**. On the upstream image an unknown field makes the whole rule fail to parse and match nothing — so if you apply these and then switch back to `jjdenhertog/spotify-to-plex`, every row silently stops matching and your playlists come out empty. Switch the filters back first.
+> The filters below use the `duration` and `version` fields. They exist on upstream `main` and in this image, but **not in v1.0.107 or earlier**. On an older build an unknown field makes the whole rule fail to parse and match nothing — every row silently stops matching and your playlists come out empty. Switch the filters back before downgrading.
 
 ### Applying it
 
