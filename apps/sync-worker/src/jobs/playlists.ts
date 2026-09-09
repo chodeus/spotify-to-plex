@@ -40,6 +40,13 @@ export async function syncPlaylists() {
         const force = args.includes("force")
 
         const { toSyncPlaylists } = getSavedPlaylists()
+        if (toSyncPlaylists.length == 0) {
+            console.log('No playlists are enrolled for syncing')
+            completeSyncType('playlists');
+
+            return;
+        }
+
         const { putLog, logError, logComplete } = getNestedSyncLogsForType('playlists')
 
         const settings = await getSettings();

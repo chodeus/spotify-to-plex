@@ -30,6 +30,13 @@ export async function syncAlbums() {
         const force = args.includes("force")
 
         const { toSyncAlbums } = getSavedAlbums()
+        if (toSyncAlbums.length == 0) {
+            console.log('No albums are enrolled for syncing')
+            completeSyncType('albums');
+
+            return;
+        }
+
         const { putLog, logError, logComplete } = getNestedSyncLogsForType('albums')
 
         const settings = await getSettings();

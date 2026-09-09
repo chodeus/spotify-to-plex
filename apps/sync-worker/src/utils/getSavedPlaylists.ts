@@ -6,15 +6,13 @@ import { join } from "node:path";
 export function getSavedPlaylists() {
 
     // Get all saved items
+    // Nothing enrolled is a job with nothing to do, not a failure
     const savedItemsPath = join(getStorageDir(), 'spotify_saved_items.json');
     if (!existsSync(savedItemsPath))
-        throw new Error(`Found no saved items to sync`);
+        return { toSyncPlaylists: [] };
 
     const savedItems: SavedItem[] = JSON.parse(readFileSync(savedItemsPath, 'utf8'));
     const toSyncPlaylists = savedItems.filter(item => !!item.sync && item.type == 'spotify-playlist');
-
-    if (toSyncPlaylists.length == 0)
-        throw new Error(`Found no playlists to sync`);
 
     return { toSyncPlaylists };
 }
