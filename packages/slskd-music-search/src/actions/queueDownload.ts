@@ -42,7 +42,7 @@ function isDuplicateTransferError(responseData: unknown): boolean {
  * What a failed queue attempt means for the loop, decided in one place so the
  * catch does not nest a classification tree inside two loops and a try.
  */
-function classifyQueueError(error: unknown) {
+export function classifyQueueError(error: unknown) {
     if (!axios.isAxiosError(error))
         return 'retry';
 

@@ -35,7 +35,8 @@
         "clean": "rm -rf dist",
         "type-check": "tsc --noEmit",
         "lint": "eslint src",
-        "lint:fix": "eslint src --fix"
+        "lint:fix": "eslint src --fix",
+        "test": "vitest run"
     },
     "engines": {
         "node": ">=18.0.0"
@@ -49,6 +50,8 @@
     "devDependencies": {
         "@types/node": "^22.20.2",
         "@types/qs": "^6.15.1",
-        "typescript": "^5.9.3"
+        "typescript": "^5.9.3",
+        "vite": "^7.3.6",
+        "vitest": "^5.0.0"
     }
 }
