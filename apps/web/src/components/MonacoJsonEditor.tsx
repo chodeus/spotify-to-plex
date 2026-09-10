@@ -26,7 +26,7 @@ const MonacoJsonEditor = forwardRef<MonacoJsonEditorHandle, MonacoJsonEditorProp
         error
     } = props;
 
-    const editorRef = useRef<monaco.editor.IStandaloneCodeEditor>();
+    const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | undefined>(undefined);
 
     const handleEditorDidMount = useCallback((editor: monaco.editor.IStandaloneCodeEditor, monacoInstance: typeof monaco) => {
         editorRef.current = editor;
