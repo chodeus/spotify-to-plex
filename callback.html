@@ -99,20 +99,25 @@
 
             function showError(title, message) {
                 content.innerHTML = `
-                    <h2 class="error">${title}</h2>
-                    <p>${message}</p>
+                    <h2 class="error"></h2>
+                    <p class="detail"></p>
                     <p class="subtle">Close this window and try again from your Spotify-to-Plex instance.</p>
                 `;
+                // textContent, never innerHTML - both come from the query string
+                content.querySelector('h2').textContent = title;
+                content.querySelector('.detail').textContent = message;
             }
 
             function showManualCode(code) {
                 content.innerHTML = `
                     <h2 class="success">Authentication Successful</h2>
                     <p>Could not redirect automatically. Copy this code back to your application:</p>
-                    <div class="code-block">${code}</div>
+                    <div class="code-block"></div>
                     <button onclick="copyCode()">📋 Copy Code</button>
                     <p class="subtle">Paste this code in your Spotify-to-Plex instance to complete setup.</p>
                 `;
+                // textContent, never innerHTML - code comes from the query string
+                content.querySelector('.code-block').textContent = code;
                 
                 window.copyCode = function() {
                     navigator.clipboard.writeText(code);
