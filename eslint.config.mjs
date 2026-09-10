@@ -678,6 +678,19 @@ const config = [
         }
     },
     {
+        // Server-side code reports through stdout: it is the sync worker's only
+        // operational visibility and what supervisor captures. Browser code keeps
+        // the rule, where a console statement lands in someone's devtools.
+        files: [
+            'apps/sync-worker/**/*.ts',
+            'apps/web/pages/api/**/*.ts',
+            'packages/*/src/**/*.ts'
+        ],
+        rules: {
+            'no-console': 'off'
+        }
+    },
+    {
         // Test files are excluded from each package's tsconfig.json so they never reach
         // dist. Point typed linting at a sibling tsconfig.eslint.json that includes them
         // instead, since the project service only knows about tsconfig.json.

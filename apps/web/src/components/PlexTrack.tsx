@@ -84,7 +84,6 @@ export default function PlexTrack(props: Props) {
         setShowSongs(prev => !prev)
     }, [])
     const onChangeSongIdx = useCallback((e: ChangeEvent<HTMLInputElement>) => {
-        console.log('onChangeSongIdx', e.currentTarget.value)
 
         const songIdx = Number(e.currentTarget.value)
         if (setSongIdx && artistNames[0])
