@@ -45,10 +45,11 @@
     },
     "devDependencies": {
         "@types/node": "^22.20.2",
-        "dotenv-cli": "^7.4.4",
+        "dotenv-cli": "^11.0.0",
         "eslint": "^8.57.1",
         "typescript": "^5.9.3",
-        "vitest": "^2.1.9"
+        "vite": "^7.3.6",
+        "vitest": "^5.0.0"
     },
     "engines": {
         "node": ">=18.0.0",
