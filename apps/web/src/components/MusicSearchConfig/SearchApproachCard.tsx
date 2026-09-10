@@ -33,7 +33,7 @@ export default function SearchApproachCard({
                 newApproach[field] = true;
             } else {
                 const { [field]: _, ...rest } = newApproach;
-                onChange(rest as SearchApproachConfig);
+                onChange(rest);
 
                 return;
             }
@@ -60,10 +60,10 @@ export default function SearchApproachCard({
             </Box>
 
             <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
-                <FormControlLabel control={<Checkbox checked={!!approach.filtered} onChange={handleCheckboxChange('filtered')} disabled={disabled} size="small" />} label={<Box><Typography variant="body2">Filtered</Typography><Typography variant="caption" color="text.secondary">Remove filter words</Typography></Box>} />
-                <FormControlLabel control={<Checkbox checked={!!approach.trim} onChange={handleCheckboxChange('trim')} disabled={disabled} size="small" />} label={<Box><Typography variant="body2">Trim</Typography><Typography variant="caption" color="text.secondary">Cut at separators</Typography></Box>} />
+                <FormControlLabel control={<Checkbox checked={!!approach.filtered} onChange={handleCheckboxChange('filtered')} disabled={disabled} size="small" />} label={<Box><Typography variant="body2">Filtered</Typography><Typography variant="caption" sx={{ color: "text.secondary" }}>Remove filter words</Typography></Box>} />
+                <FormControlLabel control={<Checkbox checked={!!approach.trim} onChange={handleCheckboxChange('trim')} disabled={disabled} size="small" />} label={<Box><Typography variant="body2">Trim</Typography><Typography variant="caption" sx={{ color: "text.secondary" }}>Cut at separators</Typography></Box>} />
                 {/* eslint-disable-next-line react/jsx-curly-brace-presence, custom/jsx-multiline-children */}
-                <FormControlLabel control={<Checkbox checked={!!approach.removeQuotes} onChange={handleCheckboxChange('removeQuotes')} disabled={disabled} size="small" />} label={<Box><Typography variant="body2">Remove Quotes</Typography><Typography variant="caption" color="text.secondary">Remove quote characters</Typography></Box>} />
+                <FormControlLabel control={<Checkbox checked={!!approach.removeQuotes} onChange={handleCheckboxChange('removeQuotes')} disabled={disabled} size="small" />} label={<Box><Typography variant="body2">Remove Quotes</Typography><Typography variant="caption" sx={{ color: "text.secondary" }}>Remove quote characters</Typography></Box>} />
             </Box>
         </Paper>
     );

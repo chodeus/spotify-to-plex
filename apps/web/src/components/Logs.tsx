@@ -115,24 +115,24 @@ export default function Logs() {
                         return (
                             <Paper key={type} elevation={0} sx={{ p: 2, bgcolor: 'action.hover' }}>
                                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <Typography variant="body1" fontWeight="medium">
+                                    <Typography variant="body1" sx={{ fontWeight: "medium" }}>
                                         {getSyncTypeTitle(type)}
                                     </Typography>
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                         {typeLog ? (
                                             <>
                                                 {duration !== null && (
-                                                    <Typography variant="body2" color="text.secondary">
+                                                    <Typography variant="body2" sx={{ color: "text.secondary" }}>
                                                         {formatDuration(duration)}
                                                     </Typography>
                                                 )}
                                                 <Chip label={typeLog.status} color={typeLog.status==='success' ? 'success' : typeLog.status==='error' ? 'error' : 'default'} size="small" />
-                                                {typeLog.start ? <Typography variant="body2" color="text.secondary">
+                                                {typeLog.start ? <Typography variant="body2" sx={{ color: "text.secondary" }}>
                                                     <BMoment date={typeLog.start} format="D MMM HH:mm" />
                                                 </Typography> : null}
                                             </>
                                         ) : (
-                                            <Typography variant="body2" color="text.secondary">
+                                            <Typography variant="body2" sx={{ color: "text.secondary" }}>
                                                 Never run
                                             </Typography>
                                         )}
@@ -186,11 +186,23 @@ export default function Logs() {
                                 <Typography variant="body2" sx={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
                                     {log.title}
                                 </Typography>
-                                {log.start ? <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
+                                {log.start ? <Typography
+                                    variant="body2"
+                                    sx={{
+                                        color: "text.secondary",
+                                        whiteSpace: 'nowrap'
+                                    }}>
                                     <BMoment date={log.start} format="D MMM HH:mm" />
                                 </Typography> : null}
                                 {duration !== null && (
-                                    <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'nowrap', minWidth: '60px', textAlign: 'right' }}>
+                                    <Typography
+                                        variant="body2"
+                                        sx={{
+                                            color: "text.secondary",
+                                            whiteSpace: 'nowrap',
+                                            minWidth: '60px',
+                                            textAlign: 'right'
+                                        }}>
                                         {formatDuration(duration)}
                                     </Typography>
                                 )}
@@ -247,11 +259,23 @@ export default function Logs() {
                                 <Typography variant="body2" sx={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
                                     {log.artist_name} - {log.album_name}
                                 </Typography>
-                                {log.start ? <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
+                                {log.start ? <Typography
+                                    variant="body2"
+                                    sx={{
+                                        color: "text.secondary",
+                                        whiteSpace: 'nowrap'
+                                    }}>
                                     <BMoment date={log.start} format="D MMM HH:mm" />
                                 </Typography> : null}
                                 {duration !== null && (
-                                    <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'nowrap', minWidth: '60px', textAlign: 'right' }}>
+                                    <Typography
+                                        variant="body2"
+                                        sx={{
+                                            color: "text.secondary",
+                                            whiteSpace: 'nowrap',
+                                            minWidth: '60px',
+                                            textAlign: 'right'
+                                        }}>
                                         {formatDuration(duration)}
                                     </Typography>
                                 )}
@@ -310,11 +334,23 @@ export default function Logs() {
                                 <Typography variant="body2" sx={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
                                     {log.artist_name} - {log.track_name}
                                 </Typography>
-                                {log.start ? <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
+                                {log.start ? <Typography
+                                    variant="body2"
+                                    sx={{
+                                        color: "text.secondary",
+                                        whiteSpace: 'nowrap'
+                                    }}>
                                     <BMoment date={log.start} format="D MMM HH:mm" />
                                 </Typography> : null}
                                 {duration !== null && (
-                                    <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'nowrap', minWidth: '60px', textAlign: 'right' }}>
+                                    <Typography
+                                        variant="body2"
+                                        sx={{
+                                            color: "text.secondary",
+                                            whiteSpace: 'nowrap',
+                                            minWidth: '60px',
+                                            textAlign: 'right'
+                                        }}>
                                         {formatDuration(duration)}
                                     </Typography>
                                 )}
@@ -385,7 +421,7 @@ export default function Logs() {
     if (loading) {
         return (
             <Paper sx={{ p: 4 }}>
-                <Box textAlign="center">
+                <Box sx={{ textAlign: "center" }}>
                     <CircularProgress />
                 </Box>
             </Paper>

@@ -1,6 +1,5 @@
 import { errorBoundary } from "@/helpers/errors/errorBoundary";
-import { LoadingButton } from '@mui/lab';
-import { Alert, Box, ListItem, MenuItem, Select, Typography } from "@mui/material";
+import { Alert, Box, Button, ListItem, MenuItem, Select, Typography } from "@mui/material";
 import { SelectChangeEvent } from '@mui/material/Select';
 import axios from "axios";
 import { enqueueSnackbar } from "notistack";
@@ -137,28 +136,40 @@ const PlexConnection = (props: Props) => {
     const saveDisabled = !(newPlexUri && settings?.uri !== newPlexUri);
 
     if (loading) {
-        return <Box display="flex" justifyContent="center">
-            <Alert severity="info" sx={{ ml: 2 }}>
-                Checking your connection with Plex
-            </Alert>
-        </Box>
+        return (
+            <Box
+                sx={{
+                    display: "flex",
+                    justifyContent: "center"
+                }}>
+                <Alert severity="info" sx={{ ml: 2 }}>
+                    Checking your connection with Plex
+                </Alert>
+            </Box>
+        );
     }
 
     // Show login prompt if not connected to Plex
     if (!connected) {
         return (
-            <Box textAlign="center">
+            <Box
+                sx={{
+                    textAlign: "center"
+                }}>
                 <Typography variant="h5" sx={{ mb: 2 }}>Connect to Plex</Typography>
                 <Typography variant="body1" sx={{ mb: 2 }}>
                     You need to login to Plex to continue.
                 </Typography>
-                <LoadingButton loading={creatingUrl} onClick={onPlexLoginClick} variant="contained" color="primary">Login to Plex</LoadingButton>
+                <Button loading={creatingUrl} onClick={onPlexLoginClick} variant="contained" color="primary">Login to Plex</Button>
             </Box>
         );
     }
 
     return (
-        <Box textAlign="center">
+        <Box
+            sx={{
+                textAlign: "center"
+            }}>
             <Typography variant="h5" sx={{ mb: 2 }}>Select Plex Server</Typography>
             {resources.length === 0 ? (
                 <Alert variant="outlined" severity="error">
@@ -169,7 +180,12 @@ const PlexConnection = (props: Props) => {
                     <Typography sx={{ mb: 2 }} variant="body1">
                         Select and test the connection that you would like to use.
                     </Typography>
-                    <Box maxWidth={400} margin="0 auto" textAlign="left">
+                    <Box
+                        sx={{
+                            maxWidth: 400,
+                            margin: "0 auto",
+                            textAlign: "left"
+                        }}>
                         <Select fullWidth value={newPlexUri || ''} onChange={onPlexUriChange}>
                             {resources.map(item => {
                                 // if (item.connections.length < 2) return null;
@@ -196,8 +212,11 @@ const PlexConnection = (props: Props) => {
 
 
 
-                    <Box mt={2}>
-                        <LoadingButton disabled={saveDisabled} loading={saving} color="primary" onClick={onSaveClick} variant="contained">Save connection</LoadingButton>
+                    <Box
+                        sx={{
+                            mt: 2
+                        }}>
+                        <Button disabled={saveDisabled} loading={saving} color="primary" onClick={onSaveClick} variant="contained">Save connection</Button>
                     </Box>
                 </>
             )}

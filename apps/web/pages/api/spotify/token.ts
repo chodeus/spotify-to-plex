@@ -10,29 +10,37 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 function escapeHtml(str: string): string {
-    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
 }
 
 function getAuthErrorMessage(error: unknown): { title: string; message: string; details: Record<string, string> } {
     // Axios error with response from Spotify
     if (axios.isAxiosError(error) && error.response?.data) {
-        const data = error.response.data;
+        const {data} = error.response;
         const spotifyError = typeof data.error === 'string' ? data.error : undefined;
         const spotifyDescription = typeof data.error_description === 'string' ? data.error_description : undefined;
         const status = String(error.response.status);
 
         const details: Record<string, string> = {};
-        if (spotifyError) details.error = spotifyError;
-        if (spotifyDescription) details.error_description = spotifyDescription;
+        if (spotifyError)
+            details.error = spotifyError;
+
+        if (spotifyDescription)
+            details.error_description = spotifyDescription;
+
         details.status = status;
 
         if (spotifyError === 'invalid_grant') {
             if (spotifyDescription?.toLowerCase().includes('expired')) {
                 return { title: 'Authorization Code Expired', message: 'Your authorization code has expired. Please go back and try connecting again. Authorization codes are only valid for a short time.', details };
             }
+
             if (spotifyDescription?.toLowerCase().includes('redirect')) {
                 return { title: 'Redirect URI Mismatch', message: 'The redirect URI doesn\'t match what\'s configured in your Spotify app. Check that your redirect URI matches exactly in your Spotify Developer Dashboard, including trailing slashes.', details };
             }
+
             return { title: 'Invalid Authorization Code', message: 'The authorization code was invalid or has already been used. Please try connecting again.', details };
         }
 
@@ -127,6 +135,7 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
                 const queryErrorDesc = Array.isArray(req.query.error_description) ? req.query.error_description[0] : req.query.error_description;
                 const errorDescription = queryErrorDesc || 'Authorization was denied.';
                 res.setHeader('Content-Type', 'text/html');
+
                 return res.status(400).send(renderAuthErrorPage(
                     'Authorization Denied',
                     'You denied the Spotify authorization request. If this was a mistake, go back and try connecting again.',
@@ -136,6 +145,7 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
 
             if (!req.query.code) {
                 res.setHeader('Content-Type', 'text/html');
+
                 return res.status(400).send(renderAuthErrorPage(
                     'Missing Authorization Code',
                     'No authorization code was received from Spotify. Please try connecting again.',

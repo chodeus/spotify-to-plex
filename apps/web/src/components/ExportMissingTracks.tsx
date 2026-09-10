@@ -278,117 +278,133 @@ export default function ExportMissingTracks(props: Props) {
 
     const hasTidalTracks = tidalTracks.some(item => item.tidal_ids && item.tidal_ids.length > 0)
 
-    return (<>
-        <Dialog open onClose={onClose}>
-            <Box sx={{ maxWidth: 600, p: 2, position: 'relative' }}>
-                <IconButton size="small" onClick={onClose} sx={{ position: 'absolute', right: 8, top: 8 }}>
-                    <CloseIcon fontSize="small" />
-                </IconButton>
-                {!!loading && <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', p: 5 }}>
-                    <CircularProgress />
-                </Box>}
+    return (
+        <>
+            <Dialog open onClose={onClose}>
+                <Box sx={{ maxWidth: 600, p: 2, position: 'relative' }}>
+                    <IconButton size="small" onClick={onClose} sx={{ position: 'absolute', right: 8, top: 8 }}>
+                        <CloseIcon fontSize="small" />
+                    </IconButton>
+                    {!!loading && <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', p: 5 }}>
+                        <CircularProgress />
+                    </Box>}
 
-                {!loading &&
-                    <>
-                        <Typography variant="h6">Missing tracks</Typography>
-                        <Typography variant="body2">
-                            Below you find an overview of all missing tracks of the current selection.
-                        </Typography>
-                        <Box sx={{ display: 'flex', gap: 1, mt: 1, flexWrap: 'wrap' }}>
-                            {!!(tracks.length > 0) &&
-                                <>
-                                    <form method="POST" action="/api/download" target="_blank" >
-                                        <input type="hidden" name="type" value="spotify" />
-                                        <input type="hidden" name="tracks" value={tracks.map(item => item.id)} />
-                                        <Button variant="outlined" type="submit">
-                                            Download Spotify links
-                                        </Button>
-                                    </form>
-                                    {!!((missingTidalTracks.length > 0) && !hasLoadedTidalTracks) &&
-                                        <Button disabled={loadingTracks || !canUseTidal} onClick={onLoadTidalLinksClick} variant="outlined">Load Tidal links</Button>
-                                    }
-
-                                    {((!!hasTidalTracks && !!hasLoadedTidalTracks) || missingTidalTracks.length === 0) &&
+                    {!loading &&
+                        <>
+                            <Typography variant="h6">Missing tracks</Typography>
+                            <Typography variant="body2">
+                                Below you find an overview of all missing tracks of the current selection.
+                            </Typography>
+                            <Box sx={{ display: 'flex', gap: 1, mt: 1, flexWrap: 'wrap' }}>
+                                {!!(tracks.length > 0) &&
+                                    <>
                                         <form method="POST" action="/api/download" target="_blank" >
-                                            <input type="hidden" name="type" value="tidal" />
+                                            <input type="hidden" name="type" value="spotify" />
                                             <input type="hidden" name="tracks" value={tracks.map(item => item.id)} />
                                             <Button variant="outlined" type="submit">
-                                                Download Tidal links
+                                                Download Spotify links
                                             </Button>
                                         </form>
-                                    }
+                                        {!!((missingTidalTracks.length > 0) && !hasLoadedTidalTracks) &&
+                                            <Button disabled={loadingTracks || !canUseTidal} onClick={onLoadTidalLinksClick} variant="outlined">Load Tidal links</Button>
+                                        }
 
-                                    {!!lidarrEnabled && uniqueAlbums.length > 0 && (
-                                        <Button variant="outlined" onClick={onOpenLidarrDialog}>
-                                            Send to Lidarr ({uniqueAlbums.length} albums)
-                                        </Button>
-                                    )}
+                                        {((!!hasTidalTracks && !!hasLoadedTidalTracks) || missingTidalTracks.length === 0) &&
+                                            <form method="POST" action="/api/download" target="_blank" >
+                                                <input type="hidden" name="type" value="tidal" />
+                                                <input type="hidden" name="tracks" value={tracks.map(item => item.id)} />
+                                                <Button variant="outlined" type="submit">
+                                                    Download Tidal links
+                                                </Button>
+                                            </form>
+                                        }
 
-                                    {!!slskdEnabled && visibleTracks.length > 0 && (
-                                        <Button variant="outlined" color={sendingToSlskd ? "error" : "primary"} onClick={sendingToSlskd ? handleStopSlskd : handleSendPageToSlskd}>
-                                            {sendingToSlskd
-                                                ? `Stop (${slskdProgress?.current || 0}/${slskdProgress?.total || 0})`
-                                                : `Send Page to SLSKD (${visibleTracks.length} tracks)`
-                                            }
-                                        </Button>
-                                    )}
-                                </>
-                            }
-                        </Box>
-                        {!canUseTidal &&
-                            <Alert severity="warning" sx={{ fontWeight: 'normal', mt: 1 }}>
-                                You have not added Tidal credentials. Visit Github for more info.
-                            </Alert>
-                        }
-                        <Divider sx={{ mt: 1, mb: 2 }} />
+                                        {!!lidarrEnabled && uniqueAlbums.length > 0 && (
+                                            <Button variant="outlined" onClick={onOpenLidarrDialog}>
+                                                Send to Lidarr ({uniqueAlbums.length} albums)
+                                            </Button>
+                                        )}
 
-                        {!!loadingTracks &&
-                            <Box >
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, border: '2px solid rgba(255,255,255,0.5)', borderRadius: '4px', p: 2, textAlign: 'center' }}>
-                                    <Box sx={{ alignItems: 'center' }}>
-                                        <CircularProgress color="inherit" size="small" />
-                                    </Box>
-                                    <Box sx={{ flexGrow: 1, display: 'flex', gap: 1, justifyContent: 'space-between' }}>
-                                        <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>Processed {tracksLoaded.length} of {tracksToLoad} Tidal tracks</Typography>
-                                        <Typography onClick={onCancelClick} variant="body2" sx={{ textDecoration: 'underline', textUnderlineOffset: '2px', textDecorationThickness: '1px', cursor: 'pointer', color: 'primary.main' }}>cancel</Typography>
-                                    </Box>
-                                </Box>
+                                        {!!slskdEnabled && visibleTracks.length > 0 && (
+                                            <Button variant="outlined" color={sendingToSlskd ? "error" : "primary"} onClick={sendingToSlskd ? handleStopSlskd : handleSendPageToSlskd}>
+                                                {sendingToSlskd
+                                                    ? `Stop (${slskdProgress?.current || 0}/${slskdProgress?.total || 0})`
+                                                    : `Send Page to SLSKD (${visibleTracks.length} tracks)`
+                                                }
+                                            </Button>
+                                        )}
+                                    </>
+                                }
                             </Box>
-                        }
-
-                        {!loadingTracks && tidalTracks.length > 0 && missingTidalTracks.length > 0 &&
-                            <Box sx={{ mt: 1, mb: 1 }}>
-                                <Alert variant="outlined" severity="warning">
-                                    <Box sx={{ p: 1 }}>
-                                        <Typography mb={.5} variant="h6" color="warning">{missingTidalTracks.length} Tidal tracks not found</Typography>
-                                        <Typography mb={1} variant="body2">
-                                            Not all Tidal tracks could be found.
-                                        </Typography>
-                                    </Box>
+                            {!canUseTidal &&
+                                <Alert severity="warning" sx={{ fontWeight: 'normal', mt: 1 }}>
+                                    You have not added Tidal credentials. Visit Github for more info.
                                 </Alert>
-                            </Box>
-                        }
+                            }
+                            <Divider sx={{ mt: 1, mb: 2 }} />
 
-                        <Box>
-                            {visibleTracks.map((item, index) => {
-                                const tidalTrack = tidalTracks.find(tidalTrack => tidalTrack.id === item.id);
-
-                                return <MissingTrack key={item.id} ref={setTrackRefs(index)} track={item} tidalTrack={tidalTrack} slskdEnabled={slskdEnabled} slskdBusy={sendingToSlskd} />;
-                            })}
-
-                            {totalPages > 1 &&
-                                <Box mt={1} display="flex" justifyContent="space-between">
-                                    <Button size="small" variant="outlined" color="inherit" disabled={page <= 0 || sendingToSlskd} onClick={prevPageClick}>Previous</Button>
-                                    <Button size="small" variant="outlined" color="inherit" disabled={page >= totalPages - 1 || sendingToSlskd} onClick={nextPageClick}>Next</Button>
+                            {!!loadingTracks &&
+                                <Box >
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, border: '2px solid rgba(255,255,255,0.5)', borderRadius: '4px', p: 2, textAlign: 'center' }}>
+                                        <Box sx={{ alignItems: 'center' }}>
+                                            <CircularProgress color="inherit" size="small" />
+                                        </Box>
+                                        <Box sx={{ flexGrow: 1, display: 'flex', gap: 1, justifyContent: 'space-between' }}>
+                                            <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>Processed {tracksLoaded.length} of {tracksToLoad} Tidal tracks</Typography>
+                                            <Typography onClick={onCancelClick} variant="body2" sx={{ textDecoration: 'underline', textUnderlineOffset: '2px', textDecorationThickness: '1px', cursor: 'pointer', color: 'primary.main' }}>cancel</Typography>
+                                        </Box>
+                                    </Box>
                                 </Box>
                             }
 
+                            {!loadingTracks && tidalTracks.length > 0 && missingTidalTracks.length > 0 &&
+                                <Box sx={{ mt: 1, mb: 1 }}>
+                                    <Alert variant="outlined" severity="warning">
+                                        <Box sx={{ p: 1 }}>
+                                            <Typography
+                                                variant="h6"
+                                                color="warning"
+                                                sx={{
+                                                    mb: .5
+                                                }}>{missingTidalTracks.length} Tidal tracks not found</Typography>
+                                            <Typography
+                                                variant="body2"
+                                                sx={{
+                                                    mb: 1
+                                                }}>
+                                                Not all Tidal tracks could be found.
+                                            </Typography>
+                                        </Box>
+                                    </Alert>
+                                </Box>
+                            }
 
-                        </Box>
-                    </>
-                }
-            </Box>
-        </Dialog>
-        {lidarrDialogOpen ? <LidarrAlbumDialog onClose={onCloseLidarrDialog} albums={uniqueAlbums} /> : null}
-    </>)
+                            <Box>
+                                {visibleTracks.map((item, index) => {
+                                    const tidalTrack = tidalTracks.find(tidalTrack => tidalTrack.id === item.id);
+
+                                    return <MissingTrack key={item.id} ref={setTrackRefs(index)} track={item} tidalTrack={tidalTrack} slskdEnabled={slskdEnabled} slskdBusy={sendingToSlskd} />;
+                                })}
+
+                                {totalPages > 1 &&
+                                    <Box
+                                        sx={{
+                                            mt: 1,
+                                            display: "flex",
+                                            justifyContent: "space-between"
+                                        }}>
+                                        <Button size="small" variant="outlined" color="inherit" disabled={page <= 0 || sendingToSlskd} onClick={prevPageClick}>Previous</Button>
+                                        <Button size="small" variant="outlined" color="inherit" disabled={page >= totalPages - 1 || sendingToSlskd} onClick={nextPageClick}>Next</Button>
+                                    </Box>
+                                }
+
+
+                            </Box>
+                        </>
+                    }
+                </Box>
+            </Dialog>
+            {lidarrDialogOpen ? <LidarrAlbumDialog onClose={onCloseLidarrDialog} albums={uniqueAlbums} /> : null}
+        </>
+    );
 }

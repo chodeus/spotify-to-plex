@@ -19,14 +19,22 @@ export default function MainLayout(props: MainLayoutProps) {
             <BSnackbarProvider  />
             <ConfirmProvider  />
             <Container sx={{ maxWidth, padding: 0 }}>
-                {!!loading && <Box display="flex" justifyContent="center" pt={12}>
+                {!!loading && <Box
+                    sx={{
+                        display: "flex",
+                        justifyContent: "center",
+                        pt: 12
+                    }}>
                     <CircularProgress size={40} />
                 </Box>}
                 
                 {!loading &&
-                    <Box pt={6}>{children}</Box>
+                    <Box
+                        sx={{
+                            pt: 6
+                        }}>{children}</Box>
                 }
             </Container>
         </Container>
-    )
+    );
 }

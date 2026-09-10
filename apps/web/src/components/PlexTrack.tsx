@@ -28,7 +28,7 @@ export default function PlexTrack(props: Props) {
             return []
 
         return data.result.map((item: PlexTrackType) => {
-            const thumbUrl = item.image && item.image.indexOf('rovicorp') === -1 ? `/api/plex/image?path=${item.image}` : '';
+            const thumbUrl = item.image?.indexOf('rovicorp') === -1 ? `/api/plex/image?path=${item.image}` : '';
             const albumThumbUrl = item.album?.image && item.image.indexOf('rovicorp') === -1 ? `/api/plex/image?path=${item.album.image}` : '';
 
             return {
@@ -103,103 +103,125 @@ export default function PlexTrack(props: Props) {
         window.open(url, '_blank');
     }, [id])
 
-    return (<Box>
-        <Paper elevation={0} sx={{ p: 1, mb: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, bgcolor: 'action.hover' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
-                <Box sx={{ minWidth: 0 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                        <img src="/img/spotify.png" alt="Spotify" width={14} height={14} />
-                        <Typography variant="body1">{trackTitle}</Typography>
-                    </Box>
-                    <Typography variant="caption">{artistNames.join(', ')}</Typography>
-                    {!!songs[songIdx] &&
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
-                            <img src="/img/plex.png" alt="Plex" width={14} height={14} />
-                            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                                {songs[songIdx].trackTitle} — {songs[songIdx].artistName}
-                            </Typography>
+    return (
+        <Box>
+            <Paper elevation={0} sx={{ p: 1, mb: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, bgcolor: 'action.hover' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
+                    <Box sx={{ minWidth: 0 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                            <img src="/img/spotify.png" alt="Spotify" width={14} height={14} />
+                            <Typography variant="body1">{trackTitle}</Typography>
                         </Box>
-                    }
-                </Box>
-            </Box>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                {!!loading && <CircularProgress size={20} />}
-                {!loading && <>
-                    <Tooltip title="Match manually">
-                        <IconButton size="small" onClick={onShowManualSearchClick}><Edit sx={{ fontSize: '1em' }} /></IconButton>
-                    </Tooltip>
-                    {!!data && data.result.length > 0 &&
-                        <>
-                            {!!data && data.result.length > 1 &&
-                                <Tooltip title="Multiple matches found">
-                                    <IconButton size="small" onClick={onShowSongsClick}><LibraryMusicSharp sx={{ fontSize: '1em' }} /></IconButton>
-                                </Tooltip>
-                            }
-                            <Tooltip title="Song found">
-                                <IconButton size="small" color="success"><Check sx={{ fontSize: '1em' }} /></IconButton>
-                            </Tooltip>
-                        </>
-                    }
-                    {!!data && data.result.length === 0 &&
-                        <Tooltip title="Song not found">
-                            <IconButton size="small" color="warning" onClick={onNotPerfectMatchClick}><Warning sx={{ fontSize: '1em' }} /></IconButton>
-                        </Tooltip>
-                    }
-                </>}
-            </Box>
-        </Paper>
-
-        {!!showSongs && <Box>
-            <RadioGroup value={`${songIdx}-list`} onChange={onChangeSongIdx} sx={{ gap: 2 }}>
-                {songs.map((song: { trackTitle: string; artistName: string; thumb: string; album?: { title: string; thumb: string } }, index: number) => {
-                    return <ListItem
-                        key={`${id}-${song.trackTitle}-${index}`}
-                        sx={{
-                            border: '1px solid',
-                            borderColor: 'divider',
-                            borderRadius: 1,
-                            boxShadow: 1,
-                            py: 1
-                        }}
-                    >
-                        
-                        <FormControlLabel
-                            value={`${index}`}
-                            control={<Radio checked={songIdx === index} />}
-                            label={<Box display="flex" gap={1}>
-                                <Box
-                                    width={thumbSize}
-                                    height={thumbSize}
-                                    position="relative">
-                                    {!!song.thumb &&
-                                        <img
-                                            src={song.thumb}
-                                            alt={song.trackTitle}
-                                            width={thumbSize}
-                                            height={thumbSize}
-                                        />}
-                                </Box>
-                                <Box>
-                                    <Typography display="block" variant="body1">{song.trackTitle}</Typography>
-                                    <Typography display="block" variant="body2">{song.artistName}</Typography>
-                                    {!!song.album && <Typography display="block" variant="body2">{song.album.title}</Typography>}
-                                </Box>
+                        <Typography variant="caption">{artistNames.join(', ')}</Typography>
+                        {!!songs[songIdx] &&
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
+                                <img src="/img/plex.png" alt="Plex" width={14} height={14} />
+                                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                                    {songs[songIdx].trackTitle} — {songs[songIdx].artistName}
+                                </Typography>
                             </Box>
-                            }
-                        />
-                    </ListItem>
-                })}
-            </RadioGroup>
-        </Box>}
-        <Divider sx={{ mt: 1, mb: 1 }} />
+                        }
+                    </Box>
+                </Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    {!!loading && <CircularProgress size={20} />}
+                    {!loading && <>
+                        <Tooltip title="Match manually">
+                            <IconButton size="small" onClick={onShowManualSearchClick}><Edit sx={{ fontSize: '1em' }} /></IconButton>
+                        </Tooltip>
+                        {!!data && data.result.length > 0 &&
+                            <>
+                                {!!data && data.result.length > 1 &&
+                                    <Tooltip title="Multiple matches found">
+                                        <IconButton size="small" onClick={onShowSongsClick}><LibraryMusicSharp sx={{ fontSize: '1em' }} /></IconButton>
+                                    </Tooltip>
+                                }
+                                <Tooltip title="Song found">
+                                    <IconButton size="small" color="success"><Check sx={{ fontSize: '1em' }} /></IconButton>
+                                </Tooltip>
+                            </>
+                        }
+                        {!!data && data.result.length === 0 &&
+                            <Tooltip title="Song not found">
+                                <IconButton size="small" color="warning" onClick={onNotPerfectMatchClick}><Warning sx={{ fontSize: '1em' }} /></IconButton>
+                            </Tooltip>
+                        }
+                    </>}
+                </Box>
+            </Paper>
 
-        {!!showManualSearch &&
-            <ManualSearchPopup
-                title={trackTitle}
-                artist={artistNames[0] ?? ''}
-                onClose={onCloseManualSearch}
-                onSelect={onManualSelectTrack}
-            />
-        }
-    </Box>)
+            {!!showSongs && <Box>
+                <RadioGroup value={`${songIdx}-list`} onChange={onChangeSongIdx} sx={{ gap: 2 }}>
+                    {songs.map((song: { trackTitle: string; artistName: string; thumb: string; album?: { title: string; thumb: string } }, index: number) => {
+                        return (
+                            <ListItem
+                                key={`${id}-${song.trackTitle}-${index}`}
+                                sx={{
+                                    border: '1px solid',
+                                    borderColor: 'divider',
+                                    borderRadius: 1,
+                                    boxShadow: 1,
+                                    py: 1
+                                }}
+                            >
+                                
+                                <FormControlLabel
+                                    value={`${index}`}
+                                    control={<Radio checked={songIdx === index} />}
+                                    label={<Box
+                                        sx={{
+                                            display: "flex",
+                                            gap: 1
+                                        }}>
+                                        <Box
+                                            sx={{
+                                                width: thumbSize,
+                                                height: thumbSize,
+                                                position: "relative"
+                                            }}>
+                                            {!!song.thumb &&
+                                                <img
+                                                    src={song.thumb}
+                                                    alt={song.trackTitle}
+                                                    width={thumbSize}
+                                                    height={thumbSize}
+                                                />}
+                                        </Box>
+                                        <Box>
+                                            <Typography
+                                                variant="body1"
+                                                sx={{
+                                                    display: "block"
+                                                }}>{song.trackTitle}</Typography>
+                                            <Typography
+                                                variant="body2"
+                                                sx={{
+                                                    display: "block"
+                                                }}>{song.artistName}</Typography>
+                                            {!!song.album && <Typography
+                                                variant="body2"
+                                                sx={{
+                                                    display: "block"
+                                                }}>{song.album.title}</Typography>}
+                                        </Box>
+                                    </Box>
+                                    }
+                                />
+                            </ListItem>
+                        );
+                    })}
+                </RadioGroup>
+            </Box>}
+            <Divider sx={{ mt: 1, mb: 1 }} />
+
+            {!!showManualSearch &&
+                <ManualSearchPopup
+                    title={trackTitle}
+                    artist={artistNames[0] ?? ''}
+                    onClose={onCloseManualSearch}
+                    onSelect={onManualSelectTrack}
+                />
+            }
+        </Box>
+    );
 }

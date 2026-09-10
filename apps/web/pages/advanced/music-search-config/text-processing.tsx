@@ -167,7 +167,12 @@ const TextProcessingPage: NextPage = () => {
                             </Box>
                         </Box>
 
-                        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                        <Typography
+                            variant="body2"
+                            sx={{
+                                color: "text.secondary",
+                                mb: 3
+                            }}>
                             Configure how text is processed before matching. This includes word filtering, quote removal, and separator handling.
                         </Typography>
 
@@ -176,7 +181,7 @@ const TextProcessingPage: NextPage = () => {
                 </CardContent>
             </Card>
         </MusicSearchConfigLayout>
-    )
+    );
 }
 
 export default TextProcessingPage

@@ -49,15 +49,29 @@ const ErrorProviderComponent = ({ children }: ErrorProviderProps) => {
                         <Typography>
                             {error}
                         </Typography>
-                        {!!stack && stack !== error ? <Box mt={2}>
+                        {!!stack && stack !== error ? <Box
+                            sx={{
+                                mt: 2
+                            }}>
                             <Accordion>
                                 <AccordionSummary expandIcon={<ExpandMore />}>
                                     <Typography>Stack Trace</Typography>
                                 </AccordionSummary>
                                 <AccordionDetails>
                                     <Paper elevation={0} sx={{ bgcolor: 'action.hover' }}>
-                                        <Box p={1}>
-                                            <Typography component="div" variant="body2" mt={1} fontFamily="monospace" fontSize="12px" position="relative">
+                                        <Box
+                                            sx={{
+                                                p: 1
+                                            }}>
+                                            <Typography
+                                                component="div"
+                                                variant="body2"
+                                                sx={{
+                                                    mt: 1,
+                                                    fontFamily: "monospace",
+                                                    fontSize: "12px",
+                                                    position: "relative"
+                                                }}>
                                                 <pre style={{ whiteSpace: "pre-wrap", wordWrap: "break-word" }}>{stack}</pre>
                                             </Typography>
                                         </Box>

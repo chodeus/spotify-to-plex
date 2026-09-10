@@ -92,7 +92,11 @@ const TrackAnalyzer = forwardRef<TrackAnalyzerHandles, unknown>((_props, ref) =>
                             Track Being Searched
                         </Typography>
                         <Divider sx={{ mt: 1, mb: 2 }} />
-                        <Typography variant="body1" mb={1}>
+                        <Typography
+                            variant="body1"
+                            sx={{
+                                mb: 1
+                            }}>
                             <strong>{track?.title}</strong>
                         </Typography>
                         <Box sx={{ flex: 1, display: 'flex' }}>
@@ -111,16 +115,14 @@ const TrackAnalyzer = forwardRef<TrackAnalyzerHandles, unknown>((_props, ref) =>
                                 {track?.album}
                             </Typography>
                         </Box>
-                        {track?.duration_ms && (
-                            <Box sx={{ flex: 1, display: 'flex' }}>
-                                <Typography variant="body2" sx={{ width: '60px' }}>
-                                    <strong>Duration</strong>
-                                </Typography>
-                                <Typography variant="body2" sx={{ flex: 1 }}>
-                                    {Math.floor(track.duration_ms / 60000)}:{String(Math.floor((track.duration_ms % 60000) / 1000)).padStart(2, '0')}
-                                </Typography>
-                            </Box>
-                        )}
+                        {track?.duration_ms ? <Box sx={{ flex: 1, display: 'flex' }}>
+                            <Typography variant="body2" sx={{ width: '60px' }}>
+                                <strong>Duration</strong>
+                            </Typography>
+                            <Typography variant="body2" sx={{ flex: 1 }}>
+                                {Math.floor(track.duration_ms / 60_000)}:{String(Math.floor((track.duration_ms % 60_000) / 1000)).padStart(2, '0')}
+                            </Typography>
+                        </Box> : null}
                     </Box>
 
                     <Divider sx={{ mt: 1 }} />
@@ -132,155 +134,158 @@ const TrackAnalyzer = forwardRef<TrackAnalyzerHandles, unknown>((_props, ref) =>
 
                         const results = query.result || [];
 
-                        return <Fragment key={`query-${index}`}>
+                        return (
+                            <Fragment key={`query-${index}`}>
 
-                            {!!isNewSection &&
-                                <Typography variant="body1" mb={1} mt={3}>
-                                    Search Approach: <strong>{query.approach}</strong>
-                                </Typography>
-                            }
-                            <Box sx={{ mb: 1, p: 1, bgcolor: 'action.hover', borderRadius: 1 }} >
-                                <Typography variant="h6" sx={{ mb: 1, fontSize: "1.2em" }}>{query.title}</Typography>
-                                <Box sx={{ flex: 1, display: 'flex' }}>
-                                    <Typography variant="body2" sx={{ width: '60px' }}>
-                                        <strong>Artist</strong>
+                                {!!isNewSection &&
+                                    <Typography
+                                        variant="body1"
+                                        sx={{
+                                            mb: 1,
+                                            mt: 3
+                                        }}>
+                                        Search Approach: <strong>{query.approach}</strong>
                                     </Typography>
-                                    <Typography variant="body2" sx={{ flex: 1 }}>
-                                        {query.artist}
-                                    </Typography>
+                                }
+                                <Box sx={{ mb: 1, p: 1, bgcolor: 'action.hover', borderRadius: 1 }} >
+                                    <Typography variant="h6" sx={{ mb: 1, fontSize: "1.2em" }}>{query.title}</Typography>
+                                    <Box sx={{ flex: 1, display: 'flex' }}>
+                                        <Typography variant="body2" sx={{ width: '60px' }}>
+                                            <strong>Artist</strong>
+                                        </Typography>
+                                        <Typography variant="body2" sx={{ flex: 1 }}>
+                                            {query.artist}
+                                        </Typography>
+                                    </Box>
+                                    <Box sx={{ flex: 1, display: 'flex' }}>
+                                        <Typography variant="body2" sx={{ width: '60px' }}>
+                                            <strong>Album</strong>
+                                        </Typography>
+                                        <Typography variant="body2" sx={{ flex: 1 }}>
+                                            {query.album}
+                                        </Typography>
+                                    </Box>
                                 </Box>
-                                <Box sx={{ flex: 1, display: 'flex' }}>
-                                    <Typography variant="body2" sx={{ width: '60px' }}>
-                                        <strong>Album</strong>
-                                    </Typography>
-                                    <Typography variant="body2" sx={{ flex: 1 }}>
-                                        {query.album}
-                                    </Typography>
-                                </Box>
-                            </Box>
 
-                            {results.length > 0 &&
-                                <Box sx={{ mb: 1, p: 1, ml: 4 }} >
+                                {results.length > 0 &&
+                                    <Box sx={{ mb: 1, p: 1, ml: 4 }} >
 
-                                    {results.map((result: PlexTrack) => {
+                                        {results.map((result: PlexTrack) => {
 
-                                        const { id: resultId, title, artist, album, src, matching, duration_ms: resultDuration } = result;
+                                            const { id: resultId, title, artist, album, src, matching, duration_ms: resultDuration } = result;
 
-                                        if (!matching)
-                                            return null;
+                                            if (!matching)
+                                                return null;
 
-                                        const { isMatchingApproach } = matching;
-                                        const extensionAllowed = isExtensionAllowed(src || '', searchResponse?.allowedExtensions);
+                                            const { isMatchingApproach } = matching;
+                                            const extensionAllowed = isExtensionAllowed(src || '', searchResponse?.allowedExtensions);
 
-                                        // Determine icon: Block if extension not allowed, otherwise check/close based on match
-                                        const getStatusIcon = () => {
-                                            if (!extensionAllowed) {
-                                                return <Block sx={{ fontSize: "1.2em", color: "error.main" }} titleAccess="Extension not in allowed list" />;
-                                            }
+                                            // Determine icon: Block if extension not allowed, otherwise check/close based on match
+                                            const getStatusIcon = () => {
+                                                if (!extensionAllowed) {
+                                                    return <Block sx={{ fontSize: "1.2em", color: "error.main" }} titleAccess="Extension not in allowed list" />;
+                                                }
 
-                                            if (isMatchingApproach) {
-                                                return <CheckCircle sx={{ fontSize: "1.2em", color: "success.main" }} />;
-                                            }
+                                                if (isMatchingApproach) {
+                                                    return <CheckCircle sx={{ fontSize: "1.2em", color: "success.main" }} />;
+                                                }
 
-                                            return <Close sx={{ fontSize: "1.2em", color: "error.main" }} />;
-                                        };
+                                                return <Close sx={{ fontSize: "1.2em", color: "error.main" }} />;
+                                            };
 
-                                        return <Box key={`result-${resultId}`} sx={{ mb: 1, p: 1, bgcolor: 'action.hover', borderRadius: 1 }} >
-                                            <Box >
-                                                <Typography variant="h6" sx={{ mb: 1, fontSize: "1.2em", display: "flex", alignItems: "center", gap: 1 }} >
-                                                    {getStatusIcon()}
-                                                    {title}
-                                                    {!extensionAllowed && (
-                                                        <Typography component="span" sx={{ fontSize: "0.7em", color: "error.main", ml: 1 }}>
-                                                            (extension not allowed)
-                                                        </Typography>
-                                                    )}
-                                                </Typography>
-                                                <Box sx={{ flex: 1, display: 'flex' }}>
-                                                    <Typography variant="body2" sx={{ width: '60px' }}>
-                                                        <strong>Artists</strong>
+                                            return <Box key={`result-${resultId}`} sx={{ mb: 1, p: 1, bgcolor: 'action.hover', borderRadius: 1 }} >
+                                                <Box >
+                                                    <Typography variant="h6" sx={{ mb: 1, fontSize: "1.2em", display: "flex", alignItems: "center", gap: 1 }} >
+                                                        {getStatusIcon()}
+                                                        {title}
+                                                        {!extensionAllowed && (
+                                                            <Typography component="span" sx={{ fontSize: "0.7em", color: "error.main", ml: 1 }}>
+                                                                (extension not allowed)
+                                                            </Typography>
+                                                        )}
                                                     </Typography>
-                                                    <Typography variant="body2" sx={{ flex: 1 }}>
-                                                        {artist?.title || ''}
-                                                    </Typography>
-                                                </Box>
-                                                {!!album &&
                                                     <Box sx={{ flex: 1, display: 'flex' }}>
                                                         <Typography variant="body2" sx={{ width: '60px' }}>
-                                                            <strong>Album</strong>
+                                                            <strong>Artists</strong>
                                                         </Typography>
                                                         <Typography variant="body2" sx={{ flex: 1 }}>
-                                                            {album?.title || ''}
+                                                            {artist?.title || ''}
                                                         </Typography>
                                                     </Box>
-                                                }
-                                                {!!src &&
-                                                    <Box sx={{ flex: 1, display: 'flex' }}>
-                                                        <Typography variant="body2" sx={{ width: '60px' }}>
-                                                            <strong>File</strong>
-                                                        </Typography>
-                                                        <Typography variant="body2" sx={{ flex: 1, wordBreak: 'break-all', fontSize: '0.75rem', color: 'text.secondary' }}>
-                                                            {src}
-                                                        </Typography>
-                                                    </Box>
-                                                }
-                                                {resultDuration && (
-                                                    <Box sx={{ flex: 1, display: 'flex' }}>
+                                                    {!!album &&
+                                                        <Box sx={{ flex: 1, display: 'flex' }}>
+                                                            <Typography variant="body2" sx={{ width: '60px' }}>
+                                                                <strong>Album</strong>
+                                                            </Typography>
+                                                            <Typography variant="body2" sx={{ flex: 1 }}>
+                                                                {album?.title || ''}
+                                                            </Typography>
+                                                        </Box>
+                                                    }
+                                                    {!!src &&
+                                                        <Box sx={{ flex: 1, display: 'flex' }}>
+                                                            <Typography variant="body2" sx={{ width: '60px' }}>
+                                                                <strong>File</strong>
+                                                            </Typography>
+                                                            <Typography variant="body2" sx={{ flex: 1, wordBreak: 'break-all', fontSize: '0.75rem', color: 'text.secondary' }}>
+                                                                {src}
+                                                            </Typography>
+                                                        </Box>
+                                                    }
+                                                    {resultDuration ? <Box sx={{ flex: 1, display: 'flex' }}>
                                                         <Typography variant="body2" sx={{ width: '60px' }}>
                                                             <strong>Duration</strong>
                                                         </Typography>
                                                         <Typography variant="body2" sx={{ flex: 1 }}>
-                                                            {Math.floor(resultDuration / 60000)}:{String(Math.floor((resultDuration % 60000) / 1000)).padStart(2, '0')}
+                                                            {Math.floor(resultDuration / 60_000)}:{String(Math.floor((resultDuration % 60_000) / 1000)).padStart(2, '0')}
                                                         </Typography>
-                                                    </Box>
-                                                )}
-                                            </Box>
-                                            <Divider sx={{ mt: 1, mb: 1, borderColor: "black" }} />
-                                            <Box sx={{ display: 'flex', mt: 1 }}>
-                                                <Box sx={{ width: "160px" }}>
-                                                    <Typography variant="body1"><strong>Title</strong></Typography>
-                                                    <Typography variant="body2">Match: {matching.title.match ? "Yes" : "No"}</Typography>
-                                                    <Typography variant="body2">Contains: {matching.title.contains ? "Yes" : "No"}</Typography>
-                                                    <Typography variant="body2">Similarity: {getRoundedSimilarity(matching.title.similarity)}</Typography>
+                                                    </Box> : null}
                                                 </Box>
-                                                <Box sx={{ width: "160px" }}>
-                                                    <Typography variant="body1"><strong>Artist</strong></Typography>
-                                                    <Typography variant="body2">Match: {matching.artist.match ? "Yes" : "No"}</Typography>
-                                                    <Typography variant="body2">Contains: {matching.artist.contains ? "Yes" : "No"}</Typography>
-                                                    <Typography variant="body2">Similarity: {getRoundedSimilarity(matching.artist.similarity)}</Typography>
-                                                </Box>
-                                                <Box sx={{ width: "160px" }}>
-                                                    <Typography variant="body1"><strong>Artist in Title</strong></Typography>
-                                                    <Typography variant="body2">Match: {matching.artistInTitle.match ? "Yes" : "No"}</Typography>
-                                                    <Typography variant="body2">Contains: {matching.artistInTitle.contains ? "Yes" : "No"}</Typography>
-                                                    <Typography variant="body2">Similarity: {getRoundedSimilarity(matching.artistInTitle.similarity)}</Typography>
-                                                </Box>
-                                                <Box sx={{ width: "160px" }}>
-                                                    <Typography variant="body1"><strong>Artist with Title</strong></Typography>
-                                                    <Typography variant="body2">Match: {matching.artistWithTitle.match ? "Yes" : "No"}</Typography>
-                                                    <Typography variant="body2">Contains: {matching.artistWithTitle.contains ? "Yes" : "No"}</Typography>
-                                                    <Typography variant="body2">Similarity: {getRoundedSimilarity(matching.artistWithTitle.similarity)}</Typography>
-                                                </Box>
-                                                <Box sx={{ width: "160px" }}>
-                                                    <Typography variant="body1"><strong>Album</strong></Typography>
-                                                    <Typography variant="body2">Match: {matching.album.match ? "Yes" : "No"}</Typography>
-                                                    <Typography variant="body2">Contains: {matching.album.contains ? "Yes" : "No"}</Typography>
-                                                    <Typography variant="body2">Similarity: {getRoundedSimilarity(matching.album.similarity)}</Typography>
-                                                </Box>
-                                                {matching.duration && (
+                                                <Divider sx={{ mt: 1, mb: 1, borderColor: "black" }} />
+                                                <Box sx={{ display: 'flex', mt: 1 }}>
                                                     <Box sx={{ width: "160px" }}>
+                                                        <Typography variant="body1"><strong>Title</strong></Typography>
+                                                        <Typography variant="body2">Match: {matching.title.match ? "Yes" : "No"}</Typography>
+                                                        <Typography variant="body2">Contains: {matching.title.contains ? "Yes" : "No"}</Typography>
+                                                        <Typography variant="body2">Similarity: {getRoundedSimilarity(matching.title.similarity)}</Typography>
+                                                    </Box>
+                                                    <Box sx={{ width: "160px" }}>
+                                                        <Typography variant="body1"><strong>Artist</strong></Typography>
+                                                        <Typography variant="body2">Match: {matching.artist.match ? "Yes" : "No"}</Typography>
+                                                        <Typography variant="body2">Contains: {matching.artist.contains ? "Yes" : "No"}</Typography>
+                                                        <Typography variant="body2">Similarity: {getRoundedSimilarity(matching.artist.similarity)}</Typography>
+                                                    </Box>
+                                                    <Box sx={{ width: "160px" }}>
+                                                        <Typography variant="body1"><strong>Artist in Title</strong></Typography>
+                                                        <Typography variant="body2">Match: {matching.artistInTitle.match ? "Yes" : "No"}</Typography>
+                                                        <Typography variant="body2">Contains: {matching.artistInTitle.contains ? "Yes" : "No"}</Typography>
+                                                        <Typography variant="body2">Similarity: {getRoundedSimilarity(matching.artistInTitle.similarity)}</Typography>
+                                                    </Box>
+                                                    <Box sx={{ width: "160px" }}>
+                                                        <Typography variant="body1"><strong>Artist with Title</strong></Typography>
+                                                        <Typography variant="body2">Match: {matching.artistWithTitle.match ? "Yes" : "No"}</Typography>
+                                                        <Typography variant="body2">Contains: {matching.artistWithTitle.contains ? "Yes" : "No"}</Typography>
+                                                        <Typography variant="body2">Similarity: {getRoundedSimilarity(matching.artistWithTitle.similarity)}</Typography>
+                                                    </Box>
+                                                    <Box sx={{ width: "160px" }}>
+                                                        <Typography variant="body1"><strong>Album</strong></Typography>
+                                                        <Typography variant="body2">Match: {matching.album.match ? "Yes" : "No"}</Typography>
+                                                        <Typography variant="body2">Contains: {matching.album.contains ? "Yes" : "No"}</Typography>
+                                                        <Typography variant="body2">Similarity: {getRoundedSimilarity(matching.album.similarity)}</Typography>
+                                                    </Box>
+                                                    {matching.duration ? <Box sx={{ width: "160px" }}>
                                                         <Typography variant="body1"><strong>Duration</strong></Typography>
                                                         <Typography variant="body2">Available: {matching.duration.available ? "Yes" : "No"}</Typography>
                                                         <Typography variant="body2">Similarity: {matching.duration.available ? getRoundedSimilarity(matching.duration.similarity) : "N/A"}</Typography>
-                                                    </Box>
-                                                )}
+                                                    </Box> : null}
+                                                </Box>
                                             </Box>
-                                        </Box>
-                                    })}
-                                </Box>
-                            }
+                                        })}
+                                    </Box>
+                                }
 
-                        </Fragment>
+                            </Fragment>
+                        );
                     })}
 
                     {/* <Divider sx={{ mt: 2, mb: 2 }} /> */}
@@ -348,7 +353,7 @@ const TrackAnalyzer = forwardRef<TrackAnalyzerHandles, unknown>((_props, ref) =>
                 </>
             )}
         </Box>
-    )
+    );
 })
 
 export default TrackAnalyzer;

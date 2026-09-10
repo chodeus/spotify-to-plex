@@ -133,77 +133,89 @@ export default function UserItems(props: Props) {
         curEnd = items.length;
 
 
-    return (<Dialog open onClose={handleClose}>
+    return (
+        <Dialog open onClose={handleClose}>
 
+            <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                Plex Server Connection
+                <IconButton onClick={handleCloseClick} size="small">
+                    <Close />
+                </IconButton>
+            </DialogTitle>
 
-        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            Plex Server Connection
-            <IconButton onClick={handleCloseClick} size="small">
-                <Close />
-            </IconButton>
-        </DialogTitle>
+            <DialogContent>
 
-        <DialogContent>
+                {!!loading && <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', p: 5 }}>
+                    <CircularProgress />
+                </Box>}
 
-            {!!loading && <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', p: 5 }}>
-                <CircularProgress />
-            </Box>}
-
-            {!loading &&
-                <>
-                    <Typography variant="h6">Add {type}</Typography>
-                    <Typography variant="body1">Below you find an overview of all the {type} that you have saved in Spotify.</Typography>
-                    <Divider sx={{ mt: 2, mb: 2 }} />
-                    <Paper elevation={0} sx={{ p: 2, bgcolor: 'action.hover' }}>
-                        <Typography variant="h6" sx={{ mb: 0.5 }}>Label name</Typography>
-                        <Typography variant="body2" sx={{ mb: 1 }}>
-                            This label will be connected to any items added.
-                        </Typography>
-                        <TextField value={label} size="small" sx={{ maxWidth: 200 }} placeholder="Change label" onChange={onEditLabelChange} />
-                    </Paper>
-                    <Divider sx={{ mt: 2, mb: 2 }} />
-                    <Box>
-                        {visibleItems.map(item => {
-                            return <Paper elevation={0} key={item.id} sx={{ p: 1, mb: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, bgcolor: 'action.hover' }}>
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                    <Box component="img" src={item.image} height={40} />
-                                    <Box>
-                                        <Typography variant="body1" sx={{ lineHeight: '1em' }}>{item.title}</Typography>
-                                        {!!item.private && <Typography variant="body2">Private</Typography>}
-                                    </Box>
-                                </Box>
-                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 1 }}>
-                                    {!!item.added &&
-                                        <IconButton disabled size="small" color="success"><Check sx={{ fontSize: '1em' }} /></IconButton>
-                                    }
-
-                                    {!item.added &&
-                                        <>
-                                            {addingItems.indexOf(item.id) > -1 ?
-                                                <IconButton disabled size="small" ><CircularProgress size={20} /></IconButton>
-                                                :
-                                                <Tooltip title="Add"><IconButton data-id={item.id} onClick={onAddClick} size="small" ><Add sx={{ fontSize: '1em' }} /></IconButton></Tooltip>
+                {!loading &&
+                    <>
+                        <Typography variant="h6">Add {type}</Typography>
+                        <Typography variant="body1">Below you find an overview of all the {type} that you have saved in Spotify.</Typography>
+                        <Divider sx={{ mt: 2, mb: 2 }} />
+                        <Paper elevation={0} sx={{ p: 2, bgcolor: 'action.hover' }}>
+                            <Typography variant="h6" sx={{ mb: 0.5 }}>Label name</Typography>
+                            <Typography variant="body2" sx={{ mb: 1 }}>
+                                This label will be connected to any items added.
+                            </Typography>
+                            <TextField value={label} size="small" sx={{ maxWidth: 200 }} placeholder="Change label" onChange={onEditLabelChange} />
+                        </Paper>
+                        <Divider sx={{ mt: 2, mb: 2 }} />
+                        <Box>
+                            {visibleItems.map(item => {
+                                return (
+                                    <Paper elevation={0} key={item.id} sx={{ p: 1, mb: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, bgcolor: 'action.hover' }}>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                            <Box
+                                                component="img"
+                                                src={item.image}
+                                                sx={{
+                                                    height: 40
+                                                }} />
+                                            <Box>
+                                                <Typography variant="body1" sx={{ lineHeight: '1em' }}>{item.title}</Typography>
+                                                {!!item.private && <Typography variant="body2">Private</Typography>}
+                                            </Box>
+                                        </Box>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 1 }}>
+                                            {!!item.added &&
+                                                <IconButton disabled size="small" color="success"><Check sx={{ fontSize: '1em' }} /></IconButton>
                                             }
-                                        </>
-                                    }
+
+                                            {!item.added &&
+                                                <>
+                                                    {addingItems.indexOf(item.id) > -1 ?
+                                                        <IconButton disabled size="small" ><CircularProgress size={20} /></IconButton>
+                                                        :
+                                                        <Tooltip title="Add"><IconButton data-id={item.id} onClick={onAddClick} size="small" ><Add sx={{ fontSize: '1em' }} /></IconButton></Tooltip>
+                                                    }
+                                                </>
+                                            }
+                                        </Box>
+                                    </Paper>
+                                );
+                            })}
+
+                            {totalPages > 1 &&
+                                <Box
+                                    sx={{
+                                        mt: 1,
+                                        display: "flex",
+                                        justifyContent: "space-between"
+                                    }}>
+                                    <Button size="small" variant="outlined" disabled={page <= 0} onClick={prevPageClick}>Previous</Button>
+                                    <Button size="small" variant="outlined" disabled={page >= totalPages - 1} onClick={nextPageClick}>Next</Button>
                                 </Box>
-                            </Paper>
-                        })}
-
-                        {totalPages > 1 &&
-                            <Box mt={1} display="flex" justifyContent="space-between">
-                                <Button size="small" variant="outlined" disabled={page <= 0} onClick={prevPageClick}>Previous</Button>
-                                <Button size="small" variant="outlined" disabled={page >= totalPages - 1} onClick={nextPageClick}>Next</Button>
-                            </Box>
-                        }
+                            }
 
 
-                    </Box>
-                </>
-            }
+                        </Box>
+                    </>
+                }
 
-        </DialogContent>
-        {/* </Box> */}
-    </Dialog>
-    )
+            </DialogContent>
+            {/* </Box> */}
+        </Dialog>
+    );
 }

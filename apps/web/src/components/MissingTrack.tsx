@@ -347,7 +347,11 @@ const MissingTrack = forwardRef<MissingTrackHandle, MissingTrackProps>((props, r
                                 {/* Match statistics */}
                                 {result.matchInfo ? (
                                     <Box sx={{ mt: 1, pt: 1, borderTop: 1, borderColor: 'divider' }}>
-                                        <Typography variant="caption" color="text.secondary">
+                                        <Typography
+                                            variant="caption"
+                                            sx={{
+                                                color: "text.secondary"
+                                            }}>
                                             Found {result.matchInfo.totalMatches} match{result.matchInfo.totalMatches === 1 ? '' : 'es'}
                                             {' '}using {result.matchInfo.queriesAttempted} quer{result.matchInfo.queriesAttempted === 1 ? 'y' : 'ies'}
                                             {result.matchInfo.approaches.length > 0 ? (
@@ -363,7 +367,11 @@ const MissingTrack = forwardRef<MissingTrackHandle, MissingTrackProps>((props, r
                     {/* Show search info on error if available */}
                     {!result.success && result.matchInfo ? (
                         <Box sx={{ mt: 1, p: 1, bgcolor: 'action.hover', borderRadius: 1, fontSize: '.85em' }}>
-                            <Typography variant="caption" color="text.secondary">
+                            <Typography
+                                variant="caption"
+                                sx={{
+                                    color: "text.secondary"
+                                }}>
                                 Tried {result.matchInfo.queriesAttempted} quer{result.matchInfo.queriesAttempted === 1 ? 'y' : 'ies'}
                                 {result.matchInfo.approaches.length > 0 ? (
                                     <> using approaches: {result.matchInfo.approaches.join(', ')}</>

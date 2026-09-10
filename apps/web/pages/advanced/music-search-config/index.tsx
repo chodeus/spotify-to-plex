@@ -9,7 +9,12 @@ const MusicSearchConfigIndexPage: NextPage = () => {
             <Card>
                 <CardContent>
                     <Box sx={{ p: 3 }}>
-                        <Typography variant="h5" gutterBottom fontWeight="bold">
+                        <Typography
+                            variant="h5"
+                            gutterBottom
+                            sx={{
+                                fontWeight: "bold"
+                            }}>
                             System Overview
                         </Typography>
                         <Typography variant="body1">
@@ -19,7 +24,12 @@ const MusicSearchConfigIndexPage: NextPage = () => {
                         <Divider sx={{ my: 4 }} />
 
                         {/* Visual Flow Diagram */}
-                        <Typography variant="h5" gutterBottom fontWeight="bold">
+                        <Typography
+                            variant="h5"
+                            gutterBottom
+                            sx={{
+                                fontWeight: "bold"
+                            }}>
                             Processing Flow
                         </Typography>
                         <Box
@@ -41,16 +51,30 @@ const MusicSearchConfigIndexPage: NextPage = () => {
                         <Divider sx={{ my: 4 }} />
 
                         {/* Component Explanations */}
-                        <Typography variant="h5" gutterBottom fontWeight="bold">
+                        <Typography
+                            variant="h5"
+                            gutterBottom
+                            sx={{
+                                fontWeight: "bold"
+                            }}>
                             System Components
                         </Typography>
                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, mb: 4 }}>
                             <Card elevation={2}>
                                 <CardContent>
-                                    <Typography variant="h6" fontWeight="bold" color="primary">
+                                    <Typography
+                                        variant="h6"
+                                        color="primary"
+                                        sx={{
+                                            fontWeight: "bold"
+                                        }}>
                                         Text Processing
                                     </Typography>
-                                    <Typography variant="body2" pb={1}>
+                                    <Typography
+                                        variant="body2"
+                                        sx={{
+                                            pb: 1
+                                        }}>
                                         Cleans and normalizes track metadata by removing special characters and other content (like &quot;Remaster&quot;, &quot;Deluxe Edition&quot;), and standardizing text formatting.
                                     </Typography>
                                     <Typography variant="body2">
@@ -62,10 +86,19 @@ const MusicSearchConfigIndexPage: NextPage = () => {
 
                             <Card elevation={2}>
                                 <CardContent>
-                                    <Typography variant="h6" fontWeight="bold" color="primary">
+                                    <Typography
+                                        variant="h6"
+                                        color="primary"
+                                        sx={{
+                                            fontWeight: "bold"
+                                        }}>
                                         Search Approaches
                                     </Typography>
-                                    <Typography variant="body2" pb={1}>
+                                    <Typography
+                                        variant="body2"
+                                        sx={{
+                                            pb: 1
+                                        }}>
                                         Apply different search approaches to find matches.
                                     </Typography>
                                     <Typography variant="body2">
@@ -76,10 +109,19 @@ const MusicSearchConfigIndexPage: NextPage = () => {
 
                             <Card elevation={2}>
                                 <CardContent>
-                                    <Typography variant="h6" fontWeight="bold" color="primary">
+                                    <Typography
+                                        variant="h6"
+                                        color="primary"
+                                        sx={{
+                                            fontWeight: "bold"
+                                        }}>
                                         Match Filters
                                     </Typography>
-                                    <Typography variant="body2" pb={1}>
+                                    <Typography
+                                        variant="body2"
+                                        sx={{
+                                            pb: 1
+                                        }}>
                                         Applies quality filters to rank potential matches based on matching songs, artist and albums.
                                     </Typography>
                                 </CardContent>
@@ -90,7 +132,7 @@ const MusicSearchConfigIndexPage: NextPage = () => {
                 </CardContent>
             </Card>
         </MusicSearchConfigLayout>
-    )
+    );
 }
 
 export default MusicSearchConfigIndexPage

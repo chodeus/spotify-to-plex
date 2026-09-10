@@ -155,11 +155,21 @@ const MatchFiltersPage: NextPage = () => {
 
                         {/* Mode-specific descriptions */}
                         {viewMode === 'ui' ? (
-                            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                            <Typography
+                                variant="body2"
+                                sx={{
+                                    color: "text.secondary",
+                                    mb: 3
+                                }}>
                                 Add filter expressions to match tracks. Filters are evaluated in order - the first matching filter wins.
                             </Typography>
                         ) : (
-                            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                            <Typography
+                                variant="body2"
+                                sx={{
+                                    color: "text.secondary",
+                                    mb: 3
+                                }}>
                                 Edit raw JSON for advanced configurations. Each filter should be a string expression.
                                 Filters are evaluated in order - the first matching filter wins.
                             </Typography>
@@ -179,7 +189,7 @@ const MatchFiltersPage: NextPage = () => {
                 </CardContent>
             </Card>
         </MusicSearchConfigLayout>
-    )
+    );
 }
 
 export default MatchFiltersPage

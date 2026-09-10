@@ -454,213 +454,229 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
         )
     }
 
-    return (<>
+    return (
+        <>
 
-        {!!loadingTracks &&
-            <Box sx={{ mt: 2 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, border: '2px solid rgba(255,255,255,0.5)', borderRadius: '4px', p: 2, textAlign: 'center' }}>
-                    <Box sx={{ alignItems: 'center' }}>
-                        <CircularProgress size={20} />
-                    </Box>
-                    <Box sx={{ flexGrow: 1, display: 'flex', gap: 1, justifyContent: 'space-between' }}>
-                        {playlist.type === 'spotify-playlist' ?
-                            <Typography variant="body1" sx={{ color: 'text.secondary' }}>Processed {tracksLoaded.length} of {tracksToLoad} tracks</Typography>
-                            :
-                            <Typography variant="body1" sx={{ color: 'text.secondary' }}>
-                                Searching for album...
-                            </Typography>
-                        }
-                        <Typography onClick={onCancelClick} variant="body1" sx={{ textDecoration: 'underline', textUnderlineOffset: '2px', textDecorationThickness: '1px', cursor: 'pointer', color: 'primary.main' }}>cancel</Typography>
-                    </Box>
-                </Box>
-            </Box>
-        }
-
-
-        <Paper elevation={1} sx={{ p: 2, mb: 1, mt: 1, position: 'relative' }}>
             {!!loadingTracks &&
-                <>
-                    <Typography variant="h6" sx={{ mb: 0.5 }}>Playlist loading...</Typography>
-                    <Typography variant="body2" sx={{ mb: 1 }}>
-                        We are trying to match all the songs from the playlist with your library.
-                    </Typography>
-                </>
-            }
-            {!loadingTracks &&
-                <>
-                    <Typography variant="h6" sx={{ mb: 0.5 }}>Playlist loaded</Typography>
-                    <Typography variant="body2" sx={{ mb: 1 }}>
-                        We finished matching all songs from the playlist with your library. Any successful matches are cached to improve performance the next time this playlist is opened.
-                    </Typography>
-                </>
-            }
-
-            {!loadingTracks &&
-                <Tooltip title='Refresh all songs (ignoring cache).'>
-                    <IconButton size="small" sx={{ position: 'absolute', right: 2, top: 2 }} onClick={onForceRefreshClick}><Refresh /></IconButton>
-                </Tooltip>
-            }
-
-            <Box sx={{ display: 'flex', gap: 1 }}>
-                <Button disabled={loadingTracks || saving} onClick={onPutPlaylistClick}>{plexPlaylist ? "Update" : "Create"} playlist</Button>
-                <Button component="a" disabled={!plexPlaylist} href={plexPlaylist?.link} target='_blank'>Open playlist</Button>
-            </Box>
-        </Paper>
-
-        {playlist?.type === 'spotify-album' &&
-            <Box sx={{ mt: 1, mb: 1 }}>
-                <Alert variant="outlined" color="warning">
-                    <Box sx={{ p: 1 }}>
-                        <Typography variant="h6" sx={{ m: 0, mb: 0.5 }} color="warning">Album detected</Typography>
-                        <Typography variant="body2" sx={{ mb: 1 }}>
-                            You have added an album to your list. While you can use this album to create a playlist, you don&apos;t neccesarily need to. In most cases the album is already present in your library as an album.
-                        </Typography>
-                        <Typography variant="body2">
-                            If you setup syncing for an album you will get the reports, even if you don&apos;t create a playlist for it.
-                        </Typography>
+                <Box sx={{ mt: 2 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, border: '2px solid rgba(255,255,255,0.5)', borderRadius: '4px', p: 2, textAlign: 'center' }}>
+                        <Box sx={{ alignItems: 'center' }}>
+                            <CircularProgress size={20} />
+                        </Box>
+                        <Box sx={{ flexGrow: 1, display: 'flex', gap: 1, justifyContent: 'space-between' }}>
+                            {playlist.type === 'spotify-playlist' ?
+                                <Typography variant="body1" sx={{ color: 'text.secondary' }}>Processed {tracksLoaded.length} of {tracksToLoad} tracks</Typography>
+                                :
+                                <Typography variant="body1" sx={{ color: 'text.secondary' }}>
+                                    Searching for album...
+                                </Typography>
+                            }
+                            <Typography onClick={onCancelClick} variant="body1" sx={{ textDecoration: 'underline', textUnderlineOffset: '2px', textDecorationThickness: '1px', cursor: 'pointer', color: 'primary.main' }}>cancel</Typography>
+                        </Box>
                     </Box>
-                </Alert>
-            </Box>
-        }
+                </Box>
+            }
 
-        {!!(missingTracks.length > 0) && !loadingTracks &&
-            <Box sx={{ mt: 1, mb: 1 }}>
-                <Alert variant="outlined" color="warning">
-                    <Box sx={{ p: 1 }}>
-                        {playlist.type === 'spotify-playlist' &&
-                            <Typography variant="h6" sx={{ mb: 0.5 }} color="warning">{missingTracks.length} tracks not found</Typography>
-                        }
-                        {playlist.type === 'spotify-album' &&
-                            <Typography variant="h6" sx={{ mb: 0.5 }} color="warning">
-                                Album not found or incomplete
+            <Paper elevation={1} sx={{ p: 2, mb: 1, mt: 1, position: 'relative' }}>
+                {!!loadingTracks &&
+                    <>
+                        <Typography variant="h6" sx={{ mb: 0.5 }}>Playlist loading...</Typography>
+                        <Typography variant="body2" sx={{ mb: 1 }}>
+                            We are trying to match all the songs from the playlist with your library.
+                        </Typography>
+                    </>
+                }
+                {!loadingTracks &&
+                    <>
+                        <Typography variant="h6" sx={{ mb: 0.5 }}>Playlist loaded</Typography>
+                        <Typography variant="body2" sx={{ mb: 1 }}>
+                            We finished matching all songs from the playlist with your library. Any successful matches are cached to improve performance the next time this playlist is opened.
+                        </Typography>
+                    </>
+                }
+
+                {!loadingTracks &&
+                    <Tooltip title='Refresh all songs (ignoring cache).'>
+                        <IconButton size="small" sx={{ position: 'absolute', right: 2, top: 2 }} onClick={onForceRefreshClick}><Refresh /></IconButton>
+                    </Tooltip>
+                }
+
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                    <Button disabled={loadingTracks || saving} onClick={onPutPlaylistClick}>{plexPlaylist ? "Update" : "Create"} playlist</Button>
+                    <Button component="a" disabled={!plexPlaylist} href={plexPlaylist?.link} target='_blank'>Open playlist</Button>
+                </Box>
+            </Paper>
+
+            {playlist?.type === 'spotify-album' &&
+                <Box sx={{ mt: 1, mb: 1 }}>
+                    <Alert variant="outlined" color="warning">
+                        <Box sx={{ p: 1 }}>
+                            <Typography variant="h6" sx={{ m: 0, mb: 0.5 }} color="warning">Album detected</Typography>
+                            <Typography variant="body2" sx={{ mb: 1 }}>
+                                You have added an album to your list. While you can use this album to create a playlist, you don&apos;t neccesarily need to. In most cases the album is already present in your library as an album.
                             </Typography>
-                        }
-                        <Typography variant="body2" sx={{ mb: 1 }}>
-                            Some tracks are not matching up, these are missing in your library or the naming in your library is a bit different than expected.
-                        </Typography>
-                        <Button variant="outlined" color="warning" size="small" onClick={onExportMissingClick}>View missing Files</Button>
-                    </Box>
-                </Alert>
-            </Box>
-        }
+                            <Typography variant="body2">
+                                If you setup syncing for an album you will get the reports, even if you don&apos;t create a playlist for it.
+                            </Typography>
+                        </Box>
+                    </Alert>
+                </Box>
+            }
 
-        {!!(reviewTracks.length > 0) && !loadingTracks &&
-            <Box sx={{ mt: 1, mb: 1 }}>
-                <Alert variant="outlined" severity="info">
-                    <Box sx={{ p: 1 }}>
-                        <Typography variant="h6" sx={{ mb: 0.5 }}>{reviewTracks.length} tracks to review</Typography>
-                        <Typography variant="body2" sx={{ mb: 1 }}>
-                            More than one track in your library matched these, so the wrong version may have been picked.
-                        </Typography>
-                        <Button variant="outlined" size="small" onClick={onToggleReview}>Review tracks</Button>
-                    </Box>
-                </Alert>
-            </Box>
-        }
+            {!!(missingTracks.length > 0) && !loadingTracks &&
+                <Box sx={{ mt: 1, mb: 1 }}>
+                    <Alert variant="outlined" color="warning">
+                        <Box sx={{ p: 1 }}>
+                            {playlist.type === 'spotify-playlist' &&
+                                <Typography variant="h6" sx={{ mb: 0.5 }} color="warning">{missingTracks.length} tracks not found</Typography>
+                            }
+                            {playlist.type === 'spotify-album' &&
+                                <Typography variant="h6" sx={{ mb: 0.5 }} color="warning">
+                                    Album not found or incomplete
+                                </Typography>
+                            }
+                            <Typography variant="body2" sx={{ mb: 1 }}>
+                                Some tracks are not matching up, these are missing in your library or the naming in your library is a bit different than expected.
+                            </Typography>
+                            <Button variant="outlined" color="warning" size="small" onClick={onExportMissingClick}>View missing Files</Button>
+                        </Box>
+                    </Alert>
+                </Box>
+            }
 
-        {missingTracks.length === 0 && !loadingTracks &&
-            <Box sx={{ mt: 1, mb: 1 }}>
-                <Alert variant="outlined" color="success">
-                    <Box sx={{ p: 1 }}>
-                        <Typography variant="h6" sx={{ mb: 0.5 }} color="success">All tracks matched</Typography>
+            {!!(reviewTracks.length > 0) && !loadingTracks &&
+                <Box sx={{ mt: 1, mb: 1 }}>
+                    <Alert variant="outlined" severity="info">
+                        <Box sx={{ p: 1 }}>
+                            <Typography variant="h6" sx={{ mb: 0.5 }}>{reviewTracks.length} tracks to review</Typography>
+                            <Typography variant="body2" sx={{ mb: 1 }}>
+                                More than one track in your library matched these, so the wrong version may have been picked.
+                            </Typography>
+                            <Button variant="outlined" size="small" onClick={onToggleReview}>Review tracks</Button>
+                        </Box>
+                    </Alert>
+                </Box>
+            }
+
+            {missingTracks.length === 0 && !loadingTracks &&
+                <Box sx={{ mt: 1, mb: 1 }}>
+                    <Alert variant="outlined" color="success">
+                        <Box sx={{ p: 1 }}>
+                            <Typography variant="h6" sx={{ mb: 0.5 }} color="success">All tracks matched</Typography>
+                            <Typography variant="body2">
+                                Each track is present in your Plex library.
+                            </Typography>
+                        </Box>
+                    </Alert>
+                </Box>
+            }
+
+            <Paper elevation={1} sx={{ p: 2 }}>
+                <Box
+                    sx={{
+                        textAlign: "center"
+                    }}>
+                    <Box sx={{ display: 'flex', gap: .5, transform: 'translateX(20px)', justifyContent: 'center', alignItems: 'center' }}>
+                        <Typography variant="h6" sx={{ m: 0, p: 0 }}>{playlistName}</Typography>
+                        <IconButton onClick={onEditPlaylistNameClick} sx={{ '&:hover': { background: 'none' } }} size="small"><Edit /></IconButton>
+                    </Box>
+                    <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center', alignItems: 'center' }}>
+                        {playlistName !== playlist.title && <Typography variant="body2" sx={{ fontStyle: 'italic' }}>{playlist.title} -</Typography>}
+                        <Typography variant="body2" sx={{ fontStyle: 'italic' }}>{playlist.tracks.length} songs</Typography>
+                    </Box>
+                </Box>
+
+                <Divider sx={{ mt: 1, mb: 1 }} />
+                <Stack>
+                    <TextField
+                        size="small"
+                        fullWidth
+                        sx={{ mb: 1 }}
+                        placeholder="Search this playlist"
+                        value={query}
+                        onChange={onQueryChange}
+                        slotProps={{
+                            input: {
+                                startAdornment: <InputAdornment position="start"><Search fontSize="small" /></InputAdornment>,
+                                endAdornment: !!query && <InputAdornment position="end">
+                                    <IconButton size="small" onClick={onClearQuery} aria-label="Clear search"><CloseIcon fontSize="small" /></IconButton>
+                                </InputAdornment>
+                            }
+                        }}
+                    />
+                    {!!filtering &&
+                        <Typography variant="body2" sx={{ mb: 1, color: 'text.secondary' }}>
+                            {filteredTracks.length === 0 ? 'No tracks match' : `${filteredTracks.length} of ${playlist.tracks.length} tracks`}
+                        </Typography>
+                    }
+                    {totalPages > 1 &&
+                        <Box
+                            sx={{
+                                display: "flex",
+                                mb: 1,
+                                justifyContent: "space-between"
+                            }}>
+                            <Button variant="contained" disabled={page <= 0} onClick={prevPageClick}>Previous</Button>
+                            <Box>Showing {page * pageSize} - {curEnd}</Box>
+                            <Button variant="contained" disabled={page >= totalPages - 1} onClick={nextPageClick}>Next</Button>
+                        </Box>
+                    }
+                    {visibleTracks.map(renderTrack)}
+                </Stack>
+            </Paper>
+
+            {!!showEditPlaylistName &&
+                <Modal open onClose={onEditPlaylistNameClick}>
+                    <Box sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', maxWidth: 400, bgcolor: 'background.paper', p: 3, borderRadius: 1 }}>
+                        <IconButton size="small" onClick={onEditPlaylistNameClick} sx={{ position: 'absolute', right: 8, top: 8 }}>
+                            <CloseIcon fontSize="small" />
+                        </IconButton>
+                        <Typography variant="h6">
+                            Playlist name
+                        </Typography>
+                        <Typography variant="body1">
+                            This will be the name in your Plex library.
+                        </Typography>
+                        <Input value={newPlaylistName} onChange={onPlaylistNameChange} />
+                        <Button variant="contained" onClick={onSavePlaylistNameClick} sx={{ mt: 2 }}>Save</Button>
+                    </Box>
+                </Modal>
+            }
+
+            {!!showReview &&
+                <Dialog open onClose={onToggleReview}>
+                    <Box sx={{ maxWidth: 600, p: 2, position: 'relative' }}>
+                        <IconButton size="small" onClick={onToggleReview} sx={{ position: 'absolute', right: 8, top: 8 }}>
+                            <CloseIcon fontSize="small" />
+                        </IconButton>
+                        <Typography variant="h6">Tracks to review</Typography>
                         <Typography variant="body2">
-                            Each track is present in your Plex library.
+                            Below you find the tracks where more than one track in your library matched. Pick the right one.
                         </Typography>
+                        <Box sx={{ mt: 1 }}>
+                            {visibleReviewTracks.map(renderTrack)}
+
+                            {reviewTotalPages > 1 &&
+                                <Box
+                                    sx={{
+                                        mt: 1,
+                                        display: "flex",
+                                        justifyContent: "space-between"
+                                    }}>
+                                    <Button size="small" variant="outlined" color="inherit" disabled={reviewPage <= 0} onClick={reviewPrevPageClick}>Previous</Button>
+                                    <Button size="small" variant="outlined" color="inherit" disabled={reviewPage >= reviewTotalPages - 1} onClick={reviewNextPageClick}>Next</Button>
+                                </Box>
+                            }
+                        </Box>
                     </Box>
-                </Alert>
-            </Box>
-        }
+                </Dialog>
+            }
 
-        <Paper elevation={1} sx={{ p: 2 }}>
-            <Box textAlign="center">
-                <Box sx={{ display: 'flex', gap: .5, transform: 'translateX(20px)', justifyContent: 'center', alignItems: 'center' }}>
-                    <Typography variant="h6" sx={{ m: 0, p: 0 }}>{playlistName}</Typography>
-                    <IconButton onClick={onEditPlaylistNameClick} sx={{ '&:hover': { background: 'none' } }} size="small"><Edit /></IconButton>
-                </Box>
-                <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center', alignItems: 'center' }}>
-                    {playlistName !== playlist.title && <Typography variant="body2" sx={{ fontStyle: 'italic' }}>{playlist.title} -</Typography>}
-                    <Typography variant="body2" sx={{ fontStyle: 'italic' }}>{playlist.tracks.length} songs</Typography>
-                </Box>
-            </Box>
+            {!!showExportMissingTracks && missingTracks.length > 0 &&
+                <ExportMissingTracks onClose={onExportMissingClick} tracks={missingTracks} playlist={playlist} />
+            }
 
-            <Divider sx={{ mt: 1, mb: 1 }} />
-            <Stack>
-                <TextField
-                    size="small"
-                    fullWidth
-                    sx={{ mb: 1 }}
-                    placeholder="Search this playlist"
-                    value={query}
-                    onChange={onQueryChange}
-                    InputProps={{
-                        startAdornment: <InputAdornment position="start"><Search fontSize="small" /></InputAdornment>,
-                        endAdornment: !!query && <InputAdornment position="end">
-                            <IconButton size="small" onClick={onClearQuery} aria-label="Clear search"><CloseIcon fontSize="small" /></IconButton>
-                        </InputAdornment>
-                    }}
-                />
-                {!!filtering &&
-                    <Typography variant="body2" sx={{ mb: 1, color: 'text.secondary' }}>
-                        {filteredTracks.length === 0 ? 'No tracks match' : `${filteredTracks.length} of ${playlist.tracks.length} tracks`}
-                    </Typography>
-                }
-                {totalPages > 1 &&
-                    <Box display="flex" mb={1} justifyContent="space-between">
-                        <Button variant="contained" disabled={page <= 0} onClick={prevPageClick}>Previous</Button>
-                        <Box>Showing {page * pageSize} - {curEnd}</Box>
-                        <Button variant="contained" disabled={page >= totalPages - 1} onClick={nextPageClick}>Next</Button>
-                    </Box>
-                }
-                {visibleTracks.map(renderTrack)}
-            </Stack>
-        </Paper>
-
-        {!!showEditPlaylistName &&
-            <Modal open onClose={onEditPlaylistNameClick}>
-                <Box sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', maxWidth: 400, bgcolor: 'background.paper', p: 3, borderRadius: 1 }}>
-                    <IconButton size="small" onClick={onEditPlaylistNameClick} sx={{ position: 'absolute', right: 8, top: 8 }}>
-                        <CloseIcon fontSize="small" />
-                    </IconButton>
-                    <Typography variant="h6">
-                        Playlist name
-                    </Typography>
-                    <Typography variant="body1">
-                        This will be the name in your Plex library.
-                    </Typography>
-                    <Input value={newPlaylistName} onChange={onPlaylistNameChange} />
-                    <Button variant="contained" onClick={onSavePlaylistNameClick} sx={{ mt: 2 }}>Save</Button>
-                </Box>
-            </Modal>
-        }
-
-        {!!showReview &&
-            <Dialog open onClose={onToggleReview}>
-                <Box sx={{ maxWidth: 600, p: 2, position: 'relative' }}>
-                    <IconButton size="small" onClick={onToggleReview} sx={{ position: 'absolute', right: 8, top: 8 }}>
-                        <CloseIcon fontSize="small" />
-                    </IconButton>
-                    <Typography variant="h6">Tracks to review</Typography>
-                    <Typography variant="body2">
-                        Below you find the tracks where more than one track in your library matched. Pick the right one.
-                    </Typography>
-                    <Box sx={{ mt: 1 }}>
-                        {visibleReviewTracks.map(renderTrack)}
-
-                        {reviewTotalPages > 1 &&
-                            <Box mt={1} display="flex" justifyContent="space-between">
-                                <Button size="small" variant="outlined" color="inherit" disabled={reviewPage <= 0} onClick={reviewPrevPageClick}>Previous</Button>
-                                <Button size="small" variant="outlined" color="inherit" disabled={reviewPage >= reviewTotalPages - 1} onClick={reviewNextPageClick}>Next</Button>
-                            </Box>
-                        }
-                    </Box>
-                </Box>
-            </Dialog>
-        }
-
-        {!!showExportMissingTracks && missingTracks.length > 0 &&
-            <ExportMissingTracks onClose={onExportMissingClick} tracks={missingTracks} playlist={playlist} />
-        }
-
-    </>)
+        </>
+    );
 
 }

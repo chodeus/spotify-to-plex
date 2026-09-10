@@ -20,7 +20,11 @@ const ProcessingStep: React.FC<ProcessingStepProps> = ({ title, description, isL
                 color: 'primary.contrastText',
             }}
         >
-            <Typography variant="subtitle2" fontWeight="bold">
+            <Typography
+                variant="subtitle2"
+                sx={{
+                    fontWeight: "bold"
+                }}>
                 {title}
             </Typography>
             <Typography variant="caption" sx={{ display: 'block', mt: 0.5 }}>

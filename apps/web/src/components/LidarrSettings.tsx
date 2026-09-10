@@ -169,9 +169,9 @@ export default function LidarrSettings() {
         ? 'Loading profiles...'
         : profilesError
             ? `Could not load profiles: ${profilesError}`
-            : !settings.url
-                ? 'Enter a Lidarr URL to load profiles'
-                : null;
+            : settings.url
+                ? null
+                : 'Enter a Lidarr URL to load profiles';
 
     return (
         <Box>
@@ -214,12 +214,7 @@ export default function LidarrSettings() {
                 <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
                     <FormControl sx={{ flex: 1 }} disabled={profilesDisabled}>
                         <InputLabel id="quality-profile-label">Quality Profile</InputLabel>
-                        <Select
-                            labelId="quality-profile-label"
-                            value={settings.quality_profile_id}
-                            label="Quality Profile"
-                            onChange={handleQualityProfileChange}
-                        >
+                        <Select labelId="quality-profile-label" value={settings.quality_profile_id} label="Quality Profile" onChange={handleQualityProfileChange}>
                             {qualityProfiles.map(profile => (
                                 <MenuItem key={profile.id} value={profile.id}>{profile.name}</MenuItem>
                             ))}
@@ -231,12 +226,7 @@ export default function LidarrSettings() {
 
                     <FormControl sx={{ flex: 1 }} disabled={profilesDisabled}>
                         <InputLabel id="metadata-profile-label">Metadata Profile</InputLabel>
-                        <Select
-                            labelId="metadata-profile-label"
-                            value={settings.metadata_profile_id}
-                            label="Metadata Profile"
-                            onChange={handleMetadataProfileChange}
-                        >
+                        <Select labelId="metadata-profile-label" value={settings.metadata_profile_id} label="Metadata Profile" onChange={handleMetadataProfileChange}>
                             {metadataProfiles.map(profile => (
                                 <MenuItem key={profile.id} value={profile.id}>{profile.name}</MenuItem>
                             ))}

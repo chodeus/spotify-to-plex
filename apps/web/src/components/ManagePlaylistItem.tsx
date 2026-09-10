@@ -120,7 +120,12 @@ export default function ManagePlaylistItem(props: Props) {
         <>
             <Paper elevation={layerSelected ? 3 : 1} key={item.id} sx={paperStyles} onClick={onCheckboxChange}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }} >
-                    <Box component="img" src={item.image} height={40} />
+                    <Box
+                        component="img"
+                        src={item.image}
+                        sx={{
+                            height: 40
+                        }} />
                     <Box sx={{ minWidth: 0 }}>
                         <Typography variant="body1" sx={{ mb: .5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.title}</Typography>
                         <Box sx={{ display: 'flex', gap: .5, alignItems: 'center' }}>
@@ -150,5 +155,5 @@ export default function ManagePlaylistItem(props: Props) {
 
             {!!editItem && <PlaylistItemSettings items={[item]} labels={labels} onClose={onCloseEditItem} />}
         </>
-    )
+    );
 }

@@ -37,7 +37,7 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
 
             const [qualityRes, metadataRes] = await Promise.all([
                 axios.get<LidarrProfile[]>(`${baseUrl}/api/v1/qualityprofile`, { headers, timeout: 5000 }),
-                axios.get<LidarrProfile[]>(`${baseUrl}/api/v1/metadataprofile`, { headers, timeout: 5000 }),
+                axios.get<LidarrProfile[]>(`${baseUrl}/api/v1/metadataprofile`, { headers, timeout: 5000 })
             ]);
 
             const qualityProfiles: LidarrProfile[] = qualityRes.data.map(p => ({ id: p.id, name: p.name }));

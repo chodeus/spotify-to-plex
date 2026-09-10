@@ -109,7 +109,13 @@ const TestConfigPage: NextPage = () => {
                         </Typography>
 
                         <TextField fullWidth value={spotifyId} onChange={handleInputChange} placeholder="e.g., 4uLU6hMCjMI75M1A2tKUQC or https://open.spotify.com/track/..." />
-                        <Box pt={1} sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                        <Box
+                            sx={{
+                                pt: 1,
+                                display: 'flex',
+                                gap: 1,
+                                flexWrap: 'wrap'
+                            }}>
                             <Button variant="contained" onClick={handleAnalyzePlex} disabled={!spotifyId.trim()}>
                                 Analyze Track in Plex
                             </Button>
@@ -135,7 +141,7 @@ const TestConfigPage: NextPage = () => {
                 </CardContent>
             </Card>
         </MusicSearchConfigLayout>
-    )
+    );
 }
 
 export default TestConfigPage

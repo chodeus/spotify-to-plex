@@ -131,7 +131,11 @@ export default function LidarrAlbumDialog(props: Props) {
                                                 <Typography variant="body2">
                                                     {album.album_name}
                                                 </Typography>
-                                                <Typography variant="caption" color="text.secondary">
+                                                <Typography
+                                                    variant="caption"
+                                                    sx={{
+                                                        color: "text.secondary"
+                                                    }}>
                                                     {album.artist_name}
                                                 </Typography>
                                             </Box>

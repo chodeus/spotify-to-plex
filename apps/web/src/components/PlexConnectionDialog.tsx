@@ -67,7 +67,11 @@ const PlexConnectionDialog = (props: PlexConnectionDialogProps) => {
             </DialogTitle>
             <DialogContent>
                 {!!loading &&
-                    <Box display="flex" justifyContent="center">
+                    <Box
+                        sx={{
+                            display: "flex",
+                            justifyContent: "center"
+                        }}>
                         <Alert severity="info" sx={{ ml: 2 }}>
                             Checking your connection with Plex
                         </Alert>
@@ -75,7 +79,12 @@ const PlexConnectionDialog = (props: PlexConnectionDialogProps) => {
                 }
 
                 {!loading && <>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                    <Typography
+                        variant="body2"
+                        sx={{
+                            color: "text.secondary",
+                            mb: 3
+                        }}>
                         Select your Plex Media Server to enable music synchronization.
                     </Typography>
                     <PlexConnection settings={settings} setSettings={setSettings} connected={connected} setConnected={setConnected} />

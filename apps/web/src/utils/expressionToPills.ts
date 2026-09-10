@@ -33,7 +33,7 @@ export function expressionToPills(expression: string): Pill[] {
             pills.push({
                 id: `pill-${pillId++}`,
                 type: 'combinator',
-                combinator: token as CombinatorType,
+                combinator: token,
                 text: token
             });
         } else {

@@ -103,70 +103,85 @@ export default function PlaylistItemSettings(props: Props) {
             setLabel(labelValue.trim())
     }, [])
 
-    return (<Modal open>
-        <Box sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', maxWidth: 500, bgcolor: 'background.paper', p: 3, borderRadius: 1 }}>
-            <IconButton size="small" onClick={onCloseClick} sx={{ position: 'absolute', right: 8, top: 8 }}>
-                <CloseIcon fontSize="small" />
-            </IconButton>
-            {!!loading && <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', p: 5 }}>
-                <CircularProgress  />
-            </Box>}
+    return (
+        <Modal open>
+            <Box sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', maxWidth: 500, bgcolor: 'background.paper', p: 3, borderRadius: 1 }}>
+                <IconButton size="small" onClick={onCloseClick} sx={{ position: 'absolute', right: 8, top: 8 }}>
+                    <CloseIcon fontSize="small" />
+                </IconButton>
+                {!!loading && <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', p: 5 }}>
+                    <CircularProgress  />
+                </Box>}
 
-            {!loading && <>
+                {!loading && <>
 
-                <Typography variant="h6">Category name</Typography>
-                <Typography variant="body2" mb={1}>
-                    This name can be used to group playlists and album and use it for sorting and other purposes.
-                </Typography>
-                <TextField autoFocus value={label} onChange={onEditLabelChange} size="small" fullWidth />
-                <Box sx={{ mt: 1 }}>
-                    {labels.map(label => (
-                        <Chip
-                            variant="outlined"
-                            size="small"
-                            sx={{ mr: .5, mb: .5 }}
-                            key={label}
-                            data-label={label}
-                            onClick={onEditLabelChipClick}
-                            label={label}
-                        />
-                    ))}
-                </Box>
-
-                <Divider sx={{ mt: 2, mb: 2 }} />
-                <Typography variant="h6">Sync settings</Typography>
-                <Box sx={{ mb: 2 }}>
-                    <Typography variant="body1">
-                        Below you find the settings for the selected items.
+                    <Typography variant="h6">Category name</Typography>
+                    <Typography
+                        variant="body2"
+                        sx={{
+                            mb: 1
+                        }}>
+                        This name can be used to group playlists and album and use it for sorting and other purposes.
                     </Typography>
-                </Box>
+                    <TextField autoFocus value={label} onChange={onEditLabelChange} size="small" fullWidth />
+                    <Box sx={{ mt: 1 }}>
+                        {labels.map(label => (
+                            <Chip
+                                variant="outlined"
+                                size="small"
+                                sx={{ mr: .5, mb: .5 }}
+                                key={label}
+                                data-label={label}
+                                onClick={onEditLabelChipClick}
+                                label={label}
+                            />
+                        ))}
+                    </Box>
 
-                <Box display="flex" gap={2}>
-                    <FormGroup>
-                        <FormControlLabel control={<Checkbox checked={autoSync} onChange={onAutoSyncChange} />} label="Automatic sync" />
-                    </FormGroup>
+                    <Divider sx={{ mt: 2, mb: 2 }} />
+                    <Typography variant="h6">Sync settings</Typography>
+                    <Box sx={{ mb: 2 }}>
+                        <Typography variant="body1">
+                            Below you find the settings for the selected items.
+                        </Typography>
+                    </Box>
 
-                    {!!autoSync &&
-                        <>
-                            <Box>
-                                <Divider orientation="vertical" />
-                            </Box>
-                            <Box>
-                                <Typography variant="body1" mt={1.5} mb={1}>
-                                    Sync interval (in days)
-                                </Typography>
-                                <TextField type="number" value={days} size="small" onChange={onDaysChange} />
-                            </Box>
-                        </>
+                    <Box
+                        sx={{
+                            display: "flex",
+                            gap: 2
+                        }}>
+                        <FormGroup>
+                            <FormControlLabel control={<Checkbox checked={autoSync} onChange={onAutoSyncChange} />} label="Automatic sync" />
+                        </FormGroup>
 
-                    }
-                </Box>
+                        {!!autoSync &&
+                            <>
+                                <Box>
+                                    <Divider orientation="vertical" />
+                                </Box>
+                                <Box>
+                                    <Typography
+                                        variant="body1"
+                                        sx={{
+                                            mt: 1.5,
+                                            mb: 1
+                                        }}>
+                                        Sync interval (in days)
+                                    </Typography>
+                                    <TextField type="number" value={days} size="small" onChange={onDaysChange} />
+                                </Box>
+                            </>
 
-                <Divider sx={{ mt: 3, mb: 1 }} />
-                <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-                    <Button variant="contained" onClick={onSaveChangesClick}>Save changes</Button>
-                </Box>
-            </>}
-        </Box>
-    </Modal >)
+                        }
+                    </Box>
+
+                    <Divider sx={{ mt: 3, mb: 1 }} />
+                    <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                        <Button variant="contained" onClick={onSaveChangesClick}>Save changes</Button>
+                    </Box>
+                </>}
+            </Box>
+        </Modal >
+    );
 }

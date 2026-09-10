@@ -141,12 +141,18 @@ export default function SyncTrigger() {
 
             <Grid container spacing={2}>
                 {availableOptions.map(option => (
-                    <Grid item xs={12} sm={6} md={4} key={option.type}>
+                    <Grid size={{ xs: 12, sm: 6, md: 4 }} key={option.type}>
                         <Paper elevation={0} sx={{ p: 2, height: '100%', bgcolor: 'action.hover' }}>
                             <Typography variant="h6" sx={{ mb: 1 }}>
                                 {option.label}
                             </Typography>
-                            <Typography variant="body2" color="text.secondary" sx={{ mb: 2, minHeight: 40 }}>
+                            <Typography
+                                variant="body2"
+                                sx={{
+                                    color: "text.secondary",
+                                    mb: 2,
+                                    minHeight: 40
+                                }}>
                                 {option.description}
                             </Typography>
                             <Button variant="contained" fullWidth onClick={onSyncClick(option.type)} disabled={syncing[option.type]} startIcon={syncing[option.type] ? <CircularProgress size={16} /> : null}>
@@ -157,14 +163,18 @@ export default function SyncTrigger() {
                 ))}
 
                 {!!hasAvailableOptions &&
-                    <Grid item xs={12}>
+                    <Grid size={{ xs: 12 }}>
                         <Paper elevation={0} sx={{ p: 3, bgcolor: 'action.hover', borderWidth: 2, borderStyle: 'solid', borderColor: 'primary.main' }}>
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <Box>
                                     <Typography variant="h6" sx={{ mb: 0.5 }}>
                                         Sync All
                                     </Typography>
-                                    <Typography variant="body2" color="text.secondary">
+                                    <Typography
+                                        variant="body2"
+                                        sx={{
+                                            color: "text.secondary"
+                                        }}>
                                         Run all available sync processes sequentially
                                     </Typography>
                                 </Box>

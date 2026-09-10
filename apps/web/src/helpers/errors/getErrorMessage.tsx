@@ -20,7 +20,7 @@ export function getErrorMessage(e: unknown) {
 
     // Handle case where e is already an object with an error property
     if (e && typeof e === 'object' && 'error' in e) {
-        const errorValue = (e as { error: unknown }).error;
+        const errorValue = (e).error;
         if (typeof errorValue === 'string') {
             return errorValue;
         }

@@ -1,7 +1,6 @@
 import Logo from "@/components/Logo"
 import MainLayout from "@/layouts/MainLayout"
 import { Download, Restore, Upload } from "@mui/icons-material"
-import { LoadingButton } from "@mui/lab"
 import { Box, Button, Container, Dialog, DialogActions, DialogContent, DialogTitle, Paper, Tab, Tabs, TextField, Typography } from "@mui/material"
 import axios from "axios"
 import Head from "next/head"
@@ -163,9 +162,9 @@ const MusicSearchConfigLayout = (props: MusicSearchConfigLayoutProps) => {
                         </Typography>
 
                         <Box sx={{ display: "flex", gap: 2, alignItems: "center", flexWrap: "wrap" }}>
-                            <LoadingButton loading={resetting} onClick={resetConfiguration} variant="outlined" color="warning" startIcon={<Restore />}>
+                            <Button loading={resetting} onClick={resetConfiguration} variant="outlined" color="warning" startIcon={<Restore />}>
                                 Reset All to Defaults
-                            </LoadingButton>
+                            </Button>
 
                             <Button onClick={exportConfiguration} variant="outlined" startIcon={<Download />}>
                                 Export Configuration

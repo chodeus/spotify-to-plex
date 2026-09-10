@@ -67,7 +67,11 @@ const Page: NextPage = () => {
                     <Logo />
 
                     {!!loading &&
-                        <Box display="flex" justifyContent="center">
+                        <Box
+                            sx={{
+                                display: "flex",
+                                justifyContent: "center"
+                            }}>
                             <Alert severity="info" sx={{ ml: 2 }}>
                                 Checking your connection with Plex
                             </Alert>
