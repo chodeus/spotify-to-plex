@@ -115,7 +115,7 @@
                 `;
                 
                 window.copyCode = function() {
-                    navigator.clipboard.writeText('${code}');
+                    navigator.clipboard.writeText(code);
                     document.querySelector('button').textContent = '✓ Copied!';
                     setTimeout(() => {
                         document.querySelector('button').textContent = '📋 Copy Code';
