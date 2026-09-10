@@ -31,8 +31,17 @@ export async function syncAlbums() {
         const force = args.includes("force")
 
         const { toSyncAlbums } = getSavedAlbums()
-        if (hasNothingEnrolled(toSyncAlbums, 'albums', 'albums'))
+        if (hasNothingEnrolled(toSyncAlbums, 'albums', 'albums')) {
+            // Nothing enrolled means nothing missing. Clear this job's own
+            // outputs, or a deleted album sits in the Lidarr queue forever -
+            // the Lidarr job merges this file with the playlist one every run.
+            // Not missing_tracks_slskd.json: the playlists job writes that too.
+            writeFileSync(join(getStorageDir(), 'missing_albums_spotify.txt'), '')
+            writeFileSync(join(getStorageDir(), 'missing_albums_tidal.txt'), '')
+            writeFileSync(join(getStorageDir(), 'missing_albums_lidarr.json'), JSON.stringify([], null, 2))
+
             return;
+        }
 
         const { putLog, logError, logComplete } = getNestedSyncLogsForType('albums')
 

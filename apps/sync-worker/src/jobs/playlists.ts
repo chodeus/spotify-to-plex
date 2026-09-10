@@ -41,8 +41,17 @@ export async function syncPlaylists() {
         const force = args.includes("force")
 
         const { toSyncPlaylists } = getSavedPlaylists()
-        if (hasNothingEnrolled(toSyncPlaylists, 'playlists', 'playlists'))
+        if (hasNothingEnrolled(toSyncPlaylists, 'playlists', 'playlists')) {
+            // Same reason as the albums job: stale missing-track files would
+            // keep feeding the Lidarr and slskd queues after the last playlist
+            // was removed
+            writeFileSync(join(getStorageDir(), 'missing_tracks_spotify.txt'), '')
+            writeFileSync(join(getStorageDir(), 'missing_tracks_tidal.txt'), '')
+            writeFileSync(join(getStorageDir(), 'missing_tracks_lidarr.json'), JSON.stringify([], null, 2))
+            writeFileSync(join(getStorageDir(), 'missing_tracks_slskd.json'), JSON.stringify([], null, 2))
+
             return;
+        }
 
         const { putLog, logError, logComplete } = getNestedSyncLogsForType('playlists')
 
