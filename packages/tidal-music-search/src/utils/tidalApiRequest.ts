@@ -25,7 +25,7 @@ export default async function tidalApiRequest<T = any>(accessToken: string, url:
         return result;
 
     } catch (error) {
-        if (error instanceof AxiosError && error.response && error.response.status === 429) {
+        if (error instanceof AxiosError && error.response?.status === 429) {
 
             const remainingTokens = parseInt(error.response.headers['x-ratelimit-remaining'], 10);
             const replenishRate = parseInt(error.response.headers['x-ratelimit-replenish-rate'], 10);

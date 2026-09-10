@@ -48,7 +48,7 @@ describe('versionsMatch', () => {
         it('rejects a remix offered for the original', () => {
             expect(match('Cinema', 'Cinema (Skrillex Remix) [feat. Gary Go]', ['Benny Benassi'])).toBe(false);
             expect(match('Make Luv', 'Make Luv - Live', ['Room 5', 'Oliver Cheatham'])).toBe(false);
-            expect(match('Dream Bigger', 'Dream Bigger - Instrumental', ['Axwell /\\ Ingrosso'])).toBe(false);
+            expect(match('Dream Bigger', 'Dream Bigger - Instrumental', [String.raw`Axwell /\ Ingrosso`])).toBe(false);
             expect(match('The Hum', 'The Hum - Short Edit', ['Dimitri Vegas & Like Mike'])).toBe(false);
             expect(match('Overdrive', 'Overdrive (feat. Norma Jean Martine) - Acoustic Version', ['Ofenbach', 'Norma Jean Martine'])).toBe(false);
             expect(match('Decode', 'Decode - Twilight Soundtrack Version', ['Paramore'])).toBe(false);

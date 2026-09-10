@@ -16,6 +16,34 @@ import { getMusicBrainzIds } from "@spotify-to-plex/shared-utils/lidarr/getMusic
 import { lookupLidarrAlbum } from "@spotify-to-plex/shared-utils/lidarr/lookupLidarrAlbum";
 import { monitorAndSearchAlbum } from "@spotify-to-plex/shared-utils/lidarr/monitorAndSearchAlbum";
 
+/**
+ * Add the album to Lidarr and start a search for it. Lidarr answering 409 means
+ * it already has the album, in which case monitor what is there and search that
+ * instead. One owner for the whole outcome, so the job body does not nest a
+ * try/catch inside its own try inside the loop.
+ */
+async function addOrMonitorAlbum(addRequest: LidarrAddAlbumRequest, foreignAlbumId: string, baseUrl: string, url: string, apiKey: string) {
+    const headers = { 'X-Api-Key': apiKey, 'Content-Type': 'application/json' };
+
+    try {
+        const addResponse = await axios.post(`${baseUrl}/api/v1/album`, addRequest, { headers });
+        const albumId = addResponse.data?.id;
+        if (albumId)
+            await axios.post(`${baseUrl}/api/v1/command`, { name: 'AlbumSearch', albumIds: [albumId] }, { headers });
+
+        return { ok: true, message: undefined as string | undefined };
+    } catch (error: any) {
+        const result = error.response?.data?.[0];
+        const albumExists = error.response?.status === 409 || result?.errorCode === 'AlbumExistsValidator';
+        if (!albumExists)
+            return { ok: false, message: error.message as string | undefined };
+
+        const monitorResult = await monitorAndSearchAlbum(foreignAlbumId, url, apiKey);
+
+        return { ok: monitorResult.success, message: monitorResult.message as string | undefined };
+    }
+}
+
 export async function syncLidarr() {
     console.log('Starting Lidarr sync...');
 
@@ -196,60 +224,13 @@ export async function syncLidarr() {
                     },
                 };
 
-                const addUrl = `${baseUrl}/api/v1/album`;
-
-                try {
-                    const addResponse = await axios.post(addUrl, addRequest, {
-                        headers: {
-                            'X-Api-Key': apiKey,
-                            'Content-Type': 'application/json',
-                        },
-                    });
-
-                    // Trigger explicit album search to start download
-                    const albumId = addResponse.data?.id;
-                    const commandUrl = `${baseUrl}/api/v1/command`;
-                    if (albumId) {
-                        await axios.post(commandUrl, { name: 'AlbumSearch', albumIds: [albumId] }, {
-                            headers: { 'X-Api-Key': apiKey, 'Content-Type': 'application/json' },
-                        });
-                    }
-
-                    albumLog.status = 'success';
-                    albumLog.end = Date.now();
-                    successCount++;
-                    lidarrLogs[logId] = albumLog;
-
-                } catch (error: any) {
-                    const result = error.response?.data?.[0];
-                    const albumExists = error.response?.status === 409 || result?.errorCode === 'AlbumExistsValidator';
-
-                    if (!albumExists) {
-                        albumLog.status = 'error';
-                        albumLog.error = error.message;
-                        albumLog.end = Date.now();
-                        errorCount++;
-                        lidarrLogs[logId] = albumLog;
-                        continue;
-                    }
-
-                    // Album already exists - try to monitor it and trigger search
-                    const monitorResult = await monitorAndSearchAlbum(
-                        lidarrAlbum.foreignAlbumId,
-                        settings.url,
-                        apiKey
-                    );
-
-                    albumLog.status = monitorResult.success ? 'success' : 'error';
-                    albumLog.error = monitorResult.message;
-                    albumLog.end = Date.now();
-                    if (monitorResult.success) {
-                        successCount++;
-                    } else {
-                        errorCount++;
-                    }
-                    lidarrLogs[logId] = albumLog;
-                }
+                const outcome = await addOrMonitorAlbum(addRequest, lidarrAlbum.foreignAlbumId, baseUrl, settings.url, apiKey);
+                albumLog.status = outcome.ok ? 'success' : 'error';
+                albumLog.error = outcome.message;
+                albumLog.end = Date.now();
+                successCount += outcome.ok ? 1 : 0;
+                errorCount += outcome.ok ? 0 : 1;
+                lidarrLogs[logId] = albumLog;
 
             } catch (error: unknown) {
                 albumLog.status = 'error';

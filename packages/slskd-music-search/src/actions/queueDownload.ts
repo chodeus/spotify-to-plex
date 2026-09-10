@@ -28,12 +28,38 @@ const NON_RETRIABLE_PATTERNS = [
 
 function isNonRetriableError(responseData: unknown): boolean {
     const responseStr = typeof responseData === 'string' ? responseData : JSON.stringify(responseData || '');
+
     return NON_RETRIABLE_PATTERNS.some(pattern => responseStr.toLowerCase().includes(pattern.toLowerCase()));
 }
 
 function isDuplicateTransferError(responseData: unknown): boolean {
     const responseStr = typeof responseData === 'string' ? responseData : JSON.stringify(responseData || '');
+
     return responseStr.includes('already in progress') || responseStr.includes('DuplicateTransferException');
+}
+
+/**
+ * What a failed queue attempt means for the loop, decided in one place so the
+ * catch does not nest a classification tree inside two loops and a try.
+ */
+function classifyQueueError(error: unknown) {
+    if (!axios.isAxiosError(error))
+        return 'retry';
+
+    const responseData = error.response?.data;
+    if (isDuplicateTransferError(responseData))
+        return 'already-queued';
+
+    if (isNonRetriableError(responseData))
+        return 'try-next-source';
+
+    return 'retry';
+}
+
+function describeResponse(error: unknown) {
+    const responseData = axios.isAxiosError(error) ? error.response?.data : undefined;
+
+    return typeof responseData === 'string' ? responseData : JSON.stringify(responseData || '');
 }
 
 export async function queueDownload(files: SlskdDownloadFile[], credentials: SlskdCredentials, maxRetries: number = 3) {
@@ -71,36 +97,34 @@ export async function queueDownload(files: SlskdDownloadFile[], credentials: Sls
                 });
 
                 console.log(`[SLSKD Queue] Successfully queued from ${file.username}: ${file.filename}`);
+
                 return file;
 
             } catch (error) {
                 lastError = error instanceof Error ? error : new Error(String(error));
 
-                if (axios.isAxiosError(error)) {
-                    const responseData = error.response?.data;
+                const outcome = classifyQueueError(error);
 
-                    // Check for duplicate transfer error - treat as success since file is already queued
-                    if (isDuplicateTransferError(responseData)) {
-                        console.log(`[SLSKD Queue] File already queued, treating as success: ${file.filename}`);
-                        return file;
-                    }
+                // slskd rejecting it as a duplicate means it is already queued
+                if (outcome === 'already-queued') {
+                    console.log(`[SLSKD Queue] File already queued, treating as success: ${file.filename}`);
 
-                    // Check for non-retriable errors - skip retries and try next file
-                    if (isNonRetriableError(responseData)) {
-                        const responseStr = typeof responseData === 'string' ? responseData : JSON.stringify(responseData || '');
-                        console.log(`[SLSKD Queue] Non-retriable error from ${file.username}, trying next source: ${responseStr}`);
-                        shouldTryNextFile = true;
-                        break;
-                    }
+                    return file;
+                }
 
-                    // Log other errors
+                if (outcome === 'try-next-source') {
+                    console.log(`[SLSKD Queue] Non-retriable error from ${file.username}, trying next source: ${describeResponse(error)}`);
+                    shouldTryNextFile = true;
+                    break;
+                }
+
+                if (axios.isAxiosError(error))
                     console.error(`[SLSKD Queue] Attempt ${attempt + 1}/${maxRetries + 1} failed:`, {
                         status: error.response?.status,
                         statusText: error.response?.statusText,
-                        responseData,
+                        responseData: error.response?.data,
                         message: error.message
                     });
-                }
 
                 // Don't retry for client errors (4xx)
                 if (axios.isAxiosError(error) && error.response?.status && error.response.status >= 400 && error.response.status < 500)

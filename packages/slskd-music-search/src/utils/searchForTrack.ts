@@ -37,10 +37,11 @@ function normalizeAccents(str: string): string {
         'ț': 't', 'ţ': 't',
     };
 
-    return str.replace(/[àáâãäåæçčćèéêëěìíîïñńòóôõöøœùúûüýÿžźżßđðþłșşțţ]/gi, (char) => {
+    return str.replace(/[ßàáâãäåæçèéêëìíîïðñòóôõöøùúûüýþÿćčđěłńœşţźżžșț]/gi, (char) => {
         const lower = char.toLowerCase();
         const replacement = accentMap[lower];
         if (!replacement) return char;
+
         // Preserve case for first letter
         return char === lower ? replacement : replacement.charAt(0).toUpperCase() + replacement.slice(1);
     });
@@ -75,7 +76,7 @@ function sanitizeSearchQuery(query: string) {
         .replace(/[#%&*+<=>\\^`{|}~]/g, '')
         // Replace apostrophes/quotes with space (allows word-based matching)
         // "Cherlene's" -> "Cherlene s" matches both "Cherlene's" and "Cherlenes"
-        .replace(/["'''""]/g, ' ')
+        .replace(/["']/g, ' ')
         // Replace multiple spaces with single space
         .replace(/\s+/g, ' ')
         // Remove leading hyphens from words (exclusion syntax)
@@ -97,6 +98,7 @@ function extractExtensionFromFilename(filename: string): string {
     if (lastDot === -1 || lastDot === filename.length - 1) {
         return '';
     }
+
     return filename.slice(lastDot + 1).toLowerCase();
 }
 

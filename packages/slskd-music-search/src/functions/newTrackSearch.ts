@@ -102,12 +102,12 @@ function filterByAllowedExtensions<T extends { extension: string }>(tracks: T[],
         return tracks;
     }
 
-    const normalizedAllowed = allowedExtensions.map(ext => ext.toLowerCase().replace(/^\./, ''));
+    const normalizedAllowed = new Set(allowedExtensions.map(ext => ext.toLowerCase().replace(/^\./, '')));
 
     return tracks.filter(track => {
         const ext = track.extension.toLowerCase().replace(/^\./, '');
 
-        return normalizedAllowed.includes(ext);
+        return normalizedAllowed.has(ext);
     });
 }
 

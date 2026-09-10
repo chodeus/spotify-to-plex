@@ -287,7 +287,7 @@ export function isGenericFolderName(folderName: string): boolean {
 
     // Bracket-enclosed names are usually tags/categories, not artist names
     // Examples: [Charts], [MP3], [FLAC], [320kbps], [New], [2024]
-    if (/^\[.+\]$/.test(folderName)) return true;
+    if (/^\[.+]$/.test(folderName)) return true;
 
     // Just a year
     if (/^\d{4}$/.test(folderName)) return true;

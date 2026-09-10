@@ -36,7 +36,7 @@ export async function searchAlbum(query: string, countryCode: string = 'NL') {
 
                 const { id } = album;
                 const albumData = result.data.included?.find(item => item.id == id);
-                if (albumData && albumData.type == 'albums' && albumData.attributes) {
+                if (albumData?.type == 'albums' && albumData.attributes) {
                     const { title } = albumData.attributes;
 
                     // eslint-disable-next-line max-depth
