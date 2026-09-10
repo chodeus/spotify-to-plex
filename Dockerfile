@@ -1,6 +1,6 @@
 # ===== NODE.JS BUILDER STAGE =====
 # Stage 1: Build Node.js/pnpm monorepo with Next.js standalone output
-FROM node:20-alpine AS node-builder
+FROM node:22-alpine AS node-builder
 
 # Don't set NODE_ENV=production during build, only set Docker-specific env vars
 ENV NEXT_DOCKER=1 \
@@ -39,7 +39,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     TZ=UTC \
     LANG=C.UTF-8 \
     LC_ALL=C.UTF-8 \
-    NODE_VERSION=20 \
+    NODE_VERSION=22 \
     NODE_ENV=production \
     PYTHONPATH=/app/apps/spotify-scraper \
     PORT=9030 \
@@ -71,7 +71,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Node.js 20 LTS
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/*
 

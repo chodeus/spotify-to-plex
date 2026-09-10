@@ -8,11 +8,15 @@ const LIDARR_SYNC_SCHEDULE = '0 4 * * *'; // Every day at 04:00
 const SLSKD_SYNC_SCHEDULE = '0 3 * * *'; // Every day at 03:00
 const MQTT_SYNC_SCHEDULE = '0 * * * *'; // Every hour
 
+// One source for this: four copies of the fallback are four chances to differ
+const TIMEZONE = process.env.TZ || 'UTC';
+
 console.log('🚀 Sync scheduler started');
 console.log(`⏰ Main sync schedule: ${SYNC_SCHEDULE}`);
 console.log(`⏰ Lidarr sync schedule: ${LIDARR_SYNC_SCHEDULE}`);
 console.log(`⏰ SLSKD sync schedule: ${SLSKD_SYNC_SCHEDULE}`);
 console.log(`⏰ MQTT sync schedule: ${MQTT_SYNC_SCHEDULE}`);
+console.log(`⏰ Timezone: ${TIMEZONE}`);
 
 // Function to run the sync command
 function runSync() {
@@ -83,16 +87,14 @@ async function runLidarrSync() {
 
 // Schedule the sync task
 const task = schedule(SYNC_SCHEDULE, runSync, {
-    scheduled: true,
-    timezone: process.env.TZ || 'UTC' // Use TZ env var or default to UTC
+    timezone: TIMEZONE
 });
 
 // NEW: Schedule Lidarr sync task
 const lidarrTask = schedule(LIDARR_SYNC_SCHEDULE, () => {
     runLidarrSync();
 }, {
-    scheduled: true,
-    timezone: process.env.TZ || 'UTC'
+    timezone: TIMEZONE
 });
 
 // NEW: Function to run SLSKD sync
@@ -165,15 +167,20 @@ function runMqttSync() {
 const slskdTask = schedule(SLSKD_SYNC_SCHEDULE, () => {
     runSlskdSync();
 }, {
-    scheduled: true,
-    timezone: process.env.TZ || 'UTC'
+    timezone: TIMEZONE
 });
 
 // NEW: Schedule MQTT sync task
 const mqttTask = schedule(MQTT_SYNC_SCHEDULE, runMqttSync, {
-    scheduled: true,
-    timezone: process.env.TZ || 'UTC'
+    timezone: TIMEZONE
 });
+
+// A cron string says nothing without the zone it resolved in, and that has been
+// wrong here before - so state the real next fire time at boot
+for (const [label, scheduled] of [['Main', task], ['Lidarr', lidarrTask], ['SLSKD', slskdTask], ['MQTT', mqttTask]] as const) {
+    const next = scheduled.getNextRun();
+    console.log(`⏭️  Next ${label} run: ${next ? next.toLocaleString('en-AU', { timeZone: TIMEZONE }) : 'never'} (${TIMEZONE})`);
+}
 
 // Run sync immediately on startup if SYNC_ON_STARTUP env var is set
 if (process.env.SYNC_ON_STARTUP === 'true') {
