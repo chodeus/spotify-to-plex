@@ -33,6 +33,16 @@ import { PublishedItem, TrackLink, MQTTEntity } from '../services/mqtt/types';
  * Publishes Plex playlist and album data to Home Assistant via MQTT Discovery
  */
 export async function syncMQTT() {
+    // MQTT is optional and configured only by environment. Without a broker there
+    // is nothing to publish to, and loadMQTTConfig throws - which happened above
+    // the try block below, so the job never reached its error handler and sat
+    // reporting "running" for ever. Skip before the log is even started.
+    if (!process.env.MQTT_BROKER_URL?.trim()) {
+        console.log('[MQTT] No MQTT_BROKER_URL configured, skipping');
+
+        return;
+    }
+
     // Start sync type logging
     startSyncType('mqtt');
     clearSyncTypeLogs('mqtt');
