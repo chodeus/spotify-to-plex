@@ -4,11 +4,25 @@ Spotify Scraper Service - Simplified Pass-through
 """
 
 import logging
-from typing import Dict, Any
+import threading
+from typing import Any, Dict, Sequence
 from urllib.parse import urlparse
 from spotify_scraper import SpotifyClient
 
 logger = logging.getLogger(__name__)
+
+
+class _LibraryWarnings(logging.Handler):
+    """Collects the library's own warnings for one fetch, e.g. a fallback to the embed page."""
+
+    def __init__(self):
+        super().__init__(logging.WARNING)
+        self.thread = threading.get_ident()
+        self.messages: list[str] = []
+
+    def emit(self, record):
+        if record.thread == self.thread:
+            self.messages.append(record.getMessage())
 
 class SpotifyScraperService:
     """Minimal service for Spotify playlist scraping"""
@@ -29,7 +43,7 @@ class SpotifyScraperService:
             return False
     
     @staticmethod
-    def _normalize_playlist(data: Dict[str, Any], max_tracks: int | None = None) -> Dict[str, Any]:
+    def _normalize_playlist(data: Dict[str, Any], max_tracks: int | None = None, degraded: Sequence[str] = ()) -> Dict[str, Any]:
         """
         Map SpotifyScraper's response onto the shape the web app expects.
 
@@ -49,13 +63,13 @@ class SpotifyScraperService:
         if not data.get('track_count'):
             data['track_count'] = reported or len(tracks)
 
-        # A caller-imposed cap is not truncation; an uncapped short read means the
-        # library fell back to the embed page (its own warning above says why)
-        if max_tracks is None and reported and len(tracks) < reported:
+        # A short read is truncation only when the library said it degraded; a
+        # caller-imposed cap and filtered-out unplayable items also leave it short
+        data['truncated'] = bool(max_tracks is None and reported and len(tracks) < reported and degraded)
+        if data['truncated']:
             logger.warning(
-                "Playlist truncated: scraped %d of %d tracks. The paginated fetch "
-                "degraded to the single embed page; see the spotify_scraper warning above.",
-                len(tracks), reported
+                "Playlist truncated: scraped %d of %d tracks. %s",
+                len(tracks), reported, "; ".join(degraded)
             )
 
         return data
@@ -78,13 +92,19 @@ class SpotifyScraperService:
         try:
             # Paginate through the full track list when max_tracks is None,
             # otherwise the library default caps playlists at 100 tracks.
-            playlist = self.scraper.get_playlist(url, max_tracks=max_tracks)
+            warnings = _LibraryWarnings()
+            library_logger = logging.getLogger('spotify_scraper')
+            library_logger.addHandler(warnings)
+            try:
+                playlist = self.scraper.get_playlist(url, max_tracks=max_tracks)
+            finally:
+                library_logger.removeHandler(warnings)
 
             if not playlist:
                 raise ValueError("Failed to scrape playlist data")
 
             raw_data = playlist.to_dict() if hasattr(playlist, 'to_dict') else playlist
-            raw_data = self._normalize_playlist(raw_data, max_tracks)
+            raw_data = self._normalize_playlist(raw_data, max_tracks, warnings.messages)
 
             logger.info(f"Successfully scraped playlist: {raw_data.get('name', 'Unknown')}")
             

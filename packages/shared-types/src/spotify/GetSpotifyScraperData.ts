@@ -10,6 +10,7 @@ export type GetSpotifyScraperData = {
     owner: SpotifyOwner;
     track_count: number;
     tracks: SpotifyScraperTrack[];
+    truncated?: boolean;
     type: string;
     uri: string;
 };

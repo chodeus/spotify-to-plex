@@ -88,6 +88,11 @@ export async function getSpotifyData(api: SpotifyApi, id: string, simplified: bo
 
     const scraperData = response.data
 
+    // The scraper flags a short read its library reported as degraded. Syncing
+    // it would shrink the Plex playlist, so fail and let the last good one stand
+    if (!simplified && scraperData.truncated)
+        throw new Error(`This playlist loaded partially (${scraperData.tracks?.length ?? 0} of ${scraperData.track_count} tracks). Refusing to sync a truncated playlist; the scraper log says why.`)
+
     const images = scraperData.images || [];
     const [image] = images
         .filter((image) => {
