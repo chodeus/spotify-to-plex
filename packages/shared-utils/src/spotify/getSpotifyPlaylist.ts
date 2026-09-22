@@ -1,6 +1,8 @@
 import { GetSpotifyPlaylist } from "@spotify-to-plex/shared-types/spotify/GetSpotifyPlaylist";
 import { Page, PlaylistedTrack, SpotifyApi, Track } from "@spotify/web-api-ts-sdk";
 
+// ~350ms between pages keeps well under Spotify's ~180 requests/minute
+const PAGE_DELAY = 350;
 
 /**
  * The first page of a playlist's tracks from the dedicated endpoint. Returns
@@ -28,6 +30,33 @@ async function fetchTracksPage(id: string, accessToken?: string): Promise<Page<P
 
         return null;
     }
+}
+
+// One mapping for every page - tracks past the first used to keep "A, B" as one artist
+function mapTracks(items: PlaylistedTrack<Track>[]) {
+    return items
+        .map(item => {
+            const track: Track | undefined = (item as any).item ?? (item as any).track;
+            if (!track || typeof track !== 'object')
+                return null;
+
+            // Local files have no id but do have a spotify:local: uri
+            if (!track.id && !track.uri)
+                return null;
+
+            const artists = track.artists?.flatMap(artist => artist.name.split(',').map(name => name.trim()));
+
+            return {
+                id: track.id || track.uri,
+                title: track.name,
+                artist: track.artists?.[0]?.name || 'Unknown',
+                album: track.album?.name || 'Unknown',
+                artists: artists || [],
+                album_id: track.album?.id || 'unknown',
+                duration_ms: track.duration_ms
+            }
+        })
+        .filter((track) => !!track);
 }
 
 export async function getSpotifyPlaylist(api: SpotifyApi, id: string, simplified: boolean) {
@@ -58,7 +87,7 @@ export async function getSpotifyPlaylist(api: SpotifyApi, id: string, simplified
 
         // A playlist the connected user follows but does not own can come back
         // with no tracks page at all. Ask the dedicated endpoint before giving
-        // up: the scraper we fall back to only ever sees the first 100 tracks
+        // up on the API and handing the playlist to the scraper
         if (!tracksPage?.items)
             tracksPage = await fetchTracksPage(id, tokenInfo?.access_token);
 
@@ -68,31 +97,7 @@ export async function getSpotifyPlaylist(api: SpotifyApi, id: string, simplified
             return null;
         }
 
-        const validTracks = tracksPage.items
-            .map(item => {
-                const track: Track | undefined = (item as any).item ?? (item as any).track;
-                if (!track || typeof track !== 'object')
-                    return null;
-
-                // Local files have no id but do have a spotify:local: uri
-                if (!track.id && !track.uri)
-                    return null;
-
-                const artists = track.artists?.flatMap(artist => artist.name.split(',').map(name => name.trim()));
-
-                return {
-                    id: track.id || track.uri,
-                    title: track.name,
-                    artist: track.artists?.[0]?.name || 'Unknown',
-                    album: track.album?.name || 'Unknown',
-                    artists: artists || [],
-                    album_id: track.album?.id || 'unknown',
-                    duration_ms: track.duration_ms
-                }
-            })
-            .filter((track) => !!track);
-
-        playlist.tracks = playlist.tracks.concat(validTracks);
+        playlist.tracks = mapTracks(tracksPage.items);
         if (simplified)
             return playlist;
 
@@ -105,45 +110,20 @@ export async function getSpotifyPlaylist(api: SpotifyApi, id: string, simplified
                 }
             });
 
-            if (!response.ok) {
-                console.error(`❌ Fetch failed: ${response.status} ${response.statusText}`);
-                break;
-            }
+            // A partial read would sync as a shrunken playlist. Fail the API path
+            // instead, so the caller falls back to the scraper, which pages itself
+            if (!response.ok)
+                throw new Error(`Page fetch failed: ${response.status} ${response.statusText}`);
 
-            const data = await response.json();
-            const loadMore = data as Page<PlaylistedTrack<Track>>;
-            if (!loadMore.items) {
-                nextUrl = null;
-                break;
-            }
+            const loadMore = await response.json() as Page<PlaylistedTrack<Track>>;
+            if (!Array.isArray(loadMore.items))
+                throw new Error(`Page fetch returned no items`);
 
-            const validLoadMoreTracks = loadMore.items
-                .map(item => {
-                    const track: Track | undefined = (item as any).item ?? (item as any).track;
-                    if (!track || typeof track !== 'object') return null;
-
-                    // Local files have no id but do have a spotify:local: uri
-                    if (!track.id && !track.uri)
-                        return null;
-
-                    return {
-                        id: track.id || track.uri,
-                        title: track.name,
-                        artist: track.artists?.[0]?.name || 'Unknown',
-                        album: track.album?.name || 'Unknown',
-                        artists: track.artists?.map(artist => artist.name) || [],
-                        album_id: track.album?.id || 'unknown',
-                        duration_ms: track.duration_ms
-                    }
-                })
-                .filter((track) => !!track);
-
-            playlist.tracks = playlist.tracks.concat(validLoadMoreTracks);
-
+            playlist.tracks = playlist.tracks.concat(mapTracks(loadMore.items));
             nextUrl = loadMore.next
 
             if (nextUrl)
-                await new Promise(resolve => { setTimeout(resolve, 350) });
+                await new Promise(resolve => { setTimeout(resolve, PAGE_DELAY) });
         }
 
         return playlist;
