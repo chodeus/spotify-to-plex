@@ -29,7 +29,7 @@ class SpotifyScraperService:
             return False
     
     @staticmethod
-    def _normalize_playlist(data: Dict[str, Any]) -> Dict[str, Any]:
+    def _normalize_playlist(data: Dict[str, Any], max_tracks: int | None = None) -> Dict[str, Any]:
         """
         Map SpotifyScraper's response onto the shape the web app expects.
 
@@ -49,13 +49,12 @@ class SpotifyScraperService:
         if not data.get('track_count'):
             data['track_count'] = reported or len(tracks)
 
-        # The embed page carries only the first page of a playlist. Say so out
-        # loud - silently syncing 100 of 300 tracks looks like a matching problem
-        if reported and len(tracks) < reported:
+        # A caller-imposed cap is not truncation; an uncapped short read means the
+        # library fell back to the embed page (its own warning above says why)
+        if max_tracks is None and reported and len(tracks) < reported:
             logger.warning(
-                "Playlist truncated: scraped %d of %d tracks. The Spotify embed "
-                "exposes only the first page; connect a user with access to this "
-                "playlist to load it in full.",
+                "Playlist truncated: scraped %d of %d tracks. The paginated fetch "
+                "degraded to the single embed page; see the spotify_scraper warning above.",
                 len(tracks), reported
             )
 
@@ -85,7 +84,7 @@ class SpotifyScraperService:
                 raise ValueError("Failed to scrape playlist data")
 
             raw_data = playlist.to_dict() if hasattr(playlist, 'to_dict') else playlist
-            raw_data = self._normalize_playlist(raw_data)
+            raw_data = self._normalize_playlist(raw_data, max_tracks)
 
             logger.info(f"Successfully scraped playlist: {raw_data.get('name', 'Unknown')}")
             
