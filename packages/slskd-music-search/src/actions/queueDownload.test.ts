@@ -32,7 +32,7 @@ describe('classifyQueueError', () => {
 
     it('retries anything else', () => {
         expect(classifyQueueError(slskdError('Internal server error'))).toBe('retry');
-        expect(classifyQueueError(slskdError(undefined))).toBe('retry');
+        expect(classifyQueueError(slskdError())).toBe('retry');
     });
 
     // A network drop or a thrown TypeError is not slskd telling us anything
