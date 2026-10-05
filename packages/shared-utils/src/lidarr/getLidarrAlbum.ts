@@ -7,6 +7,10 @@ export type LidarrAlbum = {
     title: string;
     monitored: boolean;
     artistId: number;
+    statistics?: {
+        trackFileCount: number;
+        trackCount: number;
+    };
 };
 
 /**

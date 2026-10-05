@@ -24,6 +24,16 @@ export async function monitorAndSearchAlbum(
             };
         }
 
+        // Lidarr already holds every track, so the miss is a Plex match failure and
+        // a search would only re-download the album as an "upgrade"
+        const { trackCount = 0, trackFileCount = 0 } = existingAlbum.statistics ?? {};
+        if (trackCount > 0 && trackFileCount >= trackCount) {
+            return {
+                success: true,
+                message: 'Album complete in Lidarr, not searched (track not matched in Plex)'
+            };
+        }
+
         // If not monitored, update to monitored
         if (!existingAlbum.monitored) {
             const updateUrl = `${baseUrl}/api/v1/album/${existingAlbum.id}`;

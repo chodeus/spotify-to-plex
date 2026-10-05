@@ -1,0 +1,58 @@
+import axios from 'axios';
+import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
+import { monitorAndSearchAlbum } from './monitorAndSearchAlbum';
+
+vi.mock('axios', () => ({
+    default: { get: vi.fn(), put: vi.fn(), post: vi.fn(), isAxiosError: () => false }
+}));
+
+const getMock = axios.get as unknown as Mock;
+const postMock = axios.post as unknown as Mock;
+
+function lidarrHas(album: object) {
+    getMock.mockResolvedValue({ data: [{ id: 7, foreignAlbumId: 'rg-1', title: 'Album', monitored: true, artistId: 1, ...album }] });
+}
+
+const searched = () => postMock.mock.calls.some(([, body]) => body?.name === 'AlbumSearch');
+
+describe('monitorAndSearchAlbum', () => {
+    beforeEach(() => {
+        getMock.mockReset();
+        postMock.mockReset();
+        postMock.mockResolvedValue({ data: {} });
+    });
+
+    it('does not search an album Lidarr already holds every track of', async () => {
+        lidarrHas({ statistics: { trackFileCount: 4, trackCount: 4 } });
+
+        const outcome = await monitorAndSearchAlbum('rg-1', 'http://lidarr:8686', 'key');
+
+        expect(searched()).toBe(false);
+        expect(outcome).toEqual({ success: true, message: 'Album complete in Lidarr, not searched (track not matched in Plex)' });
+    });
+
+    it('searches an album with tracks missing', async () => {
+        lidarrHas({ statistics: { trackFileCount: 3, trackCount: 4 } });
+
+        await monitorAndSearchAlbum('rg-1', 'http://lidarr:8686', 'key');
+
+        expect(searched()).toBe(true);
+    });
+
+    // 0 of 0 is not "complete" - it is an album Lidarr has no release tracks for yet
+    it('searches an album with no tracks', async () => {
+        lidarrHas({ statistics: { trackFileCount: 0, trackCount: 0 } });
+
+        await monitorAndSearchAlbum('rg-1', 'http://lidarr:8686', 'key');
+
+        expect(searched()).toBe(true);
+    });
+
+    it('searches as before when Lidarr sends no statistics', async () => {
+        lidarrHas({});
+
+        await monitorAndSearchAlbum('rg-1', 'http://lidarr:8686', 'key');
+
+        expect(searched()).toBe(true);
+    });
+});
