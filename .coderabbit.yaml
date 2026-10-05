@@ -1,0 +1,130 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+# pnpm/turbo monorepo: apps/{web,sync-worker,spotify-scraper} + packages/*.
+# Two Dockerfiles are built and pushed to a registry from docker-publish.yml.
+language: en-US
+reviews:
+  # assertive: chill passed a diff clean that assertive flagged with two Major findings (2026-09-03); the "**" rule keeps style nits out
+  profile: assertive
+  request_changes_workflow: false
+  pre_merge_checks:
+    # off: the 80% docstring-coverage warning contradicts the one-line-docstring rule under "**"
+    docstrings:
+      mode: "off"
+  high_level_summary: true
+  poem: false
+  review_status: true
+  auto_review:
+    enabled: true
+    drafts: false
+    # main is the default branch, but the fork's work and image build from testing
+    base_branches:
+      - "^testing$"
+
+  path_filters:
+    - "!pnpm-lock.yaml"
+    - "!**/package-lock.json"
+    - "!**/node_modules/**"
+    - "!**/dist/**"
+    - "!**/.next/**"
+    - "!**/*.png"
+
+  path_instructions:
+    - path: "packages/*music-search*/**/*.ts"
+      instructions: |-
+        Track/album matching — the highest-stakes code here, because a wrong match is PERSISTED and effectively permanent:
+        - Never write a match to cache/state unless it is a confident, positive match. A low-confidence guess stored once keeps being served, so a scoring or threshold change must be checked for what it now lets through, not just what it fixes.
+        - Distinguish "no match found" (cacheable) from "lookup failed" — network error, 5xx, timeout, rate limit, auth failure. Caching a transient failure as a negative result suppresses a valid match on every later run.
+        - There must be a way to invalidate or overwrite a stored match. Flag a change that adds a new cache key or state shape with no path to correct a bad entry.
+        - Title/artist normalisation (case, punctuation, feat./remaster/live suffixes, unicode) must be applied symmetrically to both sides of a comparison — a one-sided normalisation silently mismatches.
+        - Fuzzy-threshold and scoring-weight changes need a stated rationale: say which real mismatch motivated it and what it now accepts that it previously rejected.
+    - path: "apps/sync-worker/**/*.ts"
+      instructions: |-
+        Background sync worker — talks to Spotify, Plex, Tidal, slskd and MQTT:
+        - Credentials (Spotify client secret, Plex token, MQTT password) must never be logged, echoed in an error body, or placed in a URL that gets logged — HTTP client errors embed the full request URL in the stack.
+        - Respect upstream rate limits on every new call path, including retries and batch loops; back off on 429/5xx using Retry-After rather than retrying tight.
+        - A job must be safe to re-run: partial progress should resume or no-op, never duplicate a playlist, re-add removed tracks, or delete on a failed lookup. An empty result from a failed fetch must NOT be treated as "the user removed everything".
+        - Fail closed on config/auth errors — skip the job and log, never proceed with defaults that would write to Plex.
+    - path: "apps/web/**/*.{ts,tsx}"
+      instructions: |-
+        Web UI:
+        - 0 and "" are FALSY: use ?? / Number.isFinite / explicit null checks for counts, offsets, indices and durations — `value || fallback` silently replaces a real 0.
+        - useEffect/useMemo/useCallback: include every reactive value the body reads. Memoize at the source rather than dropping a dependency to stop a re-run — dropping it is a stale-closure bug.
+        - Clean up on unmount: clear timers/intervals, abort in-flight fetches, close EventSource/WebSocket, stop polling loops.
+        - Never expose a Spotify secret or Plex token to the browser bundle. Anything read at build time into client code is public — server-side route or proxy only.
+    - path: "**/Dockerfile"
+      instructions: |-
+        Container builds (both are published):
+        - Pin base images by digest and pin package versions; an unpinned tag changes the runtime silently between builds.
+        - Never bake a secret into ARG/ENV or a RUN argv — both persist in image history, and /proc/<pid>/cmdline is world-readable in-container. Inject tokens at runtime.
+        - A recursive chown/chmod over a tree a previous COPY wrote re-materialises every file in a new layer and duplicates it in the image — use COPY --chown.
+        - The runtime stage must not inherit build toolchains, dev dependencies or source maps from the builder.
+        - In this monorepo, only the workspace an image needs should be installed and copied — pulling the whole tree bloats the image and widens its dependency surface.
+    - path: "{docker-entrypoint.sh,supervisor/**,apps/*/docker-entrypoint.sh}"
+      instructions: |-
+        Container entrypoint / process supervision:
+        - Quote every variable expansion; an unquoted path or token breaks on spaces and can word-split into unintended arguments.
+        - Fail fast on required config (`set -euo pipefail`), and never `exit 0` a failed startup — a supervised process that silently stays down looks healthy.
+        - Don't echo secrets during startup, including under `set -x`.
+    - path: "**/package.json"
+      instructions: |-
+        Workspace manifest:
+        - A dependency added to the wrong workspace, or promoted to the root, widens what every image installs — keep it in the package that imports it.
+        - A runtime dependency must not be a devDependency, and build/test-only packages must not ship in the runtime install.
+        - Deleting a feature must drop its dependency in the same change.
+    - path: ".github/workflows/**"
+      instructions: |-
+        Publish automation:
+        - Pin third-party actions by commit SHA, not a mutable tag.
+        - Never echo a token or interpolate untrusted input (PR title, branch name, issue body) directly into a `run:` block — use an env var.
+        - A path filter added or renamed must stay in step with the files the build actually needs, or an image silently stops being rebuilt when they change.
+    - path: "apps/spotify-scraper/**"
+      instructions: |-
+        Flask scraper service (no Spotify credentials; scrapes public playlist pages):
+        - Keep the URL allowlist strict: netloc in open.spotify.com/spotify.com
+          AND first path segment "playlist". Flag anything that accepts other
+          hosts, other resource types, or skips is_valid_spotify_url.
+        - Error bodies stay scrubbed ("Failed to scrape playlist"); the real
+          message goes to the log only. Never return an exception string.
+        - CORS is unrestricted on purpose for the private network; flag a change
+          that pairs it with credentials or a new endpoint that mutates state.
+        - Distinguish "scrape failed" (5xx, retryable) from "playlist is empty"
+          (200 with zero tracks) — the sync worker treats an empty result as
+          "user removed everything".
+    - path: "packages/{http-client,plex-config,plex-helpers,shared-utils}/**/*.ts"
+      instructions: |-
+        Shared Plex plumbing:
+        - The Plex token travels only in the X-Plex-Token HEADER (axiosGet/Post/
+          Put/Delete). Flag any call that puts it in a query string or a logged
+          URL, and any log line that prints request config.
+        - plex.json holds the token in plaintext under STORAGE_DIR; writeJSON is
+          atomic (tmp + rename) and must stay so. Never widen file permissions
+          or write settings from client-side code.
+        - getSettings() returns an EMPTY token when plex.json is missing — callers
+          must treat "" as unauthenticated and stop, never proceed with defaults.
+        - plexTvClient must keep Accept: application/json exactly; plex.tv
+          answers XML to anything else and response.data becomes a string.
+    - path: "**"
+      instructions: |-
+        Applies to every file, whatever the language:
+        - Comments are navigational or instructional only and capped at 1-2 lines:
+          what a non-obvious block does, or the gotcha it guards. No why/history
+          essays, no before/after narrative, no restating the code, no section
+          banners. Docstrings: one line unless the signature genuinely cannot
+          carry it. Never ask for a docstring to be added; a missing docstring
+          is not a finding.
+        - The 1-2 line cap wins even inside an already heavily-commented file —
+          matching local density is not licence to exceed it.
+        - A comment, docstring, help text, column header, log message or UI label
+          that disagrees with what the code does is a correctness finding, not a
+          stale-comment nit: report it and say which side is wrong.
+        - Do not flag stylistic preferences that are consistent across the file
+          (naming, quoting, import order, formatting, line length). Report
+          correctness, security, data-loss and the classes named above.
+
+  tools:
+    gitleaks:
+      enabled: true
+    hadolint:
+      enabled: true
+    actionlint:
+      enabled: true
