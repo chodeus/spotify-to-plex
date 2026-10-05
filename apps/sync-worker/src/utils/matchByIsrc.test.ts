@@ -79,6 +79,16 @@ describe('matchByIsrc', () => {
         expect(result?.result.map(track => track.id)).toEqual(['/library/metadata/3']);
     });
 
+    it('searches at most ten of the other releases', async () => {
+        const releaseTitles = Array.from({ length: 30 }, (_v, i) => `Compilation ${i}`);
+        lookupMock.mockResolvedValue({ status: 'found', trackIds: ['track-a'], releaseTitles });
+        plexHas({});
+
+        await matchByIsrc(config, [unmatched], [spotifyTrack]);
+
+        expect(findMock).toHaveBeenCalledTimes(11);
+    });
+
     it('leaves matched results and tracks without an ISRC alone', async () => {
         const matched: SearchResponse = { ...unmatched, result: [plexTrack('/library/metadata/9')] };
         const noIsrc: Track = { ...spotifyTrack, id: 'spotify-2', isrc: undefined };

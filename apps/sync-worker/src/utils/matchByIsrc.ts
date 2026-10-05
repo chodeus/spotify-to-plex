@@ -5,6 +5,9 @@ import { PlexTrack } from "@spotify-to-plex/plex-music-search/types/PlexTrack";
 import { SearchResponse } from "@spotify-to-plex/plex-music-search/types/SearchResponse";
 import { Track as SpotifyTrack } from "@spotify-to-plex/shared-types/spotify/Track";
 
+// A hit song sits on dozens of compilations and each title costs a Plex search per sync
+const MAX_OTHER_RELEASES = 10;
+
 // Two different hits mean the id alone cannot choose, and guessing is how wrong matches start
 function onlyHit(hits: PlexTrack[]) {
     const unique = hits.filter((hit, index) => hits.findIndex(other => other.id == hit.id) == index);
@@ -25,14 +28,13 @@ async function findByIsrc(config: PlexMusicSearchConfig, track: SpotifyTrack, is
             return onlyHit(onSpotifyAlbum);
     }
 
+    const otherTitles = lookup.releaseTitles
+        .filter(title => title != track.album && title.trim())
+        .slice(0, MAX_OTHER_RELEASES);
     const elsewhere: PlexTrack[] = [];
 
-    for (const title of lookup.releaseTitles) {
-        if (title == track.album || !title.trim())
-            continue;
-
+    for (const title of otherTitles)
         elsewhere.push(...await findTracksByMusicBrainzIds(config, artist, title, lookup.trackIds));
-    }
 
     return onlyHit(elsewhere);
 }
