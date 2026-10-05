@@ -74,3 +74,42 @@ describe('getSpotifyData scraper fallback', () => {
     });
 
 });
+
+describe('getSpotifyData enrichment', () => {
+    const enriched = { album: { id: 'album-1', name: 'Album' }, duration_ms: 1000, external_ids: { isrc: 'XXA000000001' } };
+
+    beforeEach(() => {
+        vi.stubEnv('SPOTIFY_SCRAPER_URL', 'http://scraper');
+        vi.spyOn(console, 'error').mockImplementation(() => { /* expected */ });
+        postMock.mockResolvedValue(scraperResponse(false));
+    });
+
+    afterEach(() => {
+        vi.useRealTimers();
+        vi.unstubAllEnvs();
+        vi.restoreAllMocks();
+    });
+
+    it('carries the ISRC from the batch lookup', async () => {
+        const batchApi = { ...api, tracks: { get: (ids: string[]) => Promise.resolve(ids.map(() => enriched)) } } as unknown as SpotifyApi;
+
+        const playlist = await getSpotifyData(batchApi, 'spotify:playlist:p', false);
+
+        expect(playlist?.tracks[0]?.isrc).toBe('XXA000000001');
+    });
+
+    it('carries the ISRC from the one-by-one lookup a 403 falls back to', async () => {
+        vi.useFakeTimers();
+        const singleApi = {
+            ...api,
+            tracks: { get: (ids: string[] | string) => (Array.isArray(ids) ? Promise.reject(new Error('403 Forbidden')) : Promise.resolve(enriched)) }
+        } as unknown as SpotifyApi;
+
+        const loading = getSpotifyData(singleApi, 'spotify:playlist:p', false);
+        await vi.runAllTimersAsync();
+        const playlist = await loading;
+
+        expect(playlist?.tracks[0]?.isrc).toBe('XXA000000001');
+    });
+
+});

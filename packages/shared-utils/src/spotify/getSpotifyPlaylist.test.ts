@@ -12,7 +12,8 @@ function item(index: number) {
             uri: `spotify:track:${index}`,
             artists: [{ name: 'Artist A, Artist B' }],
             album: { id: 'album-1', name: 'Album' },
-            duration_ms: 1000 + index
+            duration_ms: 1000 + index,
+            external_ids: { isrc: 'XXA000000001' }
         }
     };
 }
@@ -72,6 +73,7 @@ describe('getSpotifyPlaylist', () => {
         // the pages after the first used to keep "Artist A, Artist B" as one name
         expect(playlist?.tracks[0]?.artists).toEqual(['Artist A', 'Artist B']);
         expect(playlist?.tracks[100]?.artists).toEqual(['Artist A', 'Artist B']);
+        expect([playlist?.tracks[0]?.isrc, playlist?.tracks[100]?.isrc]).toEqual(['XXA000000001', 'XXA000000001']);
     });
 
     it('fails rather than returning a partial playlist when a page fetch fails', async () => {
