@@ -37,7 +37,7 @@ async function loadLinkedTracks(config: PlexMusicSearchConfig, trackLink: TrackL
             // titles have to be asked too - "REACT" cached against
             // "REACT - Culture Shock Remix". The search applies this to new
             // matches; without it here a link made before it never re-evaluates
-            if (!trackLink.manual && !versionsMatch(metaData.title, title, filterOutWords, artists).match) {
+            if (!trackLink.manual && trackLink.plex_matched_by !== 'isrc' && !versionsMatch(metaData.title, title, filterOutWords, artists).match) {
                 console.log(`Dropping cached link for "${title}": version mismatch ("${metaData.title}")`);
                 continue;
             }

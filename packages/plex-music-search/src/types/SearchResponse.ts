@@ -8,6 +8,7 @@ export type SearchResponse = {
     duration_ms?: number;
     queries?: SearchQuery[]
     result: PlexTrack[];
+    matched_by?: 'isrc';
 };
 
 export type SearchQuery = {

@@ -53,7 +53,8 @@ function mapTracks(items: PlaylistedTrack<Track>[]) {
                 album: track.album?.name || 'Unknown',
                 artists: artists || [],
                 album_id: track.album?.id || 'unknown',
-                duration_ms: track.duration_ms
+                duration_ms: track.duration_ms,
+                isrc: track.external_ids?.isrc
             }
         })
         .filter((track) => !!track);
