@@ -4,7 +4,8 @@ import { LidarrAlbumData } from "@spotify-to-plex/shared-types/lidarr/LidarrAlbu
 import { LidarrAddAlbumRequest } from "@spotify-to-plex/shared-types/lidarr/LidarrAddAlbumRequest";
 import { LidarrSyncLog } from "@spotify-to-plex/shared-types/lidarr/LidarrSyncLog";
 import axios from "axios";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import { writeJsonFileAtomic } from "@spotify-to-plex/shared-utils/utils/writeJsonFileAtomic";
 import { join } from "node:path";
 import { getNestedSyncLogsForType } from "../utils/getNestedSyncLogsForType";
 import { startSyncType } from "../utils/startSyncType";
@@ -246,7 +247,7 @@ export async function syncLidarr() {
         }
 
         // Save Lidarr logs
-        writeFileSync(lidarrLogsPath, JSON.stringify(lidarrLogs, null, 2));
+        writeJsonFileAtomic(lidarrLogsPath, lidarrLogs, 2);
 
         // Complete sync log
         logComplete(syncLog);

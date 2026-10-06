@@ -9,6 +9,7 @@ import { SearchResponse } from "@spotify-to-plex/plex-music-search/types/SearchR
 import { search as plexMusicSearch } from "@spotify-to-plex/plex-music-search/functions/search";
 import { getMusicSearchConfig } from "@spotify-to-plex/music-search/functions/getMusicSearchConfig";
 import { writeFileSync } from "node:fs";
+import { writeJsonFileAtomic } from "@spotify-to-plex/shared-utils/utils/writeJsonFileAtomic";
 import { join } from "node:path";
 import { findMissingTidalTracks } from "../utils/findMissingTidalTracks";
 import { getCachedPlexTracks } from "../utils/getCachedPlexTracks";
@@ -48,8 +49,8 @@ export async function syncPlaylists() {
             // was removed
             writeFileSync(join(getStorageDir(), 'missing_tracks_spotify.txt'), '')
             writeFileSync(join(getStorageDir(), 'missing_tracks_tidal.txt'), '')
-            writeFileSync(join(getStorageDir(), 'missing_tracks_lidarr.json'), JSON.stringify([], null, 2))
-            writeFileSync(join(getStorageDir(), 'missing_tracks_slskd.json'), JSON.stringify([], null, 2))
+            writeJsonFileAtomic(join(getStorageDir(), 'missing_tracks_lidarr.json'), [], 2)
+            writeJsonFileAtomic(join(getStorageDir(), 'missing_tracks_slskd.json'), [], 2)
 
             return;
         }
@@ -256,8 +257,8 @@ export async function syncPlaylists() {
         if (processed && !incomplete) {
             writeFileSync(join(getStorageDir(), 'missing_tracks_spotify.txt'), missingSpotifyTracks.map(id => `https://open.spotify.com/track/${id}`).join('\n'))
             writeFileSync(join(getStorageDir(), 'missing_tracks_tidal.txt'), missingTidalTracks.map(id => `https://tidal.com/browse/track/${id}`).join('\n'))
-            writeFileSync(join(getStorageDir(), 'missing_tracks_lidarr.json'), JSON.stringify(missingAlbumsLidarr, null, 2))
-            writeFileSync(join(getStorageDir(), 'missing_tracks_slskd.json'), JSON.stringify(missingTracksSlskd, null, 2))
+            writeJsonFileAtomic(join(getStorageDir(), 'missing_tracks_lidarr.json'), missingAlbumsLidarr, 2)
+            writeJsonFileAtomic(join(getStorageDir(), 'missing_tracks_slskd.json'), missingTracksSlskd, 2)
         }
 
         // Mark sync as complete

@@ -2,7 +2,7 @@
 import { getSlskdSettings } from "@spotify-to-plex/plex-config/functions/getSlskdSettings";
 import { getStorageDir } from "@spotify-to-plex/shared-utils/utils/getStorageDir";
 import { SlskdSyncLog } from "@spotify-to-plex/shared-types/slskd/SlskdSyncLog";
-import { writeFileSync } from "node:fs";
+import { writeJsonFileAtomic } from "@spotify-to-plex/shared-utils/utils/writeJsonFileAtomic";
 import { join } from "node:path";
 import { getNestedSyncLogsForType } from "../utils/getNestedSyncLogsForType";
 import { readMissingSlskdTracks } from "../utils/readMissingSlskdTracks";
@@ -218,7 +218,7 @@ export async function syncSlskd() {
         clearState();
 
         // Save SLSKD logs
-        writeFileSync(slskdLogsPath, JSON.stringify(slskdLogs, null, 2));
+        writeJsonFileAtomic(slskdLogsPath, slskdLogs, 2);
 
         // Complete sync log
         logComplete(syncLog);

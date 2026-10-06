@@ -3,6 +3,7 @@ import { searchAlbum } from "@spotify-to-plex/plex-music-search/functions/search
 import { SearchResponse } from "@spotify-to-plex/plex-music-search/types/SearchResponse";
 import { getMusicSearchConfig } from "@spotify-to-plex/music-search/functions/getMusicSearchConfig";
 import { writeFileSync } from "node:fs";
+import { writeJsonFileAtomic } from "@spotify-to-plex/shared-utils/utils/writeJsonFileAtomic";
 import { join } from "node:path";
 import { findMissingTidalAlbums } from "../utils/findMissingTidalAlbums";
 import { getCachedPlexTracks } from "../utils/getCachedPlexTracks";
@@ -37,8 +38,8 @@ export async function syncAlbums() {
             // the Lidarr and SLSKD jobs merge these files with the playlist ones every run.
             writeFileSync(join(getStorageDir(), 'missing_albums_spotify.txt'), '')
             writeFileSync(join(getStorageDir(), 'missing_albums_tidal.txt'), '')
-            writeFileSync(join(getStorageDir(), 'missing_albums_lidarr.json'), JSON.stringify([], null, 2))
-            writeFileSync(join(getStorageDir(), 'missing_albums_slskd.json'), JSON.stringify([], null, 2))
+            writeJsonFileAtomic(join(getStorageDir(), 'missing_albums_lidarr.json'), [], 2)
+            writeJsonFileAtomic(join(getStorageDir(), 'missing_albums_slskd.json'), [], 2)
 
             return;
         }
@@ -190,9 +191,9 @@ export async function syncAlbums() {
         if (processed && !incomplete) {
             writeFileSync(join(getStorageDir(), 'missing_albums_spotify.txt'), missingSpotifyAlbums.map(id => `https://open.spotify.com/album/${id}`).join('\n'))
             writeFileSync(join(getStorageDir(), 'missing_albums_tidal.txt'), missingTidalAlbums.map(id => `https://tidal.com/browse/album/${id}`).join('\n'))
-            writeFileSync(join(getStorageDir(), 'missing_albums_lidarr.json'), JSON.stringify(missingAlbumsLidarr, null, 2))
+            writeJsonFileAtomic(join(getStorageDir(), 'missing_albums_lidarr.json'), missingAlbumsLidarr, 2)
             // The playlists job owns missing_tracks_slskd.json; the SLSKD job merges the two
-            writeFileSync(join(getStorageDir(), 'missing_albums_slskd.json'), JSON.stringify(missingTracksSlskd, null, 2))
+            writeJsonFileAtomic(join(getStorageDir(), 'missing_albums_slskd.json'), missingTracksSlskd, 2)
         }
 
         // Mark sync as complete
