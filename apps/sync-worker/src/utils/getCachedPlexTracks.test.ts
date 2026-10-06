@@ -9,6 +9,7 @@ vi.mock('@spotify-to-plex/plex-music-search/functions/getById', () => ({ getById
 
 const { getById } = await import('@spotify-to-plex/plex-music-search/functions/getById');
 const { getCachedPlexTracks } = await import('./getCachedPlexTracks');
+const { PlexItemMissingError } = await import('@spotify-to-plex/plex-music-search/utils/PlexItemMissingError');
 
 const getByIdMock = getById as unknown as Mock;
 const config = { uri: 'http://192.168.1.20:32400', token: 'token' } as PlexMusicSearchConfig;
@@ -62,5 +63,24 @@ describe('getCachedPlexTracks', () => {
         const { result } = await getCachedPlexTracks(config, playlist);
 
         expect(result).toEqual([]);
+    });
+
+    it('frees a manual link Plex no longer has for a new match', async () => {
+        writeLink({ manual: true });
+        getByIdMock.mockRejectedValue(new PlexItemMissingError('/library/metadata/1'));
+
+        const { result } = await getCachedPlexTracks(config, playlist);
+
+        expect(result).toEqual([]);
+        expect(JSON.parse(readFileSync(join(dir, 'track_links.json'), 'utf8'))[0]).toEqual({ spotify_id: 'spotify-1', plex_id: [] });
+    });
+
+    it('keeps a manual link while Plex is unreachable', async () => {
+        writeLink({ manual: true });
+        getByIdMock.mockRejectedValue(new Error('connect ECONNREFUSED'));
+
+        await getCachedPlexTracks(config, playlist);
+
+        expect(JSON.parse(readFileSync(join(dir, 'track_links.json'), 'utf8'))[0]).toMatchObject({ plex_id: ['/library/metadata/1'], manual: true });
     });
 });
