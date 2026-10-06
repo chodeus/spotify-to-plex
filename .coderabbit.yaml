@@ -3,7 +3,7 @@
 # Two Dockerfiles are built and pushed to a registry from docker-publish.yml.
 language: en-US
 reviews:
-  # assertive: chill passed a diff clean that assertive flagged with two Major findings (2026-09-03); the "**" rule keeps style nits out
+  # the "**" rule keeps assertive's style nits out
   profile: assertive
   request_changes_workflow: false
   pre_merge_checks:
