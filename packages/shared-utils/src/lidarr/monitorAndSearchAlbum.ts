@@ -24,6 +24,15 @@ export async function monitorAndSearchAlbum(
             };
         }
 
+        // Lidarr holds every track of its chosen release, so a search would only re-download it as an "upgrade"
+        const { totalTrackCount = 0, trackFileCount = 0 } = existingAlbum.statistics ?? {};
+        if (totalTrackCount > 0 && trackFileCount >= totalTrackCount) {
+            return {
+                success: true,
+                message: 'Album complete in Lidarr, not searched'
+            };
+        }
+
         // If not monitored, update to monitored
         if (!existingAlbum.monitored) {
             const updateUrl = `${baseUrl}/api/v1/album/${existingAlbum.id}`;

@@ -1,5 +1,5 @@
 import { getCachedTrackLinks } from "@spotify-to-plex/shared-utils/cache/getCachedTrackLink";
-import { durationSimilarity } from "@spotify-to-plex/shared-utils/music/durationSimilarity";
+import { durationSimilarity, durationsContradict } from "@spotify-to-plex/shared-utils/music/durationSimilarity";
 import { versionsMatch } from "@spotify-to-plex/music-search/utils/compareVersions";
 import { Track as SpotifyTrack } from "@spotify-to-plex/shared-types/spotify/Track";
 import { GetSpotifyAlbum } from "@spotify-to-plex/shared-types/spotify/GetSpotifyAlbum";
@@ -9,9 +9,6 @@ import { PlexTrack } from "@spotify-to-plex/plex-music-search/types/PlexTrack";
 import { SearchResponse } from "@spotify-to-plex/plex-music-search/types/SearchResponse";
 import { getById } from "@spotify-to-plex/plex-music-search/functions/getById";
 import { PlexMusicSearchConfig } from "@spotify-to-plex/plex-music-search/types/PlexMusicSearchConfig";
-
-// Below this the cached track is a different version, not a different encode
-const DURATION_THRESHOLD = 0.65;
 
 // Loads the cached plex tracks for one link, dropping any whose duration
 // contradicts the spotify track. Returns the ids worth keeping in the cache:
@@ -26,9 +23,8 @@ async function loadLinkedTracks(config: PlexMusicSearchConfig, trackLink: TrackL
     for (const plexId of trackLink.plex_id ?? []) {
         try {
             const metaData = await getById(config, plexId);
-            const similarity = durationSimilarity(durationMs, metaData.duration_ms);
-
-            if (!trackLink.manual && similarity && similarity < DURATION_THRESHOLD) {
+            if (!trackLink.manual && durationsContradict(durationMs, metaData.duration_ms)) {
+                const similarity = durationSimilarity(durationMs, metaData.duration_ms);
                 console.log(`Dropping cached link for "${title}": duration mismatch (${Math.round(similarity * 100)}%)`);
                 continue;
             }
@@ -37,7 +33,7 @@ async function loadLinkedTracks(config: PlexMusicSearchConfig, trackLink: TrackL
             // titles have to be asked too - "REACT" cached against
             // "REACT - Culture Shock Remix". The search applies this to new
             // matches; without it here a link made before it never re-evaluates
-            if (!trackLink.manual && !versionsMatch(metaData.title, title, filterOutWords, artists).match) {
+            if (!trackLink.manual && trackLink.plex_matched_by !== 'isrc' && !versionsMatch(metaData.title, title, filterOutWords, artists).match) {
                 console.log(`Dropping cached link for "${title}": version mismatch ("${metaData.title}")`);
                 continue;
             }

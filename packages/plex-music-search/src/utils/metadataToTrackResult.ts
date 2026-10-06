@@ -1,0 +1,29 @@
+import { removeFeaturing } from "@spotify-to-plex/music-search/utils/removeFeaturing";
+import { HubSearchResult } from "../types/actions/HubSearchResult";
+import { Metadata } from "../types/plex/Metadata";
+
+export default function metadataToTrackResult(metadata: Metadata): HubSearchResult {
+    return {
+        type: "track",
+        id: metadata.key,
+        ratingKey: metadata.ratingKey,
+        guid: metadata.guid,
+        score: metadata.score,
+        image: metadata.thumb,
+        title: metadata.title,
+        duration_ms: metadata.duration,
+        album: {
+            id: metadata.parentKey,
+            guid: metadata.parentGuid,
+            title: metadata.parentTitle,
+            year: metadata.parentYear,
+            image: metadata.parentThumb,
+        },
+        artist: {
+            id: metadata.grandparentKey,
+            guid: metadata.grandparentGuid,
+            title: removeFeaturing(metadata.originalTitle || metadata.grandparentTitle),
+            image: metadata.grandparentThumb,
+        }
+    };
+}

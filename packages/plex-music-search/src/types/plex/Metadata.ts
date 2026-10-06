@@ -37,4 +37,6 @@ export type Metadata = {
     updatedAt: number;
     musicAnalysisVersion: string;
     Media: Media[];
+    // Only present when the request asks for includeGuids=1
+    Guid?: { id: string }[];
 };

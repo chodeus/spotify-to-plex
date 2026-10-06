@@ -65,7 +65,7 @@ export function getCachedTrackLinks(
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const add = (searchResult: { id?: string, title: string, artist: string, result: any[] }[], type: "tidal" | "plex" | "slskd", album?: { id: string }) => {
+    const add = (searchResult: { id?: string, title: string, artist: string, result: any[], matched_by?: 'isrc' }[], type: "tidal" | "plex" | "slskd", album?: { id: string }) => {
 
         ////////////////////////////////
         // Cache tracks
@@ -95,6 +95,13 @@ export function getCachedTrackLinks(
 
                         trackLink.plex_id = item.result
                             .map(item => item.id)
+
+                        // A later title match must not inherit an earlier ISRC match's exemption
+                        if (item.matched_by)
+                            trackLink.plex_matched_by = item.matched_by
+                        else
+                            delete trackLink.plex_matched_by
+
                         break;
 
                     case "tidal":

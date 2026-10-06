@@ -22,6 +22,7 @@ import { hasNothingEnrolled } from "../utils/hasNothingEnrolled";
 import { errorSyncType } from "../utils/errorSyncType";
 import { updateSyncTypeProgress } from "../utils/updateSyncTypeProgress";
 import { loadSpotifyData } from "../utils/loadSpotifyData";
+import { matchByIsrc } from "../utils/matchByIsrc";
 import { putPlexPlaylist } from "../utils/putPlexTracks";
 import { getSettings } from "@spotify-to-plex/plex-config/functions/getSettings";
 import { LidarrAlbumData } from "@spotify-to-plex/shared-types/lidarr/LidarrAlbumData";
@@ -146,7 +147,7 @@ export async function syncPlaylists() {
                 const toSearchItems = data.tracks.filter(track => !result.some((item: SearchResponse) => item.id == track.id))
                 if (toSearchItems.length > 0) {
                     console.log(`Searching for ${toSearchItems.length} tracks`)
-                    const searchResult = await plexMusicSearch(plexSearchConfig, toSearchItems)
+                    const searchResult = await matchByIsrc(plexSearchConfig, await plexMusicSearch(plexSearchConfig, toSearchItems), toSearchItems)
                     result = result.concat(searchResult)
 
                     add(searchResult, 'plex')

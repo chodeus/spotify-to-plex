@@ -178,7 +178,8 @@ export async function getSpotifyData(api: SpotifyApi, id: string, simplified: bo
                         ...track,
                         album: enrichedTrack.album.name,
                         album_id: enrichedTrack.album.id,
-                        duration_ms: track.duration_ms ?? enrichedTrack.duration_ms
+                        duration_ms: track.duration_ms ?? enrichedTrack.duration_ms,
+                        isrc: enrichedTrack.external_ids?.isrc
                     };
                 });
 
@@ -267,6 +268,7 @@ type EnrichableTrack = {
     album: string;
     album_id: string;
     duration_ms?: number;
+    isrc?: string;
 };
 
 async function enrichTracksIndividually<T extends EnrichableTrack>(api: SpotifyApi, batch: T[], delayMs: number): Promise<T[]> {
@@ -283,7 +285,8 @@ async function enrichTracksIndividually<T extends EnrichableTrack>(api: SpotifyA
                 ...track,
                 album: enrichedTrack.album.name,
                 album_id: enrichedTrack.album.id,
-                duration_ms: track.duration_ms ?? enrichedTrack.duration_ms
+                duration_ms: track.duration_ms ?? enrichedTrack.duration_ms,
+                isrc: enrichedTrack.external_ids?.isrc
             };
         } catch (_e) {
             // Keep the scraper data for tracks that fail individually
