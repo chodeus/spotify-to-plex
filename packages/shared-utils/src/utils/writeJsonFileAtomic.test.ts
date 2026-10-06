@@ -1,4 +1,4 @@
-import { linkSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { linkSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -26,6 +26,15 @@ describe('writeJsonFileAtomic', () => {
         expect(readFileSync(join(dir, 'old-inode'), 'utf8')).toBe('["old"]');
         expect(JSON.parse(readFileSync(path, 'utf8'))).toEqual(['new']);
         expect(readdirSync(dir).sort()).toEqual(['old-inode', 'state.json']);
+    });
+
+    // A directory where the file should be makes the rename fail
+    it('removes its temp file when the write fails', () => {
+        const path = join(dir, 'state.json');
+        mkdirSync(path);
+
+        expect(() => writeJsonFileAtomic(path, ['new'])).toThrow();
+        expect(readdirSync(dir)).toEqual(['state.json']);
     });
 
     it('keeps the indentation asked for', () => {
