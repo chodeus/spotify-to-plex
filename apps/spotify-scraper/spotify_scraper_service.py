@@ -1,0 +1,172 @@
+#!/usr/bin/env python3
+"""
+Spotify Scraper Service - Simplified Pass-through
+"""
+
+import logging
+import threading
+from typing import Any, Dict, Sequence
+from urllib.parse import urlparse
+from spotify_scraper import SpotifyClient
+
+logger = logging.getLogger(__name__)
+
+
+class _LibraryWarnings(logging.Handler):
+    """Collects the library's own warnings for one fetch, e.g. a fallback to the embed page."""
+
+    def __init__(self):
+        super().__init__(logging.WARNING)
+        self.thread = threading.get_ident()
+        self.messages: list[str] = []
+
+    def emit(self, record):
+        if record.thread == self.thread:
+            self.messages.append(record.getMessage())
+
+class SpotifyScraperService:
+    """Minimal service for Spotify playlist scraping"""
+    
+    def __init__(self):
+        self.scraper = SpotifyClient()
+        logger.info("SpotifyScraperService initialized")
+    
+    def is_valid_spotify_url(self, url: str) -> bool:
+        """Validate Spotify playlist URL"""
+        try:
+            parsed = urlparse(url)
+            if parsed.netloc not in ['open.spotify.com', 'spotify.com']:
+                return False
+            path_parts = parsed.path.strip('/').split('/')
+            return len(path_parts) >= 2 and path_parts[0] == 'playlist'
+        except Exception:
+            return False
+    
+    @staticmethod
+    def _normalize_playlist(data: Dict[str, Any], max_tracks: int | None = None, degraded: Sequence[str] = ()) -> Dict[str, Any]:
+        """
+        Map SpotifyScraper's response onto the shape the web app expects.
+
+        SpotifyScraper 3.9.x renamed get_playlist_info() to get_playlist(),
+        returns a Playlist object instead of a dict, nests every entry under a
+        "track" key and renamed track_count to total_tracks. Normalising here
+        keeps the HTTP contract stable so the web app stays unaware of it.
+        """
+        tracks = []
+        for item in data.get('tracks') or []:
+            track = item.get('track') if isinstance(item, dict) and 'track' in item else item
+            if track:
+                tracks.append(track)
+
+        data['tracks'] = tracks
+        reported = data.get('track_count') or data.get('total_tracks')
+        if not data.get('track_count'):
+            data['track_count'] = reported or len(tracks)
+
+        # A short read is truncation only when the library said it degraded; a
+        # caller-imposed cap and filtered-out unplayable items also leave it short
+        data['truncated'] = bool(max_tracks is None and reported and len(tracks) < reported and degraded)
+        if data['truncated']:
+            logger.warning(
+                "Playlist truncated: scraped %d of %d tracks. %s",
+                len(tracks), reported, "; ".join(degraded)
+            )
+
+        return data
+
+    def scrape_playlist(self, url: str, include_album_data: bool = True, max_tracks: int | None = None) -> Dict[str, Any]:
+        """
+        Scrape Spotify playlist with optional complete album data
+
+        Args:
+            url: Spotify playlist URL
+            include_album_data: If True, fetches complete album data for each track
+                               If False, returns basic playlist data (faster)
+            max_tracks: Upper bound on tracks to collect; None fetches all.
+                        Defaults to None so large playlists are not capped at
+                        the library default of 100.
+
+        Returns:
+            Dict containing playlist data with complete track and album information
+        """
+        try:
+            # Paginate through the full track list when max_tracks is None,
+            # otherwise the library default caps playlists at 100 tracks.
+            warnings = _LibraryWarnings()
+            library_logger = logging.getLogger('spotify_scraper')
+            library_logger.addHandler(warnings)
+            try:
+                playlist = self.scraper.get_playlist(url, max_tracks=max_tracks)
+            finally:
+                library_logger.removeHandler(warnings)
+
+            if not playlist:
+                raise ValueError("Failed to scrape playlist data")
+
+            raw_data = playlist.to_dict() if hasattr(playlist, 'to_dict') else playlist
+            raw_data = self._normalize_playlist(raw_data, max_tracks, warnings.messages)
+
+            logger.info(f"Successfully scraped playlist: {raw_data.get('name', 'Unknown')}")
+            
+            # If album data not needed, return basic data
+            if not include_album_data:
+                logger.info("Returning basic playlist data (no album info)")
+                logger.debug(f"Raw basic SpotifyScraper response: {raw_data}")
+                return raw_data
+            
+            # Check if tracks exist in the playlist
+            tracks = raw_data.get('tracks', [])
+            if not tracks:
+                logger.warning("No tracks found in playlist")
+                return raw_data
+            
+            logger.info(f"Enriching {len(tracks)} tracks with complete album data...")
+            
+            # Counter for successfully enriched tracks
+            enriched_count = 0
+            failed_count = 0
+            
+            # Process each track individually to avoid rate limiting
+            for i, track in enumerate(tracks):
+                try:
+                    # Extract track URI from basic track data
+                    track_uri = track.get('uri')
+                    if not track_uri:
+                        logger.debug(f"Track {i} missing URI, skipping enrichment")
+                        continue
+                    
+                    # Get complete track information with album data
+                    complete_track = self.scraper.get_track(track_uri)
+                    if complete_track and hasattr(complete_track, 'to_dict'):
+                        complete_track = complete_track.to_dict()
+
+                    if complete_track:
+                        # Simply merge all complete track data into existing track
+                        # This preserves any new fields added by the library
+                        track.update(complete_track)
+                        
+                        enriched_count += 1
+                        logger.debug(f"Successfully enriched track {i+1}/{len(tracks)}: {track.get('name', 'Unknown')}")
+                    else:
+                        # Keep original basic track data if enrichment fails
+                        failed_count += 1
+                        logger.warning(f"Failed to get complete data for track {i+1}, keeping basic data")
+                        
+                except Exception as track_error:
+                    # Log error but continue with basic track data
+                    failed_count += 1
+                    logger.warning(f"Error enriching track {i+1}: {str(track_error)}, keeping basic data")
+                    continue
+            
+            # Log enrichment summary
+            logger.info(f"Track enrichment complete - Success: {enriched_count}, Failed: {failed_count}, Total: {len(tracks)}")
+
+            # Debug log to see the actual SpotifyScraper response structure
+            logger.debug(f"Raw SpotifyScraper response structure: {raw_data}")
+
+            # Return the enhanced playlist data
+            return raw_data
+            
+        except Exception as e:
+            logger.error(f"Error scraping playlist: {str(e)}")
+            raise ValueError(f"Failed to scrape playlist: {str(e)}")

@@ -1,0 +1,289 @@
+/* eslint-disable max-depth */
+import { AxiosRequest } from "@spotify-to-plex/http-client/AxiosRequest";
+import { getAPIUrl } from "@spotify-to-plex/shared-utils/utils/getAPIUrl";
+import { getStorageDir } from "@spotify-to-plex/shared-utils/utils/getStorageDir";
+import { handleOneRetryAttempt } from "@spotify-to-plex/plex-helpers/retry";
+import { Playlist } from "@spotify-to-plex/shared-types/plex/Playlist";
+import { GetPlaylistResponse } from "@spotify-to-plex/shared-types/plex/GetPlaylistResponse";
+import { SearchResponse } from "@spotify-to-plex/plex-music-search/types/SearchResponse";
+import { search as plexMusicSearch } from "@spotify-to-plex/plex-music-search/functions/search";
+import { getMusicSearchConfig } from "@spotify-to-plex/music-search/functions/getMusicSearchConfig";
+import { writeFileSync } from "node:fs";
+import { writeJsonFileAtomic } from "@spotify-to-plex/shared-utils/utils/writeJsonFileAtomic";
+import { join } from "node:path";
+import { findMissingTidalTracks } from "../utils/findMissingTidalTracks";
+import { getCachedPlexTracks } from "../utils/getCachedPlexTracks";
+import { getPlexPlaylists } from "../utils/getPlexPlaylists";
+import { getSavedPlaylists } from "../utils/getSavedPlaylists";
+import { getNestedSyncLogsForType } from "../utils/getNestedSyncLogsForType";
+import { startSyncType } from "../utils/startSyncType";
+import { clearSyncTypeLogs } from "../utils/clearSyncTypeLogs";
+import { completeSyncType } from "../utils/completeSyncType";
+import { hasNothingEnrolled } from "../utils/hasNothingEnrolled";
+import { errorSyncType } from "../utils/errorSyncType";
+import { updateSyncTypeProgress } from "../utils/updateSyncTypeProgress";
+import { loadSpotifyData } from "../utils/loadSpotifyData";
+import { matchByIsrc } from "../utils/matchByIsrc";
+import { putPlexPlaylist } from "../utils/putPlexTracks";
+import { getSettings } from "@spotify-to-plex/plex-config/functions/getSettings";
+import { LidarrAlbumData } from "@spotify-to-plex/shared-types/lidarr/LidarrAlbumData";
+import { SlskdTrackData } from "@spotify-to-plex/shared-types/slskd/SlskdTrackData";
+import { isLocalTrack } from "@spotify-to-plex/shared-utils/spotify/isLocalTrack";
+
+
+export async function syncPlaylists() {
+    // Start sync type logging
+    startSyncType('playlists');
+    clearSyncTypeLogs('playlists');
+
+    try {
+
+        // Check if we need to force syncing
+        const args = process.argv.slice(2);
+        const force = args.includes("force")
+
+        const { toSyncPlaylists } = getSavedPlaylists()
+        if (hasNothingEnrolled(toSyncPlaylists, 'playlists', 'playlists')) {
+            // Same reason as the albums job: stale missing-track files would
+            // keep feeding the Lidarr and slskd queues after the last playlist
+            // was removed
+            writeFileSync(join(getStorageDir(), 'missing_tracks_spotify.txt'), '')
+            writeFileSync(join(getStorageDir(), 'missing_tracks_tidal.txt'), '')
+            writeJsonFileAtomic(join(getStorageDir(), 'missing_tracks_lidarr.json'), [], 2)
+            writeJsonFileAtomic(join(getStorageDir(), 'missing_tracks_slskd.json'), [], 2)
+
+            return;
+        }
+
+        const { putLog, logError, logComplete } = getNestedSyncLogsForType('playlists')
+
+        const settings = await getSettings();
+        if (!settings.uri || !settings.token)
+            throw new Error("No plex connection found")
+
+        const { playlists } = await getPlexPlaylists()
+
+        const missingSpotifyTracks: string[] = []
+        const missingTidalTracks: string[] = []
+        const missingAlbumsLidarr: LidarrAlbumData[] = []
+        const missingTracksSlskd: SlskdTrackData[] = []
+        let processed = false
+        let incomplete = false
+
+        for (let i = 0; i < toSyncPlaylists.length; i++) {
+            const item = toSyncPlaylists[i];
+            if (!item)
+                continue;
+
+            // Update progress
+            updateSyncTypeProgress('playlists', i + 1, toSyncPlaylists.length);
+
+            const { id, title, uri, user, sync_interval } = item;
+
+            //////////////////////////////////
+            // Load Plex playlist
+            //////////////////////////////////
+            const itemLog = putLog(id, title)
+            let days = Number(sync_interval)
+            if (isNaN(days))
+                days = 0;
+
+            try {
+
+                const nextSyncAfter = new Date((itemLog.end || 0) + (days * 24 * 60 * 60 * 1000));
+                if (nextSyncAfter.getTime() > Date.now() && !force) {
+                    console.log(`Next sync on: ${nextSyncAfter.toString()}`)
+                    continue;
+                }
+
+                //////////////////////////////////
+                // Load Spotify Data
+                //////////////////////////////////
+                const data = await loadSpotifyData(uri, user)
+                if (!data) {
+                    logError(itemLog, `Spotify data could not be loaded`)
+                    incomplete = true
+                    continue;
+                }
+
+                console.log(`---- Syncing ${data.title} ----`)
+                //////////////////////////////////
+                // Load Plex Playlists if it exists
+                //////////////////////////////////
+                // eslint-disable-next-line unicorn/consistent-destructuring
+                const foundPlaylist = playlists.find(item => item.id == id)
+                let plexPlaylist: Playlist | undefined | null = null
+                if (foundPlaylist) {
+                    if (!settings.uri || !settings.token) {
+                        throw new Error('Plex settings not configured properly');
+                    }
+
+                    const url = getAPIUrl(settings.uri, `/playlists`);
+                    const result = await handleOneRetryAttempt<GetPlaylistResponse>(() => AxiosRequest.get(url, settings.token));
+                
+                    // eslint-disable-next-line unicorn/consistent-destructuring
+                    plexPlaylist = result.data.MediaContainer.Metadata.find((item: Playlist) => item.ratingKey == foundPlaylist.plex)
+                }
+
+                //////////////////////////////////////
+                // Load music search configuration
+                //////////////////////////////////////
+                const musicSearchConfig = await getMusicSearchConfig();
+                if(!musicSearchConfig)
+                    throw new Error(`Music search config not found`)
+
+                const {searchApproaches} = musicSearchConfig;
+                if(!searchApproaches || searchApproaches.length === 0)
+                    throw new Error(`Search approaches not found`)
+
+                const plexSearchConfig = {
+                    uri: settings.uri,
+                    token: settings.token,
+                    musicSearchConfig,
+                    searchApproaches
+                };
+
+                // @ts-ignore
+                // eslint-disable-next-line prefer-const
+                let { result, add } = await getCachedPlexTracks(plexSearchConfig, data)
+
+                // eslint-disable-next-line unicorn/consistent-destructuring
+                const toSearchItems = data.tracks.filter(track => !result.some((item: SearchResponse) => item.id == track.id))
+                if (toSearchItems.length > 0) {
+                    console.log(`Searching for ${toSearchItems.length} tracks`)
+                    const searchResult = await matchByIsrc(plexSearchConfig, await plexMusicSearch(plexSearchConfig, toSearchItems), toSearchItems)
+                    result = result.concat(searchResult)
+
+                    add(searchResult, 'plex')
+                }
+
+                ////////////
+                // Put plex playlist
+                ////////////
+                await putPlexPlaylist(id, plexPlaylist, result, title, data.image)
+
+                ////////////
+                // Handle missing tracks
+                ////////////
+                const missingTracks = toSearchItems.filter(item => {
+                    const { title: trackTitle, artists: trackArtists } = item;
+
+                    return result.some(track => track.title == trackTitle && trackArtists.indexOf(track.artist) > - 1 && track.result.length == 0)
+                })
+                processed = true
+                if (missingTracks.length == 0) {
+                    logComplete(itemLog)
+                    continue;
+                }
+
+                console.log(`Missing ${missingTracks.length} tracks`)
+                missingTracks.forEach(item => {
+                    // A local file has no spotify id to export - splitting its uri
+                    // would yield the artist name
+                    if (!item.id || isLocalTrack(item.id)) return;
+
+                    const id = item.id.indexOf(":") > -1 ? item.id.split(":")[2] : item.id;
+                    if (typeof id === 'string' && !missingSpotifyTracks.includes(id))
+                        missingSpotifyTracks.push(id)
+                })
+
+                const tidalTracks = await findMissingTidalTracks(missingTracks)
+                tidalTracks.forEach(item => {
+                    if (!missingTidalTracks.includes(item.tidal_id))
+                        missingTidalTracks.push(item.tidal_id)
+                })
+
+                // Collect unique albums for Lidarr
+                missingTracks.forEach(track => {
+                // Skip tracks with unknown album_id
+                    if (track.album_id === 'unknown') {
+                        console.log(`⚠️  Skipping track with unknown album_id: ${track.title} by ${track.artists[0]}`);
+
+                        return;
+                    }
+
+                    const artist = track.artists[0] || 'Unknown Artist';
+                    const album = track.album || 'Unknown Album';
+                    const key = `${artist}|${album}`;
+
+                    // Check if album already exists in the array
+                    if (!missingAlbumsLidarr.some(item => `${item.artist_name}|${item.album_name}` === key)) {
+                        missingAlbumsLidarr.push({
+                            artist_name: artist,
+                            album_name: album,
+                            spotify_album_id: track.album_id
+                        });
+                    }
+                });
+
+                // Collect track data for SLSKD
+                missingTracks.forEach(track => {
+                    // A local file has no spotify id to export - splitting its uri
+                    // would yield the artist name
+                    if (!track.id || isLocalTrack(track.id)) return;
+
+                    const spotifyId = track.id.indexOf(":") > -1 ? track.id.split(":")[2] : track.id;
+                    const artist = track.artists[0] || 'Unknown Artist';
+                    const trackName = track.title || 'Unknown Track';
+                    const album = track.album || 'Unknown Album';
+                    const key = `${spotifyId}`;
+
+                    // Check if track already exists in the array
+                    if (spotifyId && !missingTracksSlskd.some(item => item.spotify_id === key)) {
+                        missingTracksSlskd.push({
+                            spotify_id: spotifyId,
+                            artist_name: artist,
+                            track_name: trackName,
+                            album_name: album
+                        });
+                    }
+                });
+
+                /////////////////////////////
+                // Store logs
+                /////////////////////////////
+                logComplete(itemLog)
+
+            } catch (e) {
+                incomplete = true
+                const message = e instanceof Error ? e.message : 'Unknown error';
+                logError(itemLog, `Something went wrong while syncing: ${message}`)
+            }
+
+        }
+
+        // After the loop, so a run where every playlist is complete still clears the lists. A run that
+        // processed none, or where one failed, keeps the last ones: a failure is not "nothing missing"
+        if (processed && !incomplete) {
+            writeFileSync(join(getStorageDir(), 'missing_tracks_spotify.txt'), missingSpotifyTracks.map(id => `https://open.spotify.com/track/${id}`).join('\n'))
+            writeFileSync(join(getStorageDir(), 'missing_tracks_tidal.txt'), missingTidalTracks.map(id => `https://tidal.com/browse/track/${id}`).join('\n'))
+            writeJsonFileAtomic(join(getStorageDir(), 'missing_tracks_lidarr.json'), missingAlbumsLidarr, 2)
+            writeJsonFileAtomic(join(getStorageDir(), 'missing_tracks_slskd.json'), missingTracksSlskd, 2)
+        }
+
+        // Mark sync as complete
+        completeSyncType('playlists');
+    } catch (e: unknown) {
+        const message = e instanceof Error ? e.message : 'Unknown error';
+        errorSyncType('playlists', message);
+        throw e;
+    }
+}
+
+
+function run() {
+    console.log(`Start syncing items`)
+    syncPlaylists()
+        .then(() => {
+            console.log(`Sync complete`)
+        })
+        .catch((e: unknown) => {
+            console.log(e)
+        })
+}
+
+// Only run if this file is executed directly, not when imported
+// eslint-disable-next-line unicorn/prefer-module
+if (require.main === module) {
+    run();
+}
