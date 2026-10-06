@@ -379,7 +379,8 @@ export default function Logs() {
             { title: 'Missing Albums - Tidal', content: data.missing_files.missing_albums_tidal },
             { title: 'Missing Tracks - Lidarr (JSON)', content: data.missing_files.missing_tracks_lidarr },
             { title: 'Missing Albums - Lidarr (JSON)', content: data.missing_files.missing_albums_lidarr },
-            { title: 'Missing Tracks - SLSKD (JSON)', content: data.missing_files.missing_tracks_slskd }
+            { title: 'Missing Tracks - SLSKD (JSON)', content: data.missing_files.missing_tracks_slskd },
+            { title: 'Missing Albums - SLSKD (JSON)', content: data.missing_files.missing_albums_slskd }
         ];
 
         return (

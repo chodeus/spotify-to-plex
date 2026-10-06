@@ -34,11 +34,11 @@ export async function syncAlbums() {
         if (hasNothingEnrolled(toSyncAlbums, 'albums', 'albums')) {
             // Nothing enrolled means nothing missing. Clear this job's own
             // outputs, or a deleted album sits in the Lidarr queue forever -
-            // the Lidarr job merges this file with the playlist one every run.
-            // Not missing_tracks_slskd.json: the playlists job writes that too.
+            // the Lidarr and SLSKD jobs merge these files with the playlist ones every run.
             writeFileSync(join(getStorageDir(), 'missing_albums_spotify.txt'), '')
             writeFileSync(join(getStorageDir(), 'missing_albums_tidal.txt'), '')
             writeFileSync(join(getStorageDir(), 'missing_albums_lidarr.json'), JSON.stringify([], null, 2))
+            writeFileSync(join(getStorageDir(), 'missing_albums_slskd.json'), JSON.stringify([], null, 2))
 
             return;
         }
@@ -184,7 +184,8 @@ export async function syncAlbums() {
             writeFileSync(join(getStorageDir(), 'missing_albums_spotify.txt'), missingSpotifyAlbums.map(id => `https://open.spotify.com/album/${id}`).join('\n'))
             writeFileSync(join(getStorageDir(), 'missing_albums_tidal.txt'), missingTidalAlbums.map(id => `https://tidal.com/browse/album/${id}`).join('\n'))
             writeFileSync(join(getStorageDir(), 'missing_albums_lidarr.json'), JSON.stringify(missingAlbumsLidarr, null, 2))
-            writeFileSync(join(getStorageDir(), 'missing_tracks_slskd.json'), JSON.stringify(missingTracksSlskd, null, 2))
+            // The playlists job owns missing_tracks_slskd.json; the SLSKD job merges the two
+            writeFileSync(join(getStorageDir(), 'missing_albums_slskd.json'), JSON.stringify(missingTracksSlskd, null, 2))
         }
 
         // Mark sync as complete
