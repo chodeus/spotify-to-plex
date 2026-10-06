@@ -15,9 +15,10 @@ export async function getById(config: PlexMusicSearchConfig, key: string) {
         throw error;
     }
 
+    // Not PlexItemMissingError: Plex answers 404 for a missing item, so an empty answer is a failed lookup
     const [item] = metaData;
     if (!item)
-        throw new PlexItemMissingError(key);
+        throw new Error(`No metadata found for key: ${key}`);
 
     let src = '';
     try {

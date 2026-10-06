@@ -42,7 +42,7 @@ export async function searchAlbum(config: PlexMusicSearchConfig, tracks: PlexMus
 
         for (let i = 0; i < find.artists.length; i++) {
             const artist = find.artists[i];
-            // Without the duration every "duration:" filter row scores 0 and fails
+            // Without it, a "duration:similarity>=" condition scores 0 and fails
             const result = search({ id, title, album: album || '', artist: artist || '', artists: find.artists, duration_ms }, tracks);
             if (result.length > 0) {
                 return result;

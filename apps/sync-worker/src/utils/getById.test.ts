@@ -22,10 +22,11 @@ describe('getById', () => {
         await expect(getById(config, '/library/metadata/1')).rejects.toBeInstanceOf(PlexItemMissingError);
     });
 
-    it('reports an empty answer as missing', async () => {
+    // Plex answers 404 for a missing item; an empty answer must not free a manual pick
+    it('treats an empty answer as a failed lookup, not a missing item', async () => {
         getMetadataMock.mockResolvedValue([]);
 
-        await expect(getById(config, '/library/metadata/1')).rejects.toBeInstanceOf(PlexItemMissingError);
+        await expect(getById(config, '/library/metadata/1')).rejects.not.toBeInstanceOf(PlexItemMissingError);
     });
 
     it('passes any other failure through', async () => {
