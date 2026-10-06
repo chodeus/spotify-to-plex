@@ -1,0 +1,147 @@
+import { Alert, Box, Button, Card, CardContent, Divider, TextField, Typography } from "@mui/material"
+import { NextPage } from "next"
+import MusicSearchConfigLayout from "@/components/layouts/MusicSearchConfigLayout"
+import TrackAnalyzer from "@/components/TrackAnalyzer"
+import { useState, useRef, ElementRef, useEffect, useCallback } from "react"
+import { errorBoundary } from "@/helpers/errors/errorBoundary"
+import axios from "axios"
+
+const STORAGE_KEY = 'spotify-test-track-id';
+
+const TestConfigPage: NextPage = () => {
+    const [spotifyId, setSpotifyId] = useState('');
+
+    const trackAnalyzerRef = useRef<ElementRef<typeof TrackAnalyzer>>(null);
+
+    const [loading, setLoading] = useState(true)
+    const [canUseTidal, setCanUseTidal] = useState(false)
+    const [canUseSlskd, setCanUseSlskd] = useState(false)
+    useEffect(() => {
+
+        errorBoundary(async () => {
+            // Check Tidal availability
+            const tidalValidResult = await axios.get<{ ok: boolean }>('/api/tidal/valid')
+            if (tidalValidResult.data.ok) {
+                setCanUseTidal(true)
+            }
+
+            // Check SLSKD availability
+            const slskdValidResult = await axios.get<{ ok: boolean }>('/api/slskd/valid')
+            if (slskdValidResult.data.ok) {
+                setCanUseSlskd(true)
+            }
+
+            setLoading(false)
+        }, () => {
+            setLoading(false)
+        })
+
+    }, [])
+
+
+    useEffect(() => {
+        const savedId = localStorage.getItem(STORAGE_KEY);
+        if (savedId) {
+            setSpotifyId(savedId);
+        }
+    }, []);
+
+    // Save Spotify ID to localStorage whenever it changes
+    const handleIdChange = (value: string) => {
+        setSpotifyId(value);
+        if (value.trim()) {
+            localStorage.setItem(STORAGE_KEY, value.trim());
+        } else {
+            localStorage.removeItem(STORAGE_KEY);
+        }
+    };
+
+    const handleAnalyzePlex = useCallback(() => {
+        if (!spotifyId.trim()) return;
+
+        trackAnalyzerRef.current?.analyze(spotifyId.trim(), 'plex');
+    }, [spotifyId]);
+
+    const handleAnalyzeTidal = useCallback(() => {
+        if (!spotifyId.trim()) return;
+
+        trackAnalyzerRef.current?.analyze(spotifyId.trim(), 'tidal');
+    }, [spotifyId]);
+
+    const handleAnalyzeSlskd = useCallback(() => {
+        if (!spotifyId.trim()) return;
+
+        trackAnalyzerRef.current?.analyze(spotifyId.trim(), 'slskd');
+    }, [spotifyId]);
+
+    const extractSpotifyId = (input: string) => {
+        // Handle Spotify URLs like: https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC
+        const urlRegex = /spotify\.com\/track\/([\dA-Za-z]+)/;
+        const urlMatch = urlRegex.exec(input);
+        if (urlMatch?.[1]) return urlMatch[1];
+
+        // Handle Spotify URIs like: spotify:track:4uLU6hMCjMI75M1A2tKUQC
+        const uriRegex = /spotify:track:([\dA-Za-z]+)/;
+        const uriMatch = uriRegex.exec(input);
+        if (uriMatch?.[1]) return uriMatch[1];
+
+        // Return as-is if it looks like a track ID
+        return input.trim();
+    };
+
+    const handleInputChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+        const { value } = event.target;
+        const trackId = extractSpotifyId(value);
+        handleIdChange(trackId);
+    }, []);
+
+    return (
+        <MusicSearchConfigLayout activeTab="test" title="Test Configuration">
+            <Card>
+                <CardContent>
+                    <Box sx={{ p: 3 }}>
+                        <Typography variant="h5" sx={{ mb: 3 }}>
+                            Track Analysis Testing
+                        </Typography>
+
+                        <Typography variant="body2" sx={{ mb: 3, color: 'text.secondary' }}>
+                            Enter a Spotify track ID, URL, or URI to analyze how it matches with your Plex library using your current search configuration.
+                        </Typography>
+
+                        <TextField fullWidth value={spotifyId} onChange={handleInputChange} placeholder="e.g., 4uLU6hMCjMI75M1A2tKUQC or https://open.spotify.com/track/..." />
+                        <Box
+                            sx={{
+                                pt: 1,
+                                display: 'flex',
+                                gap: 1,
+                                flexWrap: 'wrap'
+                            }}>
+                            <Button variant="contained" onClick={handleAnalyzePlex} disabled={!spotifyId.trim()}>
+                                Analyze Track in Plex
+                            </Button>
+                            <Button disabled={!spotifyId.trim() || !canUseTidal} variant="contained" onClick={handleAnalyzeTidal}>
+                                Analyze Track in Tidal
+                            </Button>
+                            <Button disabled={!spotifyId.trim() || !canUseSlskd} variant="contained" onClick={handleAnalyzeSlskd}>
+                                Analyze Track in SLSKD
+                            </Button>
+                        </Box>
+                        {!loading && (!canUseTidal || !canUseSlskd) ? (
+                            <Alert severity="info" sx={{ mt: 2 }}>
+                                {!canUseTidal && !canUseSlskd ? 'You have not configured Tidal or SLSKD credentials.' : null}
+                                {!canUseTidal && canUseSlskd ? 'Tidal credentials not configured.' : null}
+                                {canUseTidal && !canUseSlskd ? 'SLSKD credentials not configured.' : null}
+                                {' '}Visit the project documentation for configuration instructions.
+                            </Alert>
+                        ) : null}
+
+                        <Divider sx={{ my: 2 }} />
+                        <TrackAnalyzer ref={trackAnalyzerRef} />
+                    </Box>
+                </CardContent>
+            </Card>
+        </MusicSearchConfigLayout>
+    );
+}
+
+export default TestConfigPage

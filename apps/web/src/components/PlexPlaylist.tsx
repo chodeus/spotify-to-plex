@@ -1,0 +1,682 @@
+/* eslint-disable max-lines */
+import { errorBoundary } from "@/helpers/errors/errorBoundary";
+import { GetPlexPlaylistIdResponse } from "@/pages/api/playlists/[id]";
+import { GetSpotifyAlbum } from "@spotify-to-plex/shared-types/spotify/GetSpotifyAlbum";
+import { GetSpotifyPlaylist } from "@spotify-to-plex/shared-types/spotify/GetSpotifyPlaylist";
+import { Track } from "@spotify-to-plex/shared-types/spotify/Track";
+import type { SearchResponse } from "@spotify-to-plex/plex-music-search/types/SearchResponse";
+import { Edit, Refresh, Search } from "@mui/icons-material";
+import CloseIcon from '@mui/icons-material/Close';
+import { Alert, Box, Button, CircularProgress, Dialog, Divider, IconButton, Input, InputAdornment, Modal, Paper, Stack, TextField, Tooltip, Typography } from "@mui/material";
+import axios from "axios";
+import { enqueueSnackbar } from "notistack";
+import { ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import ExportMissingTracks from "./ExportMissingTracks";
+import PlexTrack from "./PlexTrack";
+import { getErrorMessage } from "@/helpers/errors/getErrorMessage";
+
+export type PlexPlaylistProps = {
+    readonly playlist: GetSpotifyAlbum | GetSpotifyPlaylist
+    readonly fast: boolean
+}
+
+type TrackSelection = {
+    artist: string
+    title: string
+    trackId: string
+    idx: number
+}
+
+export default function PlexPlaylist(props: PlexPlaylistProps) {
+    const { playlist, fast } = props
+
+    ///////////////////////////////////////////////
+    // Searching & pagination
+    ///////////////////////////////////////////////
+    const pageSize = 30;
+    const [page, setPage] = useState<number>(0);
+    const [error, setError] = useState('')
+    const [query, setQuery] = useState<string>('')
+    const [showReview, setShowReview] = useState<boolean>(false)
+    const reviewPageSize = 10;
+    const [reviewPage, setReviewPage] = useState<number>(0);
+    const prevPageClick = useCallback(() => {
+        setPage(prev => prev - 1)
+    }, [])
+    const nextPageClick = useCallback(() => {
+        setPage(prev => prev + 1)
+    }, [])
+
+    // Any filter change restarts at page 1, otherwise a narrow result set
+    // lands on a page that no longer exists
+    const onQueryChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
+        setQuery(e.currentTarget.value)
+        setPage(0)
+    }, [])
+    const onClearQuery = useCallback(() => {
+        setQuery('')
+        setPage(0)
+    }, [])
+    const onToggleReview = useCallback(() => {
+        setShowReview(prev => !prev)
+        setReviewPage(0)
+    }, [])
+    const reviewPrevPageClick = useCallback(() => {
+        setReviewPage(prev => prev - 1)
+    }, [])
+    const reviewNextPageClick = useCallback(() => {
+        setReviewPage(prev => prev + 1)
+    }, [])
+
+    ///////////////////////////////////////////////
+    // Load existing Plex Playlist
+    ///////////////////////////////////////////////
+    const [plexPlaylist, setPlexPlaylist] = useState<GetPlexPlaylistIdResponse>()
+    useEffect(() => {
+        if (!playlist) return;
+
+        errorBoundary(async () => {
+            const playlistResult = await axios.get<GetPlexPlaylistIdResponse>(`/api/playlists/${playlist.id}`)
+            setPage(0);
+            setPlexPlaylist(playlistResult.data)
+        }, undefined, true)
+
+    }, [playlist])
+
+    ///////////////////////////////////////////////
+    // Matching playlist tracks with Plex
+    ///////////////////////////////////////////////
+
+    const [tracksToLoad, setTracksToLoad] = useState<number>()
+    const [tracksLoaded, setTracksLoaded] = useState<string[]>([])
+    const [loadingTracks, setLoadingTracks] = useState<boolean>(false);
+
+    const [tracks, setTracks] = useState<SearchResponse[]>([]);
+    const [trackSelections, setTrackSelections] = useState<TrackSelection[]>([])
+
+    const abortController = useRef<AbortController>(new AbortController())
+
+    const loadPlaylistTracks = useCallback(async (items: Track[]) => {
+        const pageSize = 5;
+        let curPage = 0;
+        const pages = Math.ceil(items.length / pageSize);
+
+        setTracksToLoad(items.length);
+
+        while (curPage < pages) {
+            const startIndex = curPage * pageSize;
+            const endIndex = startIndex + pageSize;
+            const tracksToLoad = items.slice(startIndex, endIndex);
+            try {
+                const result = await axios.post<SearchResponse[]>('/api/plex/tracks', {
+                    items: tracksToLoad,
+                    type: playlist.type,
+                    fast
+                }, { signal: abortController.current.signal })
+
+                setTracks(prev => prev.concat(result.data));
+                setTracksLoaded(prev => [...prev, ...tracksToLoad.map(item => item.id)])
+            } catch (_error) {
+            }
+            curPage++;
+        }
+    }, [playlist.type, fast])
+
+    const onCancelClick = useCallback(() => {
+        abortController.current.abort();
+    }, [])
+
+    // Load tracks
+    useEffect(() => {
+        if (!playlist) return;
+
+        setTracks([])
+        setTracksLoaded([])
+        setTrackSelections([])
+        setLoadingTracks(true);
+
+        abortController.current = new AbortController();
+
+        errorBoundary(async () => {
+            const tracks = playlist.tracks.map(item => ({ id: item.id, artists: item.artists, title: item.title, album: item.album, album_id: item.album_id }))
+
+            switch (playlist.type) {
+                case "spotify-album":
+                    // Search for album
+                    const result = await axios.post<SearchResponse[]>('/api/plex/tracks', {
+                        items: tracks,
+                        type: playlist.type,
+                        album: playlist.id,
+                    }, { signal: abortController.current.signal })
+
+                    setTracks(result.data);
+                    setTracksLoaded(tracks.map(item => item.id))
+                    break;
+                case "spotify-playlist":
+
+                    // Load cached tracks
+                    let cachedTracks: SearchResponse[] = [];
+                    const cachedResult = await axios.post<SearchResponse[]>('/api/plex/cached', {
+                        items: tracks,
+                    }, { signal: abortController.current.signal })
+                    cachedTracks = cachedResult.data;
+
+                    if (cachedTracks && cachedTracks.length > 0)
+                        setTracks(prev => prev.concat(cachedTracks));
+
+
+                    setTracksToLoad(tracks.length);
+                    const toLoadTracks = cachedTracks ? tracks.filter(item => !cachedTracks.some(cachedItem => cachedItem.id === item.id)) : tracks;
+                    if (toLoadTracks.length > 0)
+                        await loadPlaylistTracks(toLoadTracks)
+
+                    break;
+            }
+            setLoadingTracks(false);
+        }, (e: Error) => {
+
+            const message = getErrorMessage(e)
+            setError(message)
+            setLoadingTracks(false);
+        }, true)
+
+
+        // Ensure requests get cancled
+        const controller = abortController.current;
+
+        return () => {
+            controller.abort()
+        }
+
+    }, [loadPlaylistTracks, playlist])
+
+    useEffect(() => {
+        const handleBeforeUnload = (_event: BeforeUnloadEvent) => {
+            abortController.current.abort()
+        };
+        window.addEventListener("beforeunload", handleBeforeUnload);
+
+        return () => {
+            window.removeEventListener("beforeunload", handleBeforeUnload);
+        };
+    }, [loadingTracks])
+
+
+    ///////////////////////////////////
+    // Force reloading
+    ///////////////////////////////////
+    const onForceRefreshClick = useCallback(() => {
+        setTracks([])
+        setTracksLoaded([])
+        setTrackSelections([])
+        setLoadingTracks(true);
+
+        abortController.current = new AbortController();
+
+        errorBoundary(async () => {
+            const tracks = playlist.tracks.map(item => ({ id: item.id, artists: item.artists, title: item.title, album: item.album, album_id: item.album_id }))
+            switch (playlist.type) {
+                case "spotify-album":
+                    const result = await axios.post<SearchResponse[]>('/api/plex/tracks', {
+                        items: tracks,
+                        type: playlist.type
+                    }, { signal: abortController.current.signal })
+
+                    setTracks(result.data);
+                    setTracksLoaded(tracks.map(item => item.id))
+                    break;
+
+                case "spotify-playlist":
+                    await loadPlaylistTracks(tracks)
+                    break;
+            }
+            setLoadingTracks(false);
+        }, () => {
+            setLoadingTracks(false);
+
+        }, true)
+
+
+    }, [loadPlaylistTracks, playlist.tracks, playlist.type])
+
+    ///////////////////////////////////
+    // Set selected track index
+    ///////////////////////////////////
+    const onSetSongIndex = useCallback((artist: string, track: string, trackId: string, idx: number) => {
+        if (trackSelections.some(item => item.trackId === trackId)) {
+            setTrackSelections(items => items.map(item => {
+                if (item.trackId === trackId)
+                    return { ...item, idx }
+
+                return item;
+            }))
+        } else {
+            setTrackSelections(prev => [...prev, { artist, title: track, trackId, idx }])
+        }
+    }, [trackSelections])
+
+    const onManualTrackSelect = useCallback((spotifyId: string, title: string, artist: string, plexTrack: SearchResponse['result'][0]) => {
+        setTracks(prev => prev.map(item => item.id === spotifyId
+            ? { ...item, result: [plexTrack] }
+            : item))
+
+        onSetSongIndex(artist, title, spotifyId, 0)
+
+        errorBoundary(async () => {
+            await axios.post('/api/plex/cache-manual-match', { spotifyId, plexId: plexTrack.id })
+            enqueueSnackbar(`${title} matched manually`)
+        }, undefined, true)
+    }, [onSetSongIndex])
+
+    ///////////////////////////////////////////////
+    // Modify Playlist name
+    ///////////////////////////////////////////////
+    const [newPlaylistName, setNewPlaylistName] = useState(playlist.user_title)
+    const [playlistName, setPlaylistName] = useState(playlist.user_title)
+
+    const [showEditPlaylistName, setShowEditPlaylistName] = useState(false)
+    const onEditPlaylistNameClick = useCallback(() => {
+        setShowEditPlaylistName(prev => !prev)
+    }, [])
+    const onPlaylistNameChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
+        if (e.target.value)
+            setNewPlaylistName(e.target.value)
+    }, [])
+    const onSavePlaylistNameClick = useCallback(() => {
+        errorBoundary(async () => {
+
+            if (!newPlaylistName)
+                return;
+
+            await axios.put(`/api/saved-items/`, {
+                ids: [playlist.id],
+                title: newPlaylistName,
+            })
+
+            setPlaylistName(newPlaylistName)
+            enqueueSnackbar(`Changes saved`)
+            setShowEditPlaylistName(false)
+        })
+    }, [playlist, newPlaylistName])
+    ///////////////////////////////////////////////
+    // Saving playlists
+    ///////////////////////////////////////////////
+    const [saving, setSaving] = useState(false)
+    const onPutPlaylistClick = useCallback(() => {
+        if (!playlist) return;
+
+        const data: { type: string; id: string; name: string | undefined; thumb: string; items: { key: string; source?: string }[] } = {
+            type: playlist.type,
+            id: playlist.id,
+            name: newPlaylistName,
+            thumb: playlist.image,
+            items: []
+        }
+
+        for (let i = 0; i < tracks.length; i++) {
+            const item = tracks[i];
+            if (!item)
+                continue;
+
+            const trackSelectIdx = trackSelections.find(selectionItem => selectionItem.trackId === item?.id)
+            const song = item.result?.[trackSelectIdx ? trackSelectIdx.idx : 0];
+
+            if (song)
+                data.items.push({ key: song.id, source: song.source })
+        }
+
+        setSaving(true)
+        errorBoundary(async () => {
+            if (plexPlaylist) {
+                await axios.put<GetPlexPlaylistIdResponse>(`/api/playlists/${playlist.id}`, data)
+                enqueueSnackbar("Playlist updated")
+            } else {
+                const result = await axios.post<GetPlexPlaylistIdResponse>('/api/playlists', data)
+                setPlexPlaylist(result.data);
+                enqueueSnackbar("Playlist created")
+            }
+
+            setSaving(false)
+        }, () => {
+            setSaving(false)
+        })
+
+    }, [playlist, newPlaylistName, plexPlaylist, trackSelections, tracks])
+
+    // Single owner for "which search result belongs to this track" - the filter
+    // and the row renderer must agree or the counts lie
+    // Matching on the spotify id - title+artist returns the same entry for both
+    // rows when a playlist holds the same song twice
+    const findMatchFor = useCallback((track: { id: string }) =>
+        tracks.find(item => item.id === track.id)
+    , [tracks])
+
+    // Every track is already loaded client-side, so searching covers the whole
+    // playlist rather than the current page
+    const filteredTracks = useMemo(() => {
+        const search = query.trim().toLowerCase();
+        if (!search)
+            return playlist.tracks;
+
+        return playlist.tracks.filter(track => {
+            const data = findMatchFor(track)
+
+            const haystack: (string | undefined)[] = [track.title, track.album, ...track.artists];
+            if (data)
+                data.result.forEach(item => {
+                    haystack.push(item.title, item.artist?.title, item.album?.title)
+                });
+
+            return haystack.some(value => !!value && value.toLowerCase().includes(search));
+        })
+    }, [playlist.tracks, findMatchFor, query])
+
+    // Matched to more than one candidate - the rows worth a human look. Tracks with
+    // nothing at all are the missing-tracks dialog's job, and listing them in both
+    // is the same problem shown twice
+    const reviewTracks = useMemo(() =>
+        playlist.tracks.filter(track => {
+            const data = findMatchFor(track)
+
+            return !!data && data.result.length > 1
+        })
+    , [playlist.tracks, findMatchFor])
+
+    const reviewTotalPages = Math.ceil(reviewTracks.length / reviewPageSize)
+    const visibleReviewTracks = reviewTracks.slice(reviewPage * reviewPageSize, (reviewPage * reviewPageSize) + reviewPageSize)
+
+    // Resolving a track drops it from the list, which can empty the current page
+    useEffect(() => {
+        if (reviewPage > 0 && reviewPage >= reviewTotalPages)
+            setReviewPage(Math.max(0, reviewTotalPages - 1))
+    }, [reviewPage, reviewTotalPages])
+
+    const filtering = !!query.trim();
+
+    // Shared by the paged list and the review dialog so both stay interactive
+    const renderTrack = useCallback((track: Track) => {
+        const data = findMatchFor(track)
+        const trackSelectIdx = trackSelections.find(item => item.trackId === track.id)
+        const songIdx = trackSelectIdx ? trackSelectIdx.idx : 0;
+        const loading = loadingTracks && !(tracksLoaded.some(item => item === track.id))
+
+        return <PlexTrack
+            key={`${playlist.id}-plex-${track.title}-${track.id}}`}
+            loading={loading}
+            track={track}
+            setSongIdx={onSetSongIndex}
+            songIdx={songIdx}
+            data={data}
+            onManualSelect={onManualTrackSelect}
+        />
+    }, [findMatchFor, trackSelections, loadingTracks, tracksLoaded, onSetSongIndex, onManualTrackSelect, playlist.id])
+    const totalPages = Math.ceil(filteredTracks.length / pageSize)
+    const visibleTracks = filteredTracks.slice(page * pageSize, (page * pageSize) + pageSize)
+    let curEnd = (page * pageSize) + pageSize;
+    if (curEnd > filteredTracks.length)
+        curEnd = filteredTracks.length;
+
+    // Results can shrink under the current page while tracks are still resolving
+    useEffect(() => {
+        if (page > 0 && page >= totalPages)
+            setPage(Math.max(0, totalPages - 1))
+    }, [page, totalPages])
+
+    //////////////////////////////////////////////
+    // Handle missing tracks
+    //////////////////////////////////////////////
+    const [showExportMissingTracks, setShowExportMissingTracks] = useState(false)
+    const onExportMissingClick = useCallback(() => {
+        setShowExportMissingTracks(prev => !prev)
+    }, [])
+    const missingTracks = useMemo(() => {
+        if (!playlist)
+            return [];
+
+        return playlist.tracks
+            .filter(item => {
+                const data = findMatchFor(item)
+
+                return !!data && data.result.length === 0
+            })
+
+    }, [playlist, findMatchFor])
+
+    if (error) {
+        return (
+            <Box sx={{ mt: 2 }}>
+                <Alert variant="outlined" color="error">
+                    <Typography variant="body1">
+                        {error}
+                    </Typography>
+                </Alert>
+            </Box>
+        )
+    }
+
+    return (
+        <>
+
+            {!!loadingTracks &&
+                <Box sx={{ mt: 2 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, border: '2px solid rgba(255,255,255,0.5)', borderRadius: '4px', p: 2, textAlign: 'center' }}>
+                        <Box sx={{ alignItems: 'center' }}>
+                            <CircularProgress size={20} />
+                        </Box>
+                        <Box sx={{ flexGrow: 1, display: 'flex', gap: 1, justifyContent: 'space-between' }}>
+                            {playlist.type === 'spotify-playlist' ?
+                                <Typography variant="body1" sx={{ color: 'text.secondary' }}>Processed {tracksLoaded.length} of {tracksToLoad} tracks</Typography>
+                                :
+                                <Typography variant="body1" sx={{ color: 'text.secondary' }}>
+                                    Searching for album...
+                                </Typography>
+                            }
+                            <Typography onClick={onCancelClick} variant="body1" sx={{ textDecoration: 'underline', textUnderlineOffset: '2px', textDecorationThickness: '1px', cursor: 'pointer', color: 'primary.main' }}>cancel</Typography>
+                        </Box>
+                    </Box>
+                </Box>
+            }
+
+            <Paper elevation={1} sx={{ p: 2, mb: 1, mt: 1, position: 'relative' }}>
+                {!!loadingTracks &&
+                    <>
+                        <Typography variant="h6" sx={{ mb: 0.5 }}>Playlist loading...</Typography>
+                        <Typography variant="body2" sx={{ mb: 1 }}>
+                            We are trying to match all the songs from the playlist with your library.
+                        </Typography>
+                    </>
+                }
+                {!loadingTracks &&
+                    <>
+                        <Typography variant="h6" sx={{ mb: 0.5 }}>Playlist loaded</Typography>
+                        <Typography variant="body2" sx={{ mb: 1 }}>
+                            We finished matching all songs from the playlist with your library. Any successful matches are cached to improve performance the next time this playlist is opened.
+                        </Typography>
+                    </>
+                }
+
+                {!loadingTracks &&
+                    <Tooltip title='Refresh all songs (ignoring cache).'>
+                        <IconButton size="small" sx={{ position: 'absolute', right: 2, top: 2 }} onClick={onForceRefreshClick}><Refresh /></IconButton>
+                    </Tooltip>
+                }
+
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                    <Button disabled={loadingTracks || saving} onClick={onPutPlaylistClick}>{plexPlaylist ? "Update" : "Create"} playlist</Button>
+                    <Button component="a" disabled={!plexPlaylist} href={plexPlaylist?.link} target='_blank'>Open playlist</Button>
+                </Box>
+            </Paper>
+
+            {playlist?.type === 'spotify-album' &&
+                <Box sx={{ mt: 1, mb: 1 }}>
+                    <Alert variant="outlined" color="warning">
+                        <Box sx={{ p: 1 }}>
+                            <Typography variant="h6" sx={{ m: 0, mb: 0.5 }} color="warning">Album detected</Typography>
+                            <Typography variant="body2" sx={{ mb: 1 }}>
+                                You have added an album to your list. While you can use this album to create a playlist, you don&apos;t neccesarily need to. In most cases the album is already present in your library as an album.
+                            </Typography>
+                            <Typography variant="body2">
+                                If you setup syncing for an album you will get the reports, even if you don&apos;t create a playlist for it.
+                            </Typography>
+                        </Box>
+                    </Alert>
+                </Box>
+            }
+
+            {!!(missingTracks.length > 0) && !loadingTracks &&
+                <Box sx={{ mt: 1, mb: 1 }}>
+                    <Alert variant="outlined" color="warning">
+                        <Box sx={{ p: 1 }}>
+                            {playlist.type === 'spotify-playlist' &&
+                                <Typography variant="h6" sx={{ mb: 0.5 }} color="warning">{missingTracks.length} tracks not found</Typography>
+                            }
+                            {playlist.type === 'spotify-album' &&
+                                <Typography variant="h6" sx={{ mb: 0.5 }} color="warning">
+                                    Album not found or incomplete
+                                </Typography>
+                            }
+                            <Typography variant="body2" sx={{ mb: 1 }}>
+                                Some tracks are not matching up, these are missing in your library or the naming in your library is a bit different than expected.
+                            </Typography>
+                            <Button variant="outlined" color="warning" size="small" onClick={onExportMissingClick}>View missing Files</Button>
+                        </Box>
+                    </Alert>
+                </Box>
+            }
+
+            {!!(reviewTracks.length > 0) && !loadingTracks &&
+                <Box sx={{ mt: 1, mb: 1 }}>
+                    <Alert variant="outlined" severity="info">
+                        <Box sx={{ p: 1 }}>
+                            <Typography variant="h6" sx={{ mb: 0.5 }}>{reviewTracks.length} tracks to review</Typography>
+                            <Typography variant="body2" sx={{ mb: 1 }}>
+                                More than one track in your library matched these, so the wrong version may have been picked.
+                            </Typography>
+                            <Button variant="outlined" size="small" onClick={onToggleReview}>Review tracks</Button>
+                        </Box>
+                    </Alert>
+                </Box>
+            }
+
+            {missingTracks.length === 0 && !loadingTracks &&
+                <Box sx={{ mt: 1, mb: 1 }}>
+                    <Alert variant="outlined" color="success">
+                        <Box sx={{ p: 1 }}>
+                            <Typography variant="h6" sx={{ mb: 0.5 }} color="success">All tracks matched</Typography>
+                            <Typography variant="body2">
+                                Each track is present in your Plex library.
+                            </Typography>
+                        </Box>
+                    </Alert>
+                </Box>
+            }
+
+            <Paper elevation={1} sx={{ p: 2 }}>
+                <Box
+                    sx={{
+                        textAlign: "center"
+                    }}>
+                    <Box sx={{ display: 'flex', gap: .5, transform: 'translateX(20px)', justifyContent: 'center', alignItems: 'center' }}>
+                        <Typography variant="h6" sx={{ m: 0, p: 0 }}>{playlistName}</Typography>
+                        <IconButton onClick={onEditPlaylistNameClick} sx={{ '&:hover': { background: 'none' } }} size="small"><Edit /></IconButton>
+                    </Box>
+                    <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center', alignItems: 'center' }}>
+                        {playlistName !== playlist.title && <Typography variant="body2" sx={{ fontStyle: 'italic' }}>{playlist.title} -</Typography>}
+                        <Typography variant="body2" sx={{ fontStyle: 'italic' }}>{playlist.tracks.length} songs</Typography>
+                    </Box>
+                </Box>
+
+                <Divider sx={{ mt: 1, mb: 1 }} />
+                <Stack>
+                    <TextField
+                        size="small"
+                        fullWidth
+                        sx={{ mb: 1 }}
+                        placeholder="Search this playlist"
+                        value={query}
+                        onChange={onQueryChange}
+                        slotProps={{
+                            input: {
+                                startAdornment: <InputAdornment position="start"><Search fontSize="small" /></InputAdornment>,
+                                endAdornment: !!query && <InputAdornment position="end">
+                                    <IconButton size="small" onClick={onClearQuery} aria-label="Clear search"><CloseIcon fontSize="small" /></IconButton>
+                                </InputAdornment>
+                            }
+                        }}
+                    />
+                    {!!filtering &&
+                        <Typography variant="body2" sx={{ mb: 1, color: 'text.secondary' }}>
+                            {filteredTracks.length === 0 ? 'No tracks match' : `${filteredTracks.length} of ${playlist.tracks.length} tracks`}
+                        </Typography>
+                    }
+                    {totalPages > 1 &&
+                        <Box
+                            sx={{
+                                display: "flex",
+                                mb: 1,
+                                justifyContent: "space-between"
+                            }}>
+                            <Button variant="contained" disabled={page <= 0} onClick={prevPageClick}>Previous</Button>
+                            <Box>Showing {page * pageSize} - {curEnd}</Box>
+                            <Button variant="contained" disabled={page >= totalPages - 1} onClick={nextPageClick}>Next</Button>
+                        </Box>
+                    }
+                    {visibleTracks.map(renderTrack)}
+                </Stack>
+            </Paper>
+
+            {!!showEditPlaylistName &&
+                <Modal open onClose={onEditPlaylistNameClick}>
+                    <Box sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', maxWidth: 400, bgcolor: 'background.paper', p: 3, borderRadius: 1 }}>
+                        <IconButton size="small" onClick={onEditPlaylistNameClick} sx={{ position: 'absolute', right: 8, top: 8 }}>
+                            <CloseIcon fontSize="small" />
+                        </IconButton>
+                        <Typography variant="h6">
+                            Playlist name
+                        </Typography>
+                        <Typography variant="body1">
+                            This will be the name in your Plex library.
+                        </Typography>
+                        <Input value={newPlaylistName} onChange={onPlaylistNameChange} />
+                        <Button variant="contained" onClick={onSavePlaylistNameClick} sx={{ mt: 2 }}>Save</Button>
+                    </Box>
+                </Modal>
+            }
+
+            {!!showReview &&
+                <Dialog open onClose={onToggleReview}>
+                    <Box sx={{ maxWidth: 600, p: 2, position: 'relative' }}>
+                        <IconButton size="small" onClick={onToggleReview} sx={{ position: 'absolute', right: 8, top: 8 }}>
+                            <CloseIcon fontSize="small" />
+                        </IconButton>
+                        <Typography variant="h6">Tracks to review</Typography>
+                        <Typography variant="body2">
+                            Below you find the tracks where more than one track in your library matched. Pick the right one.
+                        </Typography>
+                        <Box sx={{ mt: 1 }}>
+                            {visibleReviewTracks.map(renderTrack)}
+
+                            {reviewTotalPages > 1 &&
+                                <Box
+                                    sx={{
+                                        mt: 1,
+                                        display: "flex",
+                                        justifyContent: "space-between"
+                                    }}>
+                                    <Button size="small" variant="outlined" color="inherit" disabled={reviewPage <= 0} onClick={reviewPrevPageClick}>Previous</Button>
+                                    <Button size="small" variant="outlined" color="inherit" disabled={reviewPage >= reviewTotalPages - 1} onClick={reviewNextPageClick}>Next</Button>
+                                </Box>
+                            }
+                        </Box>
+                    </Box>
+                </Dialog>
+            }
+
+            {!!showExportMissingTracks && missingTracks.length > 0 &&
+                <ExportMissingTracks onClose={onExportMissingClick} tracks={missingTracks} playlist={playlist} />
+            }
+
+        </>
+    );
+
+}
