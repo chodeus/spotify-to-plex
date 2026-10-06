@@ -119,6 +119,38 @@ describe('matchByIsrc', () => {
         expect(lookupMock).toHaveBeenCalledWith('XXA000000001', 183_000);
     });
 
+    it('takes the candidate that fits when the other one is a different length', async () => {
+        plexHas({ 'Album A': [plexTrack('/library/metadata/1', 522_000), plexTrack('/library/metadata/2', 190_000)] });
+
+        const [result] = await matchByIsrc(config, [unmatched], [{ ...spotifyTrack, duration_ms: 183_000 }]);
+
+        expect(result?.result.map(track => track.id)).toEqual(['/library/metadata/2']);
+    });
+
+    it('looks at the other releases when the Spotify album candidate is a different length', async () => {
+        plexHas({ 'Album A': [plexTrack('/library/metadata/1', 522_000)], 'Single': [plexTrack('/library/metadata/3', 185_000)] });
+
+        const [result] = await matchByIsrc(config, [unmatched], [{ ...spotifyTrack, duration_ms: 183_000 }]);
+
+        expect(result?.result.map(track => track.id)).toEqual(['/library/metadata/3']);
+    });
+
+    it('refuses a different-length candidate on the other releases', async () => {
+        plexHas({ 'Single': [plexTrack('/library/metadata/3', 522_000)] });
+
+        const [result] = await matchByIsrc(config, [unmatched], [{ ...spotifyTrack, duration_ms: 183_000 }]);
+
+        expect(result?.result).toEqual([]);
+    });
+
+    it('still refuses two candidates that both fit', async () => {
+        plexHas({ 'Album A': [plexTrack('/library/metadata/1', 185_000), plexTrack('/library/metadata/2', 190_000)] });
+
+        const [result] = await matchByIsrc(config, [unmatched], [{ ...spotifyTrack, duration_ms: 183_000 }]);
+
+        expect(result?.result).toEqual([]);
+    });
+
     it('matches a candidate within radio versus album variance', async () => {
         plexHas({ 'Album A': [plexTrack('/library/metadata/1', 209_000)] });
 

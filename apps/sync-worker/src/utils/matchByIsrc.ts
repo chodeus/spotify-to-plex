@@ -26,9 +26,12 @@ async function findByIsrc(config: PlexMusicSearchConfig, track: SpotifyTrack, is
     if (lookup.status !== 'found' || !artist)
         return null;
 
+    // getCachedPlexTracks would drop a contradicting hit next sync, and the ISRC would add it back
+    const fitting = (hits: PlexTrack[]) => hits.filter(hit => !durationsContradict(track.duration_ms, hit.duration_ms));
+
     // Spotify's own album decides when it holds the recording; other releases are only a fallback
     if (track.album.trim()) {
-        const onSpotifyAlbum = await findTracksByMusicBrainzIds(config, artist, track.album, lookup.trackIds, ANY_ALBUM_ARTIST);
+        const onSpotifyAlbum = fitting(await findTracksByMusicBrainzIds(config, artist, track.album, lookup.trackIds, ANY_ALBUM_ARTIST));
         if (onSpotifyAlbum.length > 0)
             return onlyHit(onSpotifyAlbum);
     }
@@ -41,7 +44,7 @@ async function findByIsrc(config: PlexMusicSearchConfig, track: SpotifyTrack, is
     for (const title of otherTitles)
         elsewhere.push(...await findTracksByMusicBrainzIds(config, artist, title, lookup.trackIds));
 
-    return onlyHit(elsewhere);
+    return onlyHit(fitting(elsewhere));
 }
 
 /** Gives each unmatched search result a second chance through its track's ISRC. */
@@ -57,8 +60,7 @@ export async function matchByIsrc(config: PlexMusicSearchConfig, searchResults: 
 
         try {
             const plexTrack = await findByIsrc(config, track, track.isrc);
-            // getCachedPlexTracks drops this link next sync otherwise, and the ISRC re-adds it
-            if (plexTrack && !durationsContradict(track.duration_ms, plexTrack.duration_ms)) {
+            if (plexTrack) {
                 console.log(`Matched "${track.title}" by ISRC: "${plexTrack.title}"`);
                 matched.push({ ...searchResult, result: [plexTrack], matched_by: 'isrc' });
                 continue;
