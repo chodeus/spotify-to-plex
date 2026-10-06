@@ -9,7 +9,8 @@ export type LidarrAlbum = {
     artistId: number;
     statistics?: {
         trackFileCount: number;
-        trackCount: number;
+        // trackCount skips an unmonitored album's tracks without files; this counts them all
+        totalTrackCount: number;
     };
 };
 
