@@ -74,10 +74,13 @@ export function getCachedTrackLinks(
 
         for (const link of changed) {
             const position = index.get(link.spotify_id)
+            const stored = position === undefined ? undefined : current[position]
+            // A manual pick made since this run's read stands; one this run read and changed itself does not
+            const pickedSince = stored?.manual && !link.manual && JSON.stringify(stored) !== saved.get(link.spotify_id)
+
             if (position === undefined)
                 current.push(link)
-            // A person's pick stands until they pick again
-            else if (link.manual || !current[position]?.manual)
+            else if (!pickedSince)
                 current[position] = link
 
             saved.set(link.spotify_id, JSON.stringify(link))

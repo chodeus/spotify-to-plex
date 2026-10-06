@@ -84,6 +84,21 @@ describe('getCachedTrackLinks save', () => {
         expect(stored()[0]).toEqual({ spotify_id: 'a', plex_id: ['/library/metadata/9'], manual: true });
     });
 
+    // getCachedPlexTracks frees a manual pick whose Plex tracks are all gone
+    it('saves a manual link this run read and cleared itself', () => {
+        setManualTrackLink('b', '/library/metadata/2');
+        const links = getCachedTrackLinks([{ id: 'b', title: 'Song', artists: ['Artist'] }], 'plex');
+        const [link] = links.found;
+        if (link) {
+            link.plex_id = [];
+            delete link.manual;
+        }
+
+        links.save();
+
+        expect(stored()[1]).toEqual({ spotify_id: 'b', plex_id: [] });
+    });
+
     it('writes a pruned link that add() never touched', () => {
         const links = getCachedTrackLinks([{ id: 'b', title: 'Song', artists: ['Artist'] }], 'plex');
         const [link] = links.found;

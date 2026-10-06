@@ -79,7 +79,9 @@ export async function refreshAccessTokens() {
 
     for (const credential of current) {
         const refreshed = newUsers.find(newUser => newUser.user.id === credential?.user?.id)
-        if (!refreshed)
+        const read = users.find(user => user?.user?.id === credential?.user?.id)
+        // Tokens written since the read come from a fresh sign-in, which outranks this refresh
+        if (!refreshed || JSON.stringify(credential.access_token) !== JSON.stringify(read?.access_token))
             continue;
 
         credential.access_token = refreshed.access_token

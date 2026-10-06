@@ -59,6 +59,21 @@ describe('refreshAccessTokens', () => {
         expect(after[1]?.access_token.access_token).toBe('enc:old');
     });
 
+    it('keeps tokens from a sign-in made during the refresh', async () => {
+        writeFileSync(path(), JSON.stringify([credential('expired', 0)]));
+        postMock.mockImplementation(async () => {
+            const during = stored();
+            during[0]!.access_token = { access_token: 'enc:signin', refresh_token: 'enc:signin-refresh', expires_in: 3600, token_type: 'Bearer' };
+            writeFileSync(path(), JSON.stringify(during));
+
+            return { data: { access_token: 'new', expires_in: 3600, token_type: 'Bearer' } };
+        });
+
+        await refreshAccessTokens();
+
+        expect(stored()[0]?.access_token.refresh_token).toBe('enc:signin-refresh');
+    });
+
     it('leaves the file alone when no token needed refreshing', async () => {
         writeFileSync(path(), JSON.stringify([credential('fresh', Date.now() + 60_000)]));
 
