@@ -34,11 +34,11 @@ export async function syncAlbums() {
         if (hasNothingEnrolled(toSyncAlbums, 'albums', 'albums')) {
             // Nothing enrolled means nothing missing. Clear this job's own
             // outputs, or a deleted album sits in the Lidarr queue forever -
-            // the Lidarr job merges this file with the playlist one every run.
-            // Not missing_tracks_slskd.json: the playlists job writes that too.
+            // the Lidarr and SLSKD jobs merge these files with the playlist ones every run.
             writeFileSync(join(getStorageDir(), 'missing_albums_spotify.txt'), '')
             writeFileSync(join(getStorageDir(), 'missing_albums_tidal.txt'), '')
             writeFileSync(join(getStorageDir(), 'missing_albums_lidarr.json'), JSON.stringify([], null, 2))
+            writeFileSync(join(getStorageDir(), 'missing_albums_slskd.json'), JSON.stringify([], null, 2))
 
             return;
         }
@@ -53,6 +53,8 @@ export async function syncAlbums() {
         const missingTidalAlbums: string[] = []
         const missingAlbumsLidarr: LidarrAlbumData[] = []
         const missingTracksSlskd: SlskdTrackData[] = []
+        let processed = false
+        let incomplete = false
 
         for (let i = 0; i < toSyncAlbums.length; i++) {
             const item = toSyncAlbums[i];
@@ -84,6 +86,7 @@ export async function syncAlbums() {
             const data = await loadSpotifyData(uri, user)
             if (!data) {
                 logError(itemLog, `Spotify data could not be loaded`)
+                incomplete = true
                 continue;
             }
 
@@ -112,6 +115,7 @@ export async function syncAlbums() {
 
                 return result.some((track: SearchResponse) => track.title == trackTitle && trackArtists.indexOf(track.artist) > - 1 && track.result.length == 0)
             })
+            processed = true
 
             if (!result.some((item: SearchResponse) => item.result.length == 0)) {
                 logComplete(itemLog);
@@ -179,12 +183,16 @@ export async function syncAlbums() {
             // Store logs
             /////////////////////////////
             logComplete(itemLog)
+        }
 
-            // Store the missing albums and tracks
+        // After the loop, so a run where every album is complete still clears the lists. A run that
+        // processed none, or where one failed, keeps the last ones: a failure is not "nothing missing"
+        if (processed && !incomplete) {
             writeFileSync(join(getStorageDir(), 'missing_albums_spotify.txt'), missingSpotifyAlbums.map(id => `https://open.spotify.com/album/${id}`).join('\n'))
             writeFileSync(join(getStorageDir(), 'missing_albums_tidal.txt'), missingTidalAlbums.map(id => `https://tidal.com/browse/album/${id}`).join('\n'))
             writeFileSync(join(getStorageDir(), 'missing_albums_lidarr.json'), JSON.stringify(missingAlbumsLidarr, null, 2))
-            writeFileSync(join(getStorageDir(), 'missing_tracks_slskd.json'), JSON.stringify(missingTracksSlskd, null, 2))
+            // The playlists job owns missing_tracks_slskd.json; the SLSKD job merges the two
+            writeFileSync(join(getStorageDir(), 'missing_albums_slskd.json'), JSON.stringify(missingTracksSlskd, null, 2))
         }
 
         // Mark sync as complete
