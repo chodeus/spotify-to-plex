@@ -25,6 +25,12 @@ describe('readCacheFile', () => {
         expect(readCacheFile(join(dir, 'cache.json'))).toEqual([]);
     });
 
+    it('starts empty when the file holds something other than a list', () => {
+        writeFileSync(join(dir, 'cache.json'), 'null');
+
+        expect(readCacheFile(join(dir, 'cache.json'))).toEqual([]);
+    });
+
     it('starts empty when the file is torn', () => {
         writeFileSync(join(dir, 'cache.json'), '[{"id":');
 

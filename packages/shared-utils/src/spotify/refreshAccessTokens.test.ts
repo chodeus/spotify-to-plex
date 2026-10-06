@@ -71,6 +71,7 @@ describe('refreshAccessTokens', () => {
 
         await refreshAccessTokens();
 
+        expect(stored()[0]?.access_token.access_token).toBe('enc:signin');
         expect(stored()[0]?.access_token.refresh_token).toBe('enc:signin-refresh');
     });
 
