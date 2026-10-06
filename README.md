@@ -44,28 +44,44 @@ docker run -d \
     -e SPOTIFY_API_CLIENT_SECRET=YOUR_CLIENT_SECRET \
     -e SPOTIFY_API_REDIRECT_URI=https://jjdenhertog.github.io/spotify-to-plex/callback.html \
     -e ENCRYPTION_KEY=YOUR_ENCRYPTION_KEY \
-    -e PLEX_APP_ID=eXf+f9ktw3CZ8i45OY468WxriOCtoFxuNPzVeDcAwfw= \
     -v /your/config/path:/app/config:rw \
     --network=host \
-    jjdenhertog/spotify-to-plex
+    ghcr.io/chodeus/spotify-to-plex:testing
 ```
 
-Access the web interface at `http://[your-ip]:9030`
+Access the web interface at `http://[your-ip]:9030`. This runs this fork's image; see [Running it](#running-it) for the tag and `PLEX_APP_ID`.
 
 ---
 
 ## About this fork
 
-This fork carries **no code changes**. It builds [jjdenhertog/spotify-to-plex](https://github.com/jjdenhertog/spotify-to-plex) `main` unmodified — everything it used to carry is upstream now, either merged or reimplemented there by the maintainer.
+This fork is [jjdenhertog/spotify-to-plex](https://github.com/jjdenhertog/spotify-to-plex) `main` (v1.0.111) plus fixes that are not upstream. Its image is built from the `testing` branch. Switching to the upstream image drops the fixes below, but your configuration carries over.
 
-It exists for two reasons, both temporary:
+### What it adds
 
-- The matching work is on upstream `main` but **not yet in a tagged release**. The published `jjdenhertog/spotify-to-plex` image is v1.0.107, which predates it; this image is built from `main`, so it has it today.
-- The [matching configuration](#recommended-matching-configuration) below is not anyone's default, and it is the part that actually stops wrong versions ending up in playlists.
+**Matching**
 
-**Once upstream tags a release containing this work, use upstream instead.** The code is identical.
+- A track the title search cannot place is matched by its ISRC. MusicBrainz lists the track id of every release the recording is on, and Plex shows that id on files carrying MusicBrainz tags, as Lidarr writes them. This finds "JCB" when your library calls it "JCB Song". A track is taken only when exactly one candidate carries a listed id.
+- Version checks compare the original title, ignore credits and track numbers, treat a bare "version" as noise, apply in every search backend, and judge a candidate on the wanted track's credits. Cached links are re-checked against the version filter as well as duration.
 
-What landed upstream:
+**Lidarr and MusicBrainz**
+
+- An album Lidarr already holds in full is not searched again because one of its tracks is missing from Plex. That search only re-downloaded the same album as an "upgrade", every night.
+- MusicBrainz requests are paced from one place and identify the app, and the name search for albums without a Spotify link works.
+
+**Spotify**
+
+- Playlists are read from Spotify's tracks endpoint before the scraper, and every page is mapped the same way. A playlist that comes back short is not synced, so a bad read cannot empty a Plex playlist.
+
+**Sync, web and container**
+
+- Saved items are appended instead of rewritten from a stale copy, the recently-played switch is honoured, and having nothing enrolled is a quiet no-op that clears the missing-track files.
+- MQTT is skipped when no broker is configured, `TZ` reaches the scheduler, and the web app no longer sends `Access-Control-Allow-Origin: *` on every path.
+- Node 22, Next.js 15, React 19 and MUI 9, and current pins for the scraper's Python packages.
+
+### What landed upstream
+
+Earlier fork work that is upstream now, merged or reimplemented by the maintainer:
 
 | | |
 |---|---|
@@ -81,20 +97,9 @@ What landed upstream:
 
 ### Running it
 
-```sh
-docker run -d \
-    -e SPOTIFY_API_CLIENT_ID=YOUR_CLIENT_ID \
-    -e SPOTIFY_API_CLIENT_SECRET=YOUR_CLIENT_SECRET \
-    -e SPOTIFY_API_REDIRECT_URI=https://jjdenhertog.github.io/spotify-to-plex/callback.html \
-    -e ENCRYPTION_KEY=YOUR_ENCRYPTION_KEY \
-    -v /your/config/path:/app/config:rw \
-    --network=host \
-    ghcr.io/chodeus/spotify-to-plex:testing
-```
+The [Quick Start](#quick-start) command runs `ghcr.io/chodeus/spotify-to-plex:testing`. Use the `:testing` tag, not `:latest` — every branch build tags `latest`, so it is whichever branch built most recently. `testing` is upstream `main` with the fixes above, and every push to it publishes a new image.
 
-Use the `:testing` tag, not `:latest` — every branch push tags `latest`, so it is whichever branch built most recently. `testing` is the branch kept in sync with upstream `main`.
-
-`PLEX_APP_ID` is not required — the image already sets it, which is why it is absent above. It is the `X-Plex-Client-Identifier` this app presents to Plex, not a credential, and it is the same value for everyone running the image. Pass it explicitly only if you want your install to appear in Plex's authorised devices as its own client:
+`PLEX_APP_ID` is not required — the image already sets it, which is why it is absent from the Quick Start. It is the `X-Plex-Client-Identifier` this app presents to Plex, not a credential, and it is the same value for everyone running the image. Pass it explicitly only if you want your install to appear in Plex's authorised devices as its own client:
 
 ```sh
     -e PLEX_APP_ID=$(head -c 32 /dev/urandom | base64) \
@@ -142,7 +147,7 @@ Three things are going on:
 
 **Row order matters.** Filters are evaluated top-down and the first row returning anything wins, so the order decides which *imperfect* match is preferred. `artist:match AND title:contains` is demoted below the exact-title rows here, because otherwise a search for "Perfect (Exceeder)" happily settles for a track called "Exceeder".
 
-The trade is deliberate: a wrong match is silent and permanent, a missing track flows to Lidarr or slskd and fixes itself once the file arrives. This configuration prefers the miss. Expect playlists to be a little smaller and to fill back in as downloads land.
+The trade is deliberate: a wrong match is silent and permanent, a missing track flows to Lidarr or slskd and fixes itself once the file arrives. This configuration prefers the miss. Expect playlists to be a little smaller and to fill back in as downloads land. A track that is already in your library under a different title is usually found by the ISRC match instead of waiting on a download.
 
 Text Processing and Search Approaches are left at their defaults.
 
