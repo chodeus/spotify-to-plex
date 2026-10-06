@@ -66,6 +66,7 @@ export async function syncPlaylists() {
         const missingTidalTracks: string[] = []
         const missingAlbumsLidarr: LidarrAlbumData[] = []
         const missingTracksSlskd: SlskdTrackData[] = []
+        let processed = false
 
         for (let i = 0; i < toSyncPlaylists.length; i++) {
             const item = toSyncPlaylists[i];
@@ -166,6 +167,7 @@ export async function syncPlaylists() {
 
                     return result.some(track => track.title == trackTitle && trackArtists.indexOf(track.artist) > - 1 && track.result.length == 0)
                 })
+                processed = true
                 if (missingTracks.length == 0) {
                     logComplete(itemLog)
                     continue;
@@ -239,17 +241,20 @@ export async function syncPlaylists() {
                 /////////////////////////////
                 logComplete(itemLog)
 
-                // Store missing tracks
-                writeFileSync(join(getStorageDir(), 'missing_tracks_spotify.txt'), missingSpotifyTracks.map(id => `https://open.spotify.com/track/${id}`).join('\n'))
-                writeFileSync(join(getStorageDir(), 'missing_tracks_tidal.txt'), missingTidalTracks.map(id => `https://tidal.com/browse/track/${id}`).join('\n'))
-                writeFileSync(join(getStorageDir(), 'missing_tracks_lidarr.json'), JSON.stringify(missingAlbumsLidarr, null, 2))
-                writeFileSync(join(getStorageDir(), 'missing_tracks_slskd.json'), JSON.stringify(missingTracksSlskd, null, 2))
-
             } catch (e) {
                 const message = e instanceof Error ? e.message : 'Unknown error';
                 logError(itemLog, `Something went wrong while syncing: ${message}`)
             }
 
+        }
+
+        // After the loop, so a run where every playlist is complete still clears the lists;
+        // a run that processed none (nothing due) keeps the last ones
+        if (processed) {
+            writeFileSync(join(getStorageDir(), 'missing_tracks_spotify.txt'), missingSpotifyTracks.map(id => `https://open.spotify.com/track/${id}`).join('\n'))
+            writeFileSync(join(getStorageDir(), 'missing_tracks_tidal.txt'), missingTidalTracks.map(id => `https://tidal.com/browse/track/${id}`).join('\n'))
+            writeFileSync(join(getStorageDir(), 'missing_tracks_lidarr.json'), JSON.stringify(missingAlbumsLidarr, null, 2))
+            writeFileSync(join(getStorageDir(), 'missing_tracks_slskd.json'), JSON.stringify(missingTracksSlskd, null, 2))
         }
 
         // Mark sync as complete

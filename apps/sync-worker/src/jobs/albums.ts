@@ -53,6 +53,7 @@ export async function syncAlbums() {
         const missingTidalAlbums: string[] = []
         const missingAlbumsLidarr: LidarrAlbumData[] = []
         const missingTracksSlskd: SlskdTrackData[] = []
+        let processed = false
 
         for (let i = 0; i < toSyncAlbums.length; i++) {
             const item = toSyncAlbums[i];
@@ -112,6 +113,7 @@ export async function syncAlbums() {
 
                 return result.some((track: SearchResponse) => track.title == trackTitle && trackArtists.indexOf(track.artist) > - 1 && track.result.length == 0)
             })
+            processed = true
 
             if (!result.some((item: SearchResponse) => item.result.length == 0)) {
                 logComplete(itemLog);
@@ -179,8 +181,11 @@ export async function syncAlbums() {
             // Store logs
             /////////////////////////////
             logComplete(itemLog)
+        }
 
-            // Store the missing albums and tracks
+        // After the loop, so a run where every album is complete still clears the lists;
+        // a run that processed none (nothing due) keeps the last ones
+        if (processed) {
             writeFileSync(join(getStorageDir(), 'missing_albums_spotify.txt'), missingSpotifyAlbums.map(id => `https://open.spotify.com/album/${id}`).join('\n'))
             writeFileSync(join(getStorageDir(), 'missing_albums_tidal.txt'), missingTidalAlbums.map(id => `https://tidal.com/browse/album/${id}`).join('\n'))
             writeFileSync(join(getStorageDir(), 'missing_albums_lidarr.json'), JSON.stringify(missingAlbumsLidarr, null, 2))
