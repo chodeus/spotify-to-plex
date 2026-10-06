@@ -58,7 +58,7 @@ export async function syncSlskd() {
         const { putLog, logComplete } = getNestedSyncLogsForType('slskd');
         const syncLog = putLog('slskd-sync', 'SLSKD Sync');
 
-        // This run's log replaces the previous run's file
+        // Starts empty: a run with work to do replaces the previous run's log, one with none leaves it
         const slskdLogsPath = join(getStorageDir(), 'slskd_sync_log.json');
         const slskdLogs: Record<string, SlskdSyncLog> = {};
 

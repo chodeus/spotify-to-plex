@@ -54,6 +54,7 @@ export async function syncAlbums() {
         const missingAlbumsLidarr: LidarrAlbumData[] = []
         const missingTracksSlskd: SlskdTrackData[] = []
         let processed = false
+        let incomplete = false
 
         for (let i = 0; i < toSyncAlbums.length; i++) {
             const item = toSyncAlbums[i];
@@ -85,6 +86,7 @@ export async function syncAlbums() {
             const data = await loadSpotifyData(uri, user)
             if (!data) {
                 logError(itemLog, `Spotify data could not be loaded`)
+                incomplete = true
                 continue;
             }
 
@@ -183,9 +185,9 @@ export async function syncAlbums() {
             logComplete(itemLog)
         }
 
-        // After the loop, so a run where every album is complete still clears the lists;
-        // a run that processed none (nothing due) keeps the last ones
-        if (processed) {
+        // After the loop, so a run where every album is complete still clears the lists. A run that
+        // processed none, or where one failed, keeps the last ones: a failure is not "nothing missing"
+        if (processed && !incomplete) {
             writeFileSync(join(getStorageDir(), 'missing_albums_spotify.txt'), missingSpotifyAlbums.map(id => `https://open.spotify.com/album/${id}`).join('\n'))
             writeFileSync(join(getStorageDir(), 'missing_albums_tidal.txt'), missingTidalAlbums.map(id => `https://tidal.com/browse/album/${id}`).join('\n'))
             writeFileSync(join(getStorageDir(), 'missing_albums_lidarr.json'), JSON.stringify(missingAlbumsLidarr, null, 2))

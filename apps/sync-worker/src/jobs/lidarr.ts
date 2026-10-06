@@ -110,7 +110,7 @@ export async function syncLidarr() {
         const { putLog, logComplete } = getNestedSyncLogsForType('lidarr');
         const syncLog = putLog('lidarr-sync', 'Lidarr Sync');
 
-        // This run's log replaces the previous run's file
+        // Starts empty: a run with work to do replaces the previous run's log, one with none leaves it
         const lidarrLogsPath = join(getStorageDir(), 'lidarr_sync_log.json');
         const lidarrLogs: Record<string, LidarrSyncLog> = {};
 
