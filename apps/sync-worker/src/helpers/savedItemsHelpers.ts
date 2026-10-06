@@ -1,6 +1,7 @@
 import { getStorageDir } from '@spotify-to-plex/shared-utils/utils/getStorageDir';
 import { SavedItem } from "@spotify-to-plex/shared-types/spotify/SavedItem";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import { writeJsonFileAtomic } from "@spotify-to-plex/shared-utils/utils/writeJsonFileAtomic";
 import { join } from "node:path";
 
 export function savedItemsHelpers() {
@@ -38,7 +39,7 @@ export function savedItemsHelpers() {
         if (toAppend.length == 0)
             return;
 
-        writeFileSync(savedItemsPath, JSON.stringify([...current, ...toAppend], undefined, 4))
+        writeJsonFileAtomic(savedItemsPath, [...current, ...toAppend])
     }
 
     return { items, add, save };

@@ -10,7 +10,8 @@ import { getMusicSearchConfig } from "@spotify-to-plex/music-search/functions/ge
 import { SpotifyApi } from '@spotify/web-api-ts-sdk';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createRouter } from 'next-connect';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import { writeJsonFileAtomic } from '@spotify-to-plex/shared-utils/utils/writeJsonFileAtomic';
 import { join } from 'node:path';
 import { parse } from 'node:url';
 import { getSettings } from '@spotify-to-plex/plex-config/functions/getSettings';
@@ -162,9 +163,9 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
                         return res.status(400).json({ error: `${savedItem.title} (spotify id: ${savedItem.id}) is already added.` })
 
                     savedItems.push(savedItem)
-                    writeFileSync(savedItemsPath, JSON.stringify(savedItems, undefined, 4))
+                    writeJsonFileAtomic(savedItemsPath, savedItems)
                 } else {
-                    writeFileSync(savedItemsPath, JSON.stringify([savedItem], undefined, 4))
+                    writeJsonFileAtomic(savedItemsPath, [savedItem])
                 }
 
                 const savedItems: SavedItem[] = JSON.parse(readFileSync(savedItemsPath, 'utf8'))
@@ -194,7 +195,7 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
 
             // Change the imtes
             savedItems = savedItems.filter(item => item.id !== id)
-            writeFileSync(savedItemsPath, JSON.stringify(savedItems, undefined, 4))
+            writeJsonFileAtomic(savedItemsPath, savedItems)
 
             return res.status(200).json(savedItems.reverse())
         }
@@ -230,7 +231,7 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
             }
 
             // Change the imtes
-            writeFileSync(savedItemsPath, JSON.stringify(savedItems, undefined, 4))
+            writeJsonFileAtomic(savedItemsPath, savedItems)
 
             return res.status(200).json(savedItems.reverse())
         }

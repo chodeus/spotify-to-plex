@@ -1,28 +1,14 @@
-import fs, { renameSync } from 'fs-extra';
-const { ensureDir, writeFile } = fs;
+import fs from 'fs-extra';
+const { ensureDir } = fs;
 import { join } from 'node:path';
+import { writeJsonFileAtomic } from '@spotify-to-plex/shared-utils/utils/writeJsonFileAtomic';
 import { SearchApproachConfig } from '../types/SearchApproachConfig';
 
 const SEARCH_APPROACHES_FILE = 'search-approaches.json';
 
-async function writeJSON(filePath: string, data: unknown) {
-    try {
-        await ensureDir(join(filePath, '..'));
-        
-        // Write to temporary file first for atomic operation
-        const tempPath = `${filePath}.tmp`;
-        await writeFile(tempPath, JSON.stringify(data, null, 2), 'utf8');
-        
-        // Atomic rename
-        renameSync(tempPath, filePath);
-    } catch (error) {
-        throw new Error(`Failed to write ${filePath}: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-}
-
 export async function updateSearchApproaches(storageDir: string, approaches: SearchApproachConfig[]) {
-    const filePath = join(storageDir, SEARCH_APPROACHES_FILE);
-    await writeJSON(filePath, approaches);
+    await ensureDir(storageDir);
+    writeJsonFileAtomic(join(storageDir, SEARCH_APPROACHES_FILE), approaches, 2);
 
     return approaches;
 }

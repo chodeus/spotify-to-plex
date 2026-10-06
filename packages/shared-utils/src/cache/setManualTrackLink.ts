@@ -1,6 +1,7 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs"
+import { existsSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import { getStorageDir } from "../utils/getStorageDir"
+import { writeJsonFileAtomic } from "../utils/writeJsonFileAtomic"
 
 import type { TrackLink } from "@spotify-to-plex/shared-types/common/track";
 
@@ -21,5 +22,5 @@ export function setManualTrackLink(spotifyId: string, plexId: string) {
     trackLink.plex_id = [plexId]
     trackLink.manual = true
 
-    writeFileSync(path, JSON.stringify(all, undefined, 4))
+    writeJsonFileAtomic(path, all)
 }

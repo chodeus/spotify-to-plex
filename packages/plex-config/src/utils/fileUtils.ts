@@ -1,6 +1,7 @@
 /* eslint-disable custom/no-export-only-files */
-import { readFile, writeFile, pathExists, remove } from 'fs-extra';
+import { readFile, pathExists, remove } from 'fs-extra';
 import { getStorageDir } from '@spotify-to-plex/shared-utils/utils/getStorageDir';
+import { writeJsonFileAtomic } from '@spotify-to-plex/shared-utils/utils/writeJsonFileAtomic';
 
 import { join } from 'node:path';
 
@@ -29,16 +30,7 @@ export async function readJSON<T>(fileName: string): Promise<T | null> {
 export async function writeJSON(fileName: string, data: unknown) {
     try {
 
-        const settingsPath = getStorageDir();
-        const filePath = join(settingsPath, fileName);
-
-        // Write to temporary file first for atomic operation
-        const tempPath = `${filePath}.tmp`;
-        await writeFile(tempPath, JSON.stringify(data, null, 2), 'utf8');
-
-        // Atomic rename
-        const nodeFs = await import('node:fs');
-        await nodeFs.promises.rename(tempPath, filePath);
+        writeJsonFileAtomic(join(getStorageDir(), fileName), data, 2);
     } catch (error) {
         throw new Error(`Failed to write ${fileName}: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
