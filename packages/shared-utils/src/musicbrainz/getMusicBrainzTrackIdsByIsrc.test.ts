@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { linkSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
@@ -104,5 +104,31 @@ describe('getMusicBrainzTrackIdsByIsrc', () => {
         clock.mockRestore();
         expect(getMock).toHaveBeenCalledTimes(2);
         expect(JSON.parse(readFileSync(join(dir, 'isrc_musicbrainz_tracks.json'), 'utf8'))).toHaveLength(1);
+    });
+
+    it('starts over from a torn cache file', async () => {
+        const cachePath = join(dir, 'isrc_musicbrainz_tracks.json');
+        writeFileSync(cachePath, '[{"isrc": "XXA00');
+        getMock.mockResolvedValue(searchResponse());
+
+        const result = await getMusicBrainzTrackIdsByIsrc(ISRC);
+
+        expect(result.status).toBe('found');
+        expect(JSON.parse(readFileSync(cachePath, 'utf8'))).toHaveLength(1);
+    });
+
+    // A hard link keeps the old inode, so it only changes if the write went into the file in place
+    it('replaces the cache file instead of writing into it', async () => {
+        const cachePath = join(dir, 'isrc_musicbrainz_tracks.json');
+        getMock.mockResolvedValue(searchResponse());
+        await getMusicBrainzTrackIdsByIsrc(ISRC);
+        const before = readFileSync(cachePath, 'utf8');
+        linkSync(cachePath, join(dir, 'old-inode'));
+
+        await getMusicBrainzTrackIdsByIsrc('XXA000000002');
+
+        expect(readFileSync(join(dir, 'old-inode'), 'utf8')).toBe(before);
+        expect(JSON.parse(readFileSync(cachePath, 'utf8'))).toHaveLength(2);
+        expect(readdirSync(dir).sort()).toEqual(['isrc_musicbrainz_tracks.json', 'old-inode']);
     });
 });
