@@ -5,13 +5,10 @@ import metadataToTrackResult from "../utils/metadataToTrackResult";
 import hubSearchToPlexTrack from "../utils/searching/hubSearchToPlexTrack";
 import { searchForAlbum } from "../utils/searching/searchForAlbum";
 
-/**
- * Tracks on the artist's albums titled `album` whose MusicBrainz track id is one
- * of `trackIds`. Plex exposes that id as an "mbid://" guid on tagged tracks.
- */
-export async function findTracksByMusicBrainzIds(config: PlexMusicSearchConfig, artist: string, album: string, trackIds: string[]): Promise<PlexTrack[]> {
+/** Tracks with an "mbid://" guid from `trackIds` on the albums searchForAlbum finds for `album`. */
+export async function findTracksByMusicBrainzIds(config: PlexMusicSearchConfig, artist: string, album: string, trackIds: string[], artistMatch?: Parameters<typeof searchForAlbum>[4]): Promise<PlexTrack[]> {
     const wanted = new Set(trackIds.map(id => `mbid://${id}`));
-    const albums = await searchForAlbum(config.uri, config.token, artist, album);
+    const albums = await searchForAlbum(config.uri, config.token, artist, album, artistMatch);
 
     const hits: PlexTrack[] = [];
 

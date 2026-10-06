@@ -2,10 +2,15 @@ import { readFileSync, renameSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { getStorageDir } from "../utils/getStorageDir"
 
-type IsrcCacheEntry = {
-    isrc: string;
+export type IsrcRecording = {
+    length?: number;
     track_ids: string[];
     release_titles: string[];
+}
+
+type IsrcCacheEntry = {
+    isrc: string;
+    recordings: IsrcRecording[];
     cached_at: number;
 }
 
@@ -26,9 +31,9 @@ export function getIsrcCache() {
     const get = (isrc: string) => all.find(item => item.isrc === isrc && Date.now() - item.cached_at < TTL_MS)
 
     // Only for a lookup MusicBrainz answered - an empty answer included
-    const add = (isrc: string, trackIds: string[], releaseTitles: string[]) => {
+    const add = (isrc: string, recordings: IsrcRecording[]) => {
         all = all.filter(item => item.isrc !== isrc)
-        all.push({ isrc, track_ids: trackIds, release_titles: releaseTitles, cached_at: Date.now() })
+        all.push({ isrc, recordings, cached_at: Date.now() })
 
         // Per-process temp name: scheduler runSync() has no overlap guard, so two syncs can write at once
         const tempPath = `${path}.${process.pid}.tmp`

@@ -54,4 +54,13 @@ describe('getCachedPlexTracks', () => {
         expect(result).toEqual([]);
         expect(JSON.parse(readFileSync(join(dir, 'track_links.json'), 'utf8'))[0].plex_id).toEqual([]);
     });
+
+    it('drops an ISRC-matched link whose duration contradicts the track', async () => {
+        writeLink({ plex_matched_by: 'isrc' });
+        getByIdMock.mockResolvedValue({ id: '/library/metadata/1', title: 'Song (explicit)', duration_ms: 522_000 });
+
+        const { result } = await getCachedPlexTracks(config, playlist);
+
+        expect(result).toEqual([]);
+    });
 });

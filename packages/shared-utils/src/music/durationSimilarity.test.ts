@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { durationSimilarity } from './durationSimilarity';
+import { durationSimilarity, durationsContradict } from './durationSimilarity';
 
 describe('durationSimilarity', () => {
 
@@ -29,6 +29,28 @@ describe('durationSimilarity', () => {
 
     it('is symmetric', () => {
         expect(durationSimilarity(183_000, 209_000)).toBe(durationSimilarity(209_000, 183_000));
+    });
+
+});
+
+describe('durationsContradict', () => {
+
+    it('flags a wrong-version pair', () => {
+        expect(durationsContradict(183_000, 522_000)).toBe(true);
+    });
+
+    it('accepts radio versus album variance', () => {
+        expect(durationsContradict(183_000, 209_000)).toBe(false);
+    });
+
+    it('draws the line at 0.65', () => {
+        expect(durationsContradict(100_000, 160_000)).toBe(true);
+        expect(durationsContradict(100_000, 150_000)).toBe(false);
+    });
+
+    it('never flags a pair with a duration missing', () => {
+        expect(durationsContradict(undefined, 522_000)).toBe(false);
+        expect(durationsContradict(183_000, 0)).toBe(false);
     });
 
 });

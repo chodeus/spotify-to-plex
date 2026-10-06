@@ -106,6 +106,44 @@ describe('getMusicBrainzTrackIdsByIsrc', () => {
         expect(JSON.parse(readFileSync(join(dir, 'isrc_musicbrainz_tracks.json'), 'utf8'))).toHaveLength(1);
     });
 
+    describe('when the ISRC sits on a radio edit and the album cut', () => {
+        const twoEdits = () => ({
+            data: {
+                recordings: [
+                    { id: 'radio-edit', length: 210_000, releases: [{ title: 'Radio Single', media: [{ track: [{ id: 'track-r' }] }] }] },
+                    { id: 'album-cut', length: 245_000, releases: [{ title: 'Album A', media: [{ track: [{ id: 'track-a1' }] }] }] },
+                    { id: 'no-length', releases: [{ title: 'Live', media: [{ track: [{ id: 'track-l' }] }] }] }
+                ]
+            }
+        });
+
+        it('keeps the recording whose length fits the Spotify duration, and one with no length', async () => {
+            getMock.mockResolvedValue(twoEdits());
+
+            const result = await getMusicBrainzTrackIdsByIsrc(ISRC, 211_000);
+
+            expect(result).toEqual({ status: 'found', trackIds: ['track-r', 'track-l'], releaseTitles: ['Radio Single', 'Live'] });
+        });
+
+        it('keeps every recording when the Spotify duration is unknown', async () => {
+            getMock.mockResolvedValue(twoEdits());
+
+            const result = await getMusicBrainzTrackIdsByIsrc(ISRC);
+
+            expect(result.status === 'found' && result.trackIds).toEqual(['track-r', 'track-a1', 'track-l']);
+        });
+
+        it('filters a cached answer by the duration asked', async () => {
+            getMock.mockResolvedValue(twoEdits());
+
+            await getMusicBrainzTrackIdsByIsrc(ISRC, 211_000);
+            const albumCut = await getMusicBrainzTrackIdsByIsrc(ISRC, 245_000);
+
+            expect(getMock).toHaveBeenCalledTimes(1);
+            expect(albumCut.status === 'found' && albumCut.trackIds).toEqual(['track-a1', 'track-l']);
+        });
+    });
+
     it('starts over from a torn cache file', async () => {
         const cachePath = join(dir, 'isrc_musicbrainz_tracks.json');
         writeFileSync(cachePath, '[{"isrc": "XXA00');

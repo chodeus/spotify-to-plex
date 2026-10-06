@@ -18,8 +18,8 @@ const config = { uri: 'http://192.168.1.20:32400', token: 'token' } as PlexMusic
 const spotifyTrack: Track = { id: 'spotify-1', title: 'Song - Club Mix', album: 'Album A', artists: ['Artist'], album_id: 'album-1', isrc: 'XXA000000001' };
 const unmatched: SearchResponse = { id: 'spotify-1', artist: 'Artist', title: 'Song - Club Mix', album: 'Album A', result: [] };
 
-function plexTrack(id: string): PlexTrack {
-    return { id, guid: `plex://track/${id}`, title: `Track ${id}`, image: '', src: '', artist: { id: 'artist', title: 'Artist' } };
+function plexTrack(id: string, durationMs?: number): PlexTrack {
+    return { id, guid: `plex://track/${id}`, title: `Track ${id}`, image: '', src: '', artist: { id: 'artist', title: 'Artist' }, duration_ms: durationMs };
 }
 
 // findTracksByMusicBrainzIds answers per album title
@@ -109,11 +109,41 @@ describe('matchByIsrc', () => {
         expect(findMock).not.toHaveBeenCalled();
     });
 
-    it('leaves the track unmatched when Plex fails', async () => {
-        findMock.mockRejectedValue(new Error('Could not connect to server'));
+    it('leaves the track unmatched when the one candidate is a different length', async () => {
+        plexHas({ 'Album A': [plexTrack('/library/metadata/1', 522_000)] });
+
+        const [result] = await matchByIsrc(config, [unmatched], [{ ...spotifyTrack, duration_ms: 183_000 }]);
+
+        expect(result?.result).toEqual([]);
+        expect(result?.matched_by).toBeUndefined();
+        expect(lookupMock).toHaveBeenCalledWith('XXA000000001', 183_000);
+    });
+
+    it('matches a candidate within radio versus album variance', async () => {
+        plexHas({ 'Album A': [plexTrack('/library/metadata/1', 209_000)] });
+
+        const [result] = await matchByIsrc(config, [unmatched], [{ ...spotifyTrack, duration_ms: 183_000 }]);
+
+        expect(result?.matched_by).toBe('isrc');
+    });
+
+    it('lets any album artist through on the Spotify album only', async () => {
+        plexHas({});
+
+        await matchByIsrc(config, [unmatched], [spotifyTrack]);
+
+        const artistRules = findMock.mock.calls.map(call => call[4]);
+        expect(artistRules).toEqual([{ similarity: 0, contain: false }, undefined, undefined]);
+    });
+
+    it('leaves the track unmatched when Plex fails, and says so', async () => {
+        findMock.mockRejectedValue('Could not connect to server');
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => { /* expected */ });
 
         const [result] = await matchByIsrc(config, [unmatched], [spotifyTrack]);
 
         expect(result?.result).toEqual([]);
+        expect(warn).toHaveBeenCalledWith('ISRC match skipped for "Song - Club Mix": Could not connect to server');
+        warn.mockRestore();
     });
 });

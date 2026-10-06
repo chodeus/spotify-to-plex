@@ -1,22 +1,22 @@
-import { getIsrcCache } from '../cache/getIsrcCache';
+import { getIsrcCache, IsrcRecording } from '../cache/getIsrcCache';
 import { musicBrainzGet } from '../lidarr/utils/musicBrainzGet';
 
-type RecordingSearchResponse = {
-    recordings?: {
-        id: string;
-        releases?: {
-            title?: string;
-            media?: {
-                track?: { id: string }[];
-            }[];
+type MusicBrainzRecording = {
+    id: string;
+    length?: number;
+    releases?: {
+        title?: string;
+        media?: {
+            track?: { id: string }[];
         }[];
     }[];
 };
 
-/**
- * "not-found" means MusicBrainz answered with no recording; "unavailable" means
- * the request failed and nothing may be remembered about it.
- */
+type RecordingSearchResponse = {
+    recordings?: MusicBrainzRecording[];
+};
+
+/** "not-found": no recording fits (or the ISRC is malformed); "unavailable": the request failed, remember nothing. */
 export type IsrcLookup =
     | { status: 'found'; trackIds: string[]; releaseTitles: string[] }
     | { status: 'not-found' }
@@ -24,17 +24,37 @@ export type IsrcLookup =
 
 const ISRC_PATTERN = /^[A-Z]{2}[\dA-Z]{3}\d{7}$/;
 
-function toLookup(trackIds: string[], releaseTitles: string[]): IsrcLookup {
+// Room for one recording's length to differ between sources; a separate edit usually falls outside it
+const SAME_RECORDING_WITHIN_MS = 10_000;
+
+function toRecording(recording: MusicBrainzRecording): IsrcRecording {
+    const releases = recording.releases ?? [];
+
+    return {
+        length: recording.length,
+        track_ids: releases
+            .flatMap(release => release.media ?? [])
+            .flatMap(medium => medium.track ?? [])
+            .map(track => track.id),
+        release_titles: releases
+            .map(release => release.title)
+            .filter((title): title is string => !!title)
+    };
+}
+
+// Labels put one ISRC on a radio edit and the album cut alike; the length tells them apart
+function toLookup(recordings: IsrcRecording[], durationMs?: number): IsrcLookup {
+    const fitting = recordings.filter(recording => !recording.length || !durationMs || Math.abs(recording.length - durationMs) <= SAME_RECORDING_WITHIN_MS);
+    const trackIds = [...new Set(fitting.flatMap(recording => recording.track_ids))];
+    const releaseTitles = [...new Set(fitting.flatMap(recording => recording.release_titles))];
+
     return trackIds.length > 0
         ? { status: 'found', trackIds, releaseTitles }
         : { status: 'not-found' };
 }
 
-/**
- * Every MusicBrainz track id (one per release a recording appears on) for the
- * recordings carrying this ISRC, plus those releases' titles.
- */
-export async function getMusicBrainzTrackIdsByIsrc(isrc: string): Promise<IsrcLookup> {
+/** Track ids and release titles for the recordings carrying this ISRC whose length fits `durationMs`. */
+export async function getMusicBrainzTrackIdsByIsrc(isrc: string, durationMs?: number): Promise<IsrcLookup> {
     const normalized = isrc.trim().toUpperCase();
     if (!ISRC_PATTERN.test(normalized))
         return { status: 'not-found' };
@@ -42,7 +62,7 @@ export async function getMusicBrainzTrackIdsByIsrc(isrc: string): Promise<IsrcLo
     const cache = getIsrcCache();
     const cached = cache.get(normalized);
     if (cached)
-        return toLookup(cached.track_ids, cached.release_titles);
+        return toLookup(cached.recordings, durationMs);
 
     let data: RecordingSearchResponse;
     try {
@@ -52,16 +72,8 @@ export async function getMusicBrainzTrackIdsByIsrc(isrc: string): Promise<IsrcLo
         return { status: 'unavailable' };
     }
 
-    const releases = (data.recordings ?? []).flatMap(recording => recording.releases ?? []);
-    const trackIds = [...new Set(releases
-        .flatMap(release => release.media ?? [])
-        .flatMap(medium => medium.track ?? [])
-        .map(track => track.id))];
-    const releaseTitles = [...new Set(releases
-        .map(release => release.title)
-        .filter((title): title is string => !!title))];
+    const recordings = (data.recordings ?? []).map(toRecording);
+    cache.add(normalized, recordings);
 
-    cache.add(normalized, trackIds, releaseTitles);
-
-    return toLookup(trackIds, releaseTitles);
+    return toLookup(recordings, durationMs);
 }
