@@ -1,6 +1,7 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { getStorageDir } from "../utils/getStorageDir"
+import { writeJsonFileAtomic } from "../utils/writeJsonFileAtomic"
+import { readCacheFile } from "./readCacheFile"
 
 type MusicBrainzAlbumCache = {
     spotify_album_id: string;
@@ -23,18 +24,12 @@ export function getMusicBrainzCache() {
     // Handling cached MusicBrainz links
     //////////////////////////////////////
     const path = join(getStorageDir(), 'album_musicbrainz_links.json')
-    let all: MusicBrainzAlbumCache[] = []
-
-    if (existsSync(path))
-        all = JSON.parse(readFileSync(path, 'utf8'))
+    let all = readCacheFile<MusicBrainzAlbumCache>(path)
 
     // Misses live in their own file so a miss can never be read as a mapping,
     // and so deleting them is a matter of deleting one file
     const missPath = join(getStorageDir(), 'album_musicbrainz_misses.json')
-    let misses: MusicBrainzAlbumMiss[] = []
-
-    if (existsSync(missPath))
-        misses = JSON.parse(readFileSync(missPath, 'utf8'))
+    let misses = readCacheFile<MusicBrainzAlbumMiss>(missPath)
 
     /**
      * Whether a lookup for this album recently completed and found nothing.
@@ -51,7 +46,7 @@ export function getMusicBrainzCache() {
         misses = misses.filter(item => item.spotify_album_id !== spotifyAlbumId)
         misses.push({ spotify_album_id: spotifyAlbumId, cached_at: Date.now() })
 
-        writeFileSync(missPath, JSON.stringify(misses, undefined, 4))
+        writeJsonFileAtomic(missPath, misses)
     }
 
     /**
@@ -81,7 +76,7 @@ export function getMusicBrainzCache() {
         all.push(cacheEntry)
 
         // Write to file
-        writeFileSync(path, JSON.stringify(all, undefined, 4))
+        writeJsonFileAtomic(path, all)
     }
 
     /**
@@ -107,7 +102,7 @@ export function getMusicBrainzCache() {
         all.push(...cacheEntries)
 
         // Write to file
-        writeFileSync(path, JSON.stringify(all, undefined, 4))
+        writeJsonFileAtomic(path, all)
     }
 
     return { path, all, get, add, addBatch, hasRecentMiss, addMiss }

@@ -1,7 +1,8 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs"
+import { existsSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import { filterUnique } from "../array/filterUnique"
 import { getStorageDir } from "../utils/getStorageDir"
+import { writeJsonFileAtomic } from "../utils/writeJsonFileAtomic"
 
 import type { TrackLink } from "@spotify-to-plex/shared-types/common/track";
 
@@ -25,10 +26,11 @@ export function getCachedTrackLinks(
     // Handeling cached links
     //////////////////////////////////////
     const path = join(getStorageDir(), 'track_links.json')
-    let all: TrackLink[] = []
+    const readLinks = (): TrackLink[] => existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')) : []
+    const all = readLinks()
 
-    if (existsSync(path))
-        all = JSON.parse(readFileSync(path, 'utf8'))
+    // Each entry as last read or saved, to tell which ones this run changed
+    const saved = new Map(all.map(link => [link.spotify_id, JSON.stringify(link)]))
 
     const found: TrackLink[] = [];
 
@@ -60,8 +62,28 @@ export function getCachedTrackLinks(
         }
     }
 
+    // The web app or an overlapping sync may have written since the read, so only
+    // this run's changes go into the file as it is now
     const save = () => {
-        writeFileSync(path, JSON.stringify(all, undefined, 4))
+        const changed = all.filter(link => saved.get(link.spotify_id) !== JSON.stringify(link))
+        if (changed.length == 0)
+            return;
+
+        const current = readLinks()
+        const index = new Map(current.map((link, position) => [link.spotify_id, position]))
+
+        for (const link of changed) {
+            const position = index.get(link.spotify_id)
+            if (position === undefined)
+                current.push(link)
+            // A person's pick stands until they pick again
+            else if (link.manual || !current[position]?.manual)
+                current[position] = link
+
+            saved.set(link.spotify_id, JSON.stringify(link))
+        }
+
+        writeJsonFileAtomic(path, current)
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

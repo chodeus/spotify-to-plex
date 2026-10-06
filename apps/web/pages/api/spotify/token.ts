@@ -6,7 +6,8 @@ import { SpotifyApi } from '@spotify/web-api-ts-sdk';
 import axios from 'axios';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createRouter } from 'next-connect';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import { writeJsonFileAtomic } from '@spotify-to-plex/shared-utils/utils/writeJsonFileAtomic';
 import { join } from 'node:path';
 
 function escapeHtml(str: string): string {
@@ -219,9 +220,9 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
                     const newCredentials = existingCredentials.filter(item => item.user.id !== spotifyCredentials.user.id)
                     newCredentials.push(spotifyCredentials)
 
-                    writeFileSync(credentialsPath, JSON.stringify(newCredentials, undefined, 4))
+                    writeJsonFileAtomic(credentialsPath, newCredentials)
                 } else {
-                    writeFileSync(credentialsPath, JSON.stringify([spotifyCredentials], undefined, 4))
+                    writeJsonFileAtomic(credentialsPath, [spotifyCredentials])
                 }
 
                 res.redirect('/manage-users');

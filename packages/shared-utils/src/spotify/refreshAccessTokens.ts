@@ -1,10 +1,11 @@
 import { getStorageDir } from "../utils/getStorageDir"
 import { SpotifyCredentials } from "@spotify-to-plex/shared-types/spotify/SpotifyCredentials"
 import axios from "axios"
-import { existsSync, readFileSync, writeFileSync } from "node:fs"
+import { existsSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import { decrypt } from "../security/decrypt";
 import { encrypt } from "../security/encrypt"
+import { writeJsonFileAtomic } from "../utils/writeJsonFileAtomic"
 
 export async function refreshAccessTokens() {
     const credentialsPath = join(getStorageDir(), 'spotify.json')
@@ -69,13 +70,22 @@ export async function refreshAccessTokens() {
         }
     }
 
-    if (newUsers.length > 0) {
+    if (newUsers.length == 0)
+        return;
 
-        const allUsers = users
-            .filter(item => item?.user?.id && !newUsers.some(newUser => newUser?.user?.id === item.user.id))
-            .concat(newUsers)
+    // The refresh waited on Spotify, and the web app may have added, removed or relabelled
+    // a user since the read above: write the new tokens into the file as it is now
+    const current: SpotifyCredentials[] = JSON.parse(readFileSync(credentialsPath, 'utf8'))
 
-        writeFileSync(credentialsPath, JSON.stringify(allUsers, undefined, 4))
+    for (const credential of current) {
+        const refreshed = newUsers.find(newUser => newUser.user.id === credential?.user?.id)
+        if (!refreshed)
+            continue;
+
+        credential.access_token = refreshed.access_token
+        credential.expires_at = refreshed.expires_at
     }
+
+    writeJsonFileAtomic(credentialsPath, current)
 
 }
