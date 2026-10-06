@@ -47,11 +47,13 @@ export default function hubSearch(uri: string, token: string, query: string, lim
 
                 resolve(response)
             })
-            .catch((_error: unknown) => {
+            .catch((error: unknown) => {
 
                 // eslint-disable-next-line no-console
                 console.error(`Plex API Request failed:\n${url}`)
-                reject("Could not connect to server");
+                // A status means Plex answered (a bad token answers 401), so it was reachable
+                const status = (error as { response?: { status?: number } } | undefined)?.response?.status;
+                reject(status ? `Plex answered ${status}` : "Could not connect to server");
             })
     })
 }

@@ -9,6 +9,7 @@ import { PlexTrack } from "@spotify-to-plex/plex-music-search/types/PlexTrack";
 import { SearchResponse } from "@spotify-to-plex/plex-music-search/types/SearchResponse";
 import { getById } from "@spotify-to-plex/plex-music-search/functions/getById";
 import { PlexMusicSearchConfig } from "@spotify-to-plex/plex-music-search/types/PlexMusicSearchConfig";
+import { PlexItemMissingError } from "@spotify-to-plex/plex-music-search/utils/PlexItemMissingError";
 
 // Loads the cached plex tracks for one link, dropping any whose duration
 // contradicts the spotify track. Returns the ids worth keeping in the cache:
@@ -40,7 +41,13 @@ async function loadLinkedTracks(config: PlexMusicSearchConfig, trackLink: TrackL
 
             keptIds.push(plexId);
             tracks.push(metaData);
-        } catch (_e) {
+        } catch (error) {
+            // Deleted or replaced in Plex: no pick, manual or not, can play it again
+            if (error instanceof PlexItemMissingError) {
+                console.log(`Dropping cached link for "${title}": no longer in Plex`);
+                continue;
+            }
+
             keptIds.push(plexId);
             failed = true;
         }
@@ -72,6 +79,10 @@ export async function getCachedPlexTracks(plexSearchConfig: PlexMusicSearchConfi
         // Flushed by the save() below - add() is not guaranteed to run this sync
         if (keptIds.length !== trackLink.plex_id.length) {
             trackLink.plex_id = keptIds;
+            // A manual pick Plex no longer has is no pick: add() skips manual links, so the re-search could never replace it
+            if (keptIds.length == 0)
+                delete trackLink.manual;
+
             pruned = true;
         }
 

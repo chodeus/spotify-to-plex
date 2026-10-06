@@ -29,15 +29,15 @@ export async function searchForAlbum(artist: string, album: string, artistMatch:
     searchResults.forEach(searchResult => {
 
         const { id, title, artists } = searchResult;
-        artists.forEach(artist => {
+        artists.forEach(albumArtist => {
 
             foundAlbums.push({
                 id,
                 title,
-                artist,
+                artist: albumArtist,
                 matching: {
                     album: compareTitles(title, album),
-                    artist: compareTitles(artist, artist)
+                    artist: compareTitles(albumArtist, artist)
                 }
             })
         })

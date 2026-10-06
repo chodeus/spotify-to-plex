@@ -111,7 +111,6 @@ async function performApproachSearch(approach: PlexMusicSearchApproach, searchPa
         if (foundCache)
             return foundCache;
 
-        // const searchHandler = searchAlbumTracks ? searchForAlbumTracks : searchForTrack;
         const searchResults = await searchForTrack(config.uri, config.token, artist, title, album);
         const musicSearchResult = musicSearch({ id, artist, title, album, duration_ms, artists, originalTitle }, searchResultToTracks(searchResults), analyze);
 

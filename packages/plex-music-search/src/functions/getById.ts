@@ -1,14 +1,24 @@
 import { removeFeaturing } from "@spotify-to-plex/music-search/utils/removeFeaturing";
 import { getMetadata } from "../actions/getMetadata";
 import { PlexMusicSearchConfig } from "../types/PlexMusicSearchConfig";
+import { PlexItemMissingError } from "../utils/PlexItemMissingError";
 
 export async function getById(config: PlexMusicSearchConfig, key: string) {
-    const metaData = await getMetadata(config.uri, config.token, key);
-    const [item] = metaData;
-    
-    if (!item) {
-        throw new Error(`No metadata found for key: ${key}`);
+    let metaData: Awaited<ReturnType<typeof getMetadata>>;
+    try {
+        metaData = await getMetadata(config.uri, config.token, key);
+    } catch (error) {
+        const status = (error as { response?: { status?: number } } | undefined)?.response?.status;
+        if (status === 404)
+            throw new PlexItemMissingError(key);
+
+        throw error;
     }
+
+    // Not PlexItemMissingError: Plex answers 404 for a missing item, so an empty answer is a failed lookup
+    const [item] = metaData;
+    if (!item)
+        throw new Error(`No metadata found for key: ${key}`);
 
     let src = '';
     try {
