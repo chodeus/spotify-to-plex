@@ -1,6 +1,6 @@
-import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { getStorageDir } from '@spotify-to-plex/shared-utils/utils/getStorageDir';
+import { writeJsonFileAtomic } from '@spotify-to-plex/shared-utils/utils/writeJsonFileAtomic';
 import { PublishedItem } from './types';
 
 /**
@@ -11,11 +11,7 @@ export function savePublishedItems(items: PublishedItem[]) {
     const publishedItemsPath = join(storageDir, 'mqtt_published_items.json');
 
     try {
-        writeFileSync(
-            publishedItemsPath,
-            JSON.stringify(items, null, 2),
-            'utf8'
-        );
+        writeJsonFileAtomic(publishedItemsPath, items, 2);
     } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
         console.error(`[MQTT] Failed to save published items: ${message}`);

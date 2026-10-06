@@ -4,7 +4,8 @@ import { SpotifyCredentials } from '@spotify-to-plex/shared-types/spotify/Spotif
 import { SpotifyUser } from '@spotify-to-plex/shared-types/spotify/SpotifyUser';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createRouter } from 'next-connect';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import { writeJsonFileAtomic } from '@spotify-to-plex/shared-utils/utils/writeJsonFileAtomic';
 import { join } from 'node:path';
 
 export type GetSpotifyUserResponse = SpotifyUser
@@ -47,7 +48,7 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
                 user.label = label;
 
             // Change the imtes
-            writeFileSync(credentialsPath, JSON.stringify(credentials, undefined, 4))
+            writeJsonFileAtomic(credentialsPath, credentials)
 
             return res.status(200).json(credentials.map(item => item.user))
         }
@@ -70,7 +71,7 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
 
             // Change the imtes
             users = users.filter(item => item.user.id !== id)
-            writeFileSync(credentialsPath, JSON.stringify(users, undefined, 4))
+            writeJsonFileAtomic(credentialsPath, users)
 
             return res.status(200).json(users)
 
