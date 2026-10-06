@@ -2,10 +2,10 @@
 import { getSlskdSettings } from "@spotify-to-plex/plex-config/functions/getSlskdSettings";
 import { getStorageDir } from "@spotify-to-plex/shared-utils/utils/getStorageDir";
 import { SlskdSyncLog } from "@spotify-to-plex/shared-types/slskd/SlskdSyncLog";
-import { SlskdTrackData } from "@spotify-to-plex/shared-types/slskd/SlskdTrackData";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { getNestedSyncLogsForType } from "../utils/getNestedSyncLogsForType";
+import { readMissingSlskdTracks } from "../utils/readMissingSlskdTracks";
 import { startSyncType } from "../utils/startSyncType";
 import { clearSyncTypeLogs } from "../utils/clearSyncTypeLogs";
 import { completeSyncType } from "../utils/completeSyncType";
@@ -46,30 +46,8 @@ export async function syncSlskd() {
             return;
         }
 
-        // Read missing tracks from JSON file
-        const tracksPath = join(getStorageDir(), 'missing_tracks_slskd.json');
-
-        if (!existsSync(tracksPath)) {
-            console.log('No missing tracks file found');
-            completeSyncType('slskd');
-
-            return;
-        }
-
-        // Parse the JSON file
-        const content = readFileSync(tracksPath, 'utf8');
-        let tracks: SlskdTrackData[] = [];
-
-        try {
-            tracks = JSON.parse(content);
-        } catch (_e) {
-            console.log('Error parsing missing tracks JSON file');
-            errorSyncType('slskd', 'Failed to parse missing_tracks_slskd.json');
-
-            return;
-        }
-
-        if (!Array.isArray(tracks) || tracks.length === 0) {
+        const tracks = readMissingSlskdTracks();
+        if (tracks.length === 0) {
             console.log('No tracks to sync');
             completeSyncType('slskd');
 
@@ -80,7 +58,7 @@ export async function syncSlskd() {
         const { putLog, logComplete } = getNestedSyncLogsForType('slskd');
         const syncLog = putLog('slskd-sync', 'SLSKD Sync');
 
-        // Read existing SLSKD logs
+        // Starts empty: a run with work to do replaces the previous run's log, one with none leaves it
         const slskdLogsPath = join(getStorageDir(), 'slskd_sync_log.json');
         const slskdLogs: Record<string, SlskdSyncLog> = {};
 

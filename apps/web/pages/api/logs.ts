@@ -19,6 +19,7 @@ export type GetLogsResponse = {
         missing_tracks_lidarr: string;
         missing_albums_lidarr: string;
         missing_tracks_slskd: string;
+        missing_albums_slskd: string;
     };
 }
 
@@ -136,6 +137,7 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
                         missing_tracks_lidarr: readMissingJsonFile('missing_tracks_lidarr.json'),
                         missing_albums_lidarr: readMissingJsonFile('missing_albums_lidarr.json'),
                         missing_tracks_slskd: readMissingJsonFile('missing_tracks_slskd.json'),
+                        missing_albums_slskd: readMissingJsonFile('missing_albums_slskd.json'),
                     }
                 };
 
