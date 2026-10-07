@@ -9,6 +9,9 @@ const CREDIT = /^(?:feat|feats|featuring|ft|with|w)\b|^[&+]/;
 // "From \"8 Mile\" Soundtrack" - provenance, not a version
 const PROVENANCE = /^from\b/;
 const YEAR = /\b(?:19|20)\d{2}\b/g;
+const YEAR_ONLY = /^\s*(?:19|20)\d{2}\s*$/;
+// Tags set a qualifier apart with an en or em dash or a colon as often as with " - "
+const QUALIFIER_TAIL = /\s[–—-]\s(.+)$|:\s(.+)$/;
 // "03 - Stronger" is a track number in a tag, not "Stronger" as a version
 const TRACK_NUMBER = /^\s*\d+\s*$/;
 // Acts get joined many ways - "A & B", "A x B", "A Vs. B" - and each side is a
@@ -89,17 +92,27 @@ function isCredit(segment: string, credits: string[]) {
  * The years in a title's name proper. "Bugatti 2013" is another song than "Bugatti",
  * but a year beside a noise word ("2009 Remaster") dates the master, not the song.
  */
-function titleYears(title: string, filterOutWords: string[]) {
+function titleYears(title: string, filterOutWords: string[]): string[] {
+    // A qualifier holding only a year dates no master, so "Bugatti (2013)" keeps its year
+    const yearOnly = (inner?: string) => (inner && YEAR_ONLY.test(inner) ? ` ${inner} ` : ' ');
     let name = title.toLowerCase()
-        .replace(BRACKETED, ' ')
-        .replace(TRAILING_DASH, ' ');
+        .replace(BRACKETED, (_whole, round?: string, square?: string, curly?: string) => yearOnly(round ?? square ?? curly))
+        .replace(QUALIFIER_TAIL, (_whole, dashed?: string, colon?: string) => yearOnly(dashed ?? colon));
 
-    for (const word of filterOutWords) {
+    // A blank word would match beside every year and switch the rule off
+    for (const word of filterOutWords.filter(filterWord => filterWord.trim())) {
         const escaped = escapeForRegex(word.toLowerCase());
         name = name.replace(new RegExp(String.raw`\b(?:19|20)\d{2}\s+${escaped}\b|\b${escaped}\s+(?:19|20)\d{2}\b`, 'g'), ' ');
     }
 
-    return (name.match(YEAR) ?? []).sort().join(' ');
+    return name.match(YEAR) ?? [];
+}
+
+/** Whether every year in each title's name appears somewhere in the other, qualifiers included. */
+function yearsAgree(a: string, b: string, filterOutWords: string[]) {
+    const appearsIn = (title: string) => (year: string) => (title.match(YEAR) ?? []).some(found => found === year);
+
+    return titleYears(a, filterOutWords).every(appearsIn(b)) && titleYears(b, filterOutWords).every(appearsIn(a));
 }
 
 /**
@@ -168,7 +181,7 @@ export function versionsMatch(a: string, b: string, filterOutWords: string[], cr
     const versionB = extractVersion(b, filterOutWords, credits);
 
     // Only one side bracketing the version is not a disagreement about it
-    const match = titleYears(a, filterOutWords) === titleYears(b, filterOutWords) && (versionA === versionB
+    const match = yearsAgree(a, b, filterOutWords) && (versionA === versionB
         || (!versionB && titleStatesVersion(b, versionA))
         || (!versionA && titleStatesVersion(a, versionB)));
 

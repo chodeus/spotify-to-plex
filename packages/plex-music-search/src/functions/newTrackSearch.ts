@@ -22,8 +22,8 @@ export async function newTrackSearch(approaches: PlexMusicSearchApproach[], sear
 
     const allQueries: SearchQuery[] = [];
     let finalResult: PlexTrack[] = [];
-    // An empty result only means "not in Plex" if Plex answered at least one query
-    let answered = false;
+    // A query Plex did not answer might have found the track, so an empty result then says nothing
+    let errored = false;
 
     try {
         // NEW: Loop through approaches first, then artists
@@ -38,27 +38,28 @@ export async function newTrackSearch(approaches: PlexMusicSearchApproach[], sear
                     continue;
 
                 const searchResult = await tryApproachWithArtist(approach, { id, artist, title, album, duration_ms, artists, originalTitle: title }, analyze);
-                if (searchResult) {
-                    answered = true;
-                    allQueries.push(...searchResult.queries);
+                if (!searchResult) {
+                    errored = true;
+                    continue;
+                }
 
-                    if (searchResult.result.length == 0)
-                        continue;
+                allQueries.push(...searchResult.queries);
 
-                    finalResult = searchResult.result;
+                if (searchResult.result.length == 0)
+                    continue;
 
-                    if (!analyze) {
-                        return {
-                            id,
-                            artist: artists[0] || '',
-                            title,
-                            album: album || "",
-                            duration_ms,
-                            queries: allQueries,
-                            result: finalResult
-                        };
-                    }
+                finalResult = searchResult.result;
 
+                if (!analyze) {
+                    return {
+                        id,
+                        artist: artists[0] || '',
+                        title,
+                        album: album || "",
+                        duration_ms,
+                        queries: allQueries,
+                        result: finalResult
+                    };
                 }
             }
         }
@@ -71,7 +72,7 @@ export async function newTrackSearch(approaches: PlexMusicSearchApproach[], sear
             duration_ms,
             queries: allQueries,
             result: finalResult,
-            ...(answered ? {} : { failed: true })
+            ...(errored && finalResult.length == 0 ? { failed: true } : {})
         };
 
     } catch (_e) {

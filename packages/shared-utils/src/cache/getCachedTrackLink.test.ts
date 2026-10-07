@@ -93,6 +93,15 @@ describe('getCachedTrackLinks save', () => {
         ]);
     });
 
+    it('stamps a re-check without restoring a plex_id written since the read', () => {
+        const links = getCachedTrackLinks([{ id: 'a', title: 'Song', artists: ['Artist'] }], 'plex');
+        getCachedTrackLinks([{ id: 'a', title: 'Song', artists: ['Artist'] }], 'plex').add([result('a', '/library/metadata/7')], 'plex');
+
+        links.markChecked(['a']);
+
+        expect(stored()[0]).toMatchObject({ spotify_id: 'a', plex_id: ['/library/metadata/7'], plex_checked_at: expect.any(Number) });
+    });
+
     it('never replaces a manual pick made since the read', () => {
         const links = getCachedTrackLinks([{ id: 'a', title: 'Song', artists: ['Artist'] }], 'plex');
         setManualTrackLink('a', '/library/metadata/9');

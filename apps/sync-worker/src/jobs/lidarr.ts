@@ -6,7 +6,7 @@ import { LidarrSyncLog } from "@spotify-to-plex/shared-types/lidarr/LidarrSyncLo
 import axios from "axios";
 import { existsSync, readFileSync } from "node:fs";
 import { writeJsonFileAtomic } from "@spotify-to-plex/shared-utils/utils/writeJsonFileAtomic";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { getNestedSyncLogsForType } from "../utils/getNestedSyncLogsForType";
 import { startSyncType } from "../utils/startSyncType";
 import { clearSyncTypeLogs } from "../utils/clearSyncTypeLogs";
@@ -77,34 +77,35 @@ export async function syncLidarr() {
         const albumsPath = join(getStorageDir(), 'missing_albums_lidarr.json');
         const tracksPath = join(getStorageDir(), 'missing_tracks_lidarr.json');
 
-        const albumsFromAlbums: LidarrAlbumData[] = [];
-        const albumsFromTracks: LidarrAlbumData[] = [];
+        // An unreadable list is lost work: the run still sends the other list, then reports an error
+        const unreadable: string[] = [];
+        const readAlbumList = (path: string): LidarrAlbumData[] => {
+            if (!existsSync(path))
+                return [];
 
-        // Read albums file
-        if (existsSync(albumsPath)) {
             try {
-                const content = readFileSync(albumsPath, 'utf8');
-                const parsed = JSON.parse(content);
-                albumsFromAlbums.push(...parsed);
-            } catch (e) {
-                console.error('Error reading missing_albums_lidarr.json:', e);
-            }
-        }
+                const parsed: unknown = JSON.parse(readFileSync(path, 'utf8'));
+                if (!Array.isArray(parsed))
+                    throw new TypeError('not a list');
 
-        // Read tracks file
-        if (existsSync(tracksPath)) {
-            try {
-                const content = readFileSync(tracksPath, 'utf8');
-                const parsed = JSON.parse(content);
-                albumsFromTracks.push(...parsed);
+                return parsed as LidarrAlbumData[];
             } catch (e) {
-                console.error('Error reading missing_tracks_lidarr.json:', e);
+                console.error(`Error reading ${basename(path)}:`, e);
+                unreadable.push(basename(path));
+
+                return [];
             }
-        }
+        };
+        const settle = () => {
+            if (unreadable.length > 0)
+                errorSyncType('lidarr', `Could not read ${unreadable.join(' and ')}`);
+            else
+                completeSyncType('lidarr');
+        };
 
         // Merge both arrays and deduplicate
         const albumMap = new Map<string, LidarrAlbumData>();
-        [...albumsFromAlbums, ...albumsFromTracks].forEach(album => {
+        [...readAlbumList(albumsPath), ...readAlbumList(tracksPath)].forEach(album => {
             const key = `${album.artist_name}|${album.album_name}`;
             albumMap.set(key, album);
         });
@@ -112,7 +113,7 @@ export async function syncLidarr() {
         const albums = Array.from(albumMap.values());
 
         if (albums.length === 0) {
-            completeSyncType('lidarr');
+            settle();
 
             return;
         }
@@ -264,8 +265,7 @@ export async function syncLidarr() {
 
         console.log(`Lidarr sync complete: ${successCount} success, ${notFoundCount} not found, ${errorCount} errors`);
 
-        // Mark sync as complete
-        completeSyncType('lidarr');
+        settle();
     } catch (e: unknown) {
         const message = e instanceof Error ? e.message : 'Unknown error';
         errorSyncType('lidarr', message);

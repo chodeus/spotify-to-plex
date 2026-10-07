@@ -113,14 +113,16 @@ export async function getCachedPlexTracks(plexSearchConfig: PlexMusicSearchConfi
             title: searchItem.title,
             artist: searchItem.artists?.[0] || 'Unknown',
             album: searchItem.album || "",
-            result: tracks
+            result: tracks,
+            matched_by: trackLink.plex_matched_by
         });
 
         // A person's pick is never second-guessed
         if (trackLink.manual)
             continue;
 
-        if (trackLink.plex_checked_at === undefined) {
+        // A stamp ahead of this clock (skew, a restored backup) would never come due
+        if (trackLink.plex_checked_at === undefined || trackLink.plex_checked_at > now) {
             trackLink.plex_checked_at = spreadStamp(trackLink.spotify_id, now);
             changed = true;
         }

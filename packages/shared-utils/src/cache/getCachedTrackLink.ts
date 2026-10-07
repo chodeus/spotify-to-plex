@@ -18,6 +18,25 @@ type TidalMusicSearchTrack = {
     artists: string[];
 }
 
+// Only the fields this run changed: a re-check stamp must not write back a plex_id replaced since the read
+function withChanges(stored: TrackLink, link: TrackLink, asRead: string | undefined): TrackLink {
+    const read: Record<string, unknown> = asRead ? JSON.parse(asRead) : {}
+    const changes: Record<string, unknown> = link
+    const merged: Record<string, unknown> = { ...stored }
+
+    for (const key of new Set([...Object.keys(read), ...Object.keys(changes)])) {
+        if (JSON.stringify(changes[key]) === JSON.stringify(read[key]))
+            continue;
+
+        if (changes[key] === undefined)
+            Reflect.deleteProperty(merged, key)
+        else
+            merged[key] = changes[key]
+    }
+
+    return merged as TrackLink
+}
+
 export function getCachedTrackLinks(
     searchItems: (PlexMusicSearchTrack | TidalMusicSearchTrack)[],
     type: 'plex' | 'tidal' | 'slskd'
@@ -78,10 +97,10 @@ export function getCachedTrackLinks(
             // A manual pick made since this run's read stands; one this run read and changed itself does not
             const pickedSince = stored?.manual && !link.manual && JSON.stringify(stored) !== saved.get(link.spotify_id)
 
-            if (position === undefined)
+            if (position === undefined || !stored)
                 current.push(link)
             else if (!pickedSince)
-                current[position] = link
+                current[position] = withChanges(stored, link, saved.get(link.spotify_id))
 
             saved.set(link.spotify_id, JSON.stringify(link))
         }

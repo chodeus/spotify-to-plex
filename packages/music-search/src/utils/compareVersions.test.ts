@@ -42,6 +42,14 @@ describe('versionsMatch', () => {
             expect(match('Feel for You VIP', 'Feel for You - VIP', ['Bladerunner'])).toBe(true);
         });
 
+        // A year in one title's qualifier is not a year the other adds to the name
+        it('reads a year set apart by an en or em dash, a colon, or no separator at all', () => {
+            expect(match('Song – Live 1986', 'Song - Live 1986')).toBe(true);
+            expect(match('Song — Live 1986', 'Song - Live 1986')).toBe(true);
+            expect(match('Song: Live 1986', 'Song - Live 1986')).toBe(true);
+            expect(match('Here Comes the Sun 2019 Mix', 'Here Comes the Sun - 2019 Mix')).toBe(true);
+        });
+
         it('ignores a year that dates a remaster rather than the song', () => {
             expect(match('Song - 2011 Remaster', 'Song')).toBe(true);
             expect(match('Song (2011 Remaster)', 'Song - 2011 Remaster')).toBe(true);
@@ -89,6 +97,17 @@ describe('versionsMatch', () => {
         });
 
         // "Future - Bugatti 2013" cached for Ace Hood's "Bugatti": the year is part of the name
+        it('keeps the year rule when a filter word is blank', () => {
+            expect(versionsMatch('Bugatti 2013', 'Bugatti', [...FILTER_OUT_WORDS, '']).match).toBe(false);
+        });
+
+        it('rejects a year-only qualifier the other title lacks', () => {
+            expect(match('Bugatti (2013)', 'Bugatti')).toBe(false);
+            expect(match('Bugatti - 2013', 'Bugatti')).toBe(false);
+            expect(match('Bugatti (2013)', 'Bugatti (2014)')).toBe(false);
+            expect(match('Bugatti (2013)', 'Bugatti - 2013')).toBe(true);
+        });
+
         it('rejects a title that adds a year to the name', () => {
             expect(match('Bugatti 2013', 'Bugatti')).toBe(false);
             expect(match('Bugatti', 'Bugatti 2013')).toBe(false);

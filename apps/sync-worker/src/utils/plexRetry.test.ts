@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { describeHttpError } from '@spotify-to-plex/http-client/describeHttpError';
+import { retryAfterMs } from '@spotify-to-plex/http-client/retryAfterMs';
 import { handleOneRetryAttempt } from '@spotify-to-plex/plex-helpers/retry';
 
 const TOKEN = 'fake-plex-token';
@@ -42,6 +43,35 @@ describe('handleOneRetryAttempt', () => {
 
         expect(log).toHaveBeenCalled();
         expect(JSON.stringify(log.mock.calls)).not.toContain(TOKEN);
+    });
+});
+
+describe('retryAfterMs', () => {
+    const limited = (status: number, retryAfter?: string) => Object.assign(axiosError(status), { response: { status, headers: retryAfter === undefined ? {} : { 'retry-after': retryAfter } } });
+
+    it('reads delay-seconds and an HTTP date from a 429 or 5xx', () => {
+        expect(retryAfterMs(limited(429, '3'))).toBe(3000);
+        expect(retryAfterMs(limited(503, new Date(Date.now() + 10_000).toUTCString()))).toBeGreaterThan(8000);
+    });
+
+    it('names no wait without the header, for a blank one, or for a 4xx that is not a 429', () => {
+        expect(retryAfterMs(limited(503))).toBeUndefined();
+        expect(retryAfterMs(limited(503, ' '))).toBeUndefined();
+        expect(retryAfterMs(limited(404, '3'))).toBeUndefined();
+        expect(retryAfterMs(axiosError())).toBeUndefined();
+    });
+
+    it('caps a wait that would stall the run', () => {
+        expect(retryAfterMs(limited(429, '86400'))).toBe(60_000);
+    });
+
+    // A fixed 60s retryDelay would time the test out; Plex's 0s Retry-After must win
+    it('waits for Retry-After instead of the fixed delay', async () => {
+        vi.spyOn(console, 'error').mockImplementation(() => { /* expected */ });
+        const request = vi.fn().mockRejectedValueOnce(limited(429, '0'))
+            .mockResolvedValueOnce({ data: 'ok' });
+
+        await expect(handleOneRetryAttempt(request, { retryDelay: 60_000 })).resolves.toEqual({ data: 'ok' });
     });
 });
 

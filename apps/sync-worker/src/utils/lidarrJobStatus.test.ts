@@ -31,6 +31,24 @@ describe('syncLidarr status', () => {
         expect(syncStatus().status).toBe('success');
     });
 
+    it('errors, not completes, when a missing list cannot be read', async () => {
+        settings();
+        writeFileSync(join(dir, 'missing_albums_lidarr.json'), '{ not json');
+
+        await syncLidarr();
+
+        expect(syncStatus()).toMatchObject({ status: 'error', error: 'Could not read missing_albums_lidarr.json' });
+    });
+
+    it('errors when a missing list is not a list', async () => {
+        settings();
+        writeFileSync(join(dir, 'missing_tracks_lidarr.json'), '{}');
+
+        await syncLidarr();
+
+        expect(syncStatus()).toMatchObject({ status: 'error', error: 'Could not read missing_tracks_lidarr.json' });
+    });
+
     it('errors when no Lidarr URL is set', async () => {
         settings('');
 

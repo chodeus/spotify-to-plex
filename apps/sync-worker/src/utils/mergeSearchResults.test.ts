@@ -34,10 +34,32 @@ describe('mergeSearchResults', () => {
         expect(confirmed).toEqual([]);
     });
 
+    it('keeps and confirms an ISRC link that a re-check only found a title match for', () => {
+        const { merged, found, confirmed } = mergeSearchResults([response('a', ['isrc'], { matched_by: 'isrc' })], [response('a', ['title'])], [{ id: 'a' }], order);
+
+        expect(idsOf(merged)).toEqual(['a:isrc']);
+        expect(merged[0]?.matched_by).toBe('isrc');
+        expect(found).toEqual([]);
+        expect(confirmed).toEqual(['a']);
+    });
+
+    it('replaces an ISRC link with a newer ISRC match', () => {
+        const { merged, found } = mergeSearchResults([response('a', ['old'], { matched_by: 'isrc' })], [response('a', ['new'], { matched_by: 'isrc' })], [{ id: 'a' }], order);
+
+        expect(idsOf(merged)).toEqual(['a:new']);
+        expect(idsOf(found)).toEqual(['a:new']);
+    });
+
     it('puts every track in Spotify\'s order, wherever its link came from', () => {
         const { merged } = mergeSearchResults([response('c', ['3']), response('a', ['1'])], [response('b', ['2'])], [], order);
 
         expect(merged.map(item => item.id)).toEqual(['a', 'b', 'c']);
+    });
+
+    it('keeps a track Spotify lists twice in both of its places', () => {
+        const { merged } = mergeSearchResults([response('a', ['1']), response('a', ['1'])], [response('b', ['2'])], [], [{ id: 'a' }, { id: 'b' }, { id: 'a' }]);
+
+        expect(merged.map(item => item.id)).toEqual(['a', 'b', 'a']);
     });
 
     it('keeps an uncached track the search found nothing for, so it is reported missing', () => {

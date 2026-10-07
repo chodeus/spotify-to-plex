@@ -9,7 +9,7 @@ export type SearchResponse = {
     queries?: SearchQuery[]
     result: PlexTrack[];
     matched_by?: 'isrc';
-    // No query reached Plex, so an empty result says nothing about the library
+    // A Plex request failed and nothing was found, so the empty result says nothing about the library
     failed?: boolean;
 };
 

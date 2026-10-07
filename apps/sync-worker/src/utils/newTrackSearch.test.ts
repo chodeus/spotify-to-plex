@@ -32,6 +32,23 @@ describe('newTrackSearch', () => {
         expect(result?.failed).toBe(true);
     });
 
+    // One approach answering does not vouch for the queries that failed
+    it('marks a track as failed when some queries failed and none found it', async () => {
+        searchMock.mockRejectedValueOnce('Plex answered 503').mockResolvedValue([]);
+
+        const [result] = await search(config([{ id: 'normal' }, { id: 'filtered', filtered: true }]), [track]);
+
+        expect(result?.failed).toBe(true);
+    });
+
+    // Nothing was asked of Plex, so nothing failed: the track is simply not found
+    it('does not mark a track with no artist to search by as failed', async () => {
+        const [result] = await search(config([{ id: 'normal' }]), [{ ...track, artists: [''] }]);
+
+        expect(searchMock).not.toHaveBeenCalled();
+        expect(result?.failed).toBeUndefined();
+    });
+
     it('does not mark a track Plex answered with nothing as failed', async () => {
         searchMock.mockResolvedValue([]);
 
