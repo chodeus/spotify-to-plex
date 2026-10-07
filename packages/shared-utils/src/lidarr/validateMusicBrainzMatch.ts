@@ -1,15 +1,14 @@
+import { albumBaseTitle } from '../music/albumBaseTitle';
 import { compareTitles } from '../music/compareTitles';
-import { removeFeaturing } from '../music/removeFeaturing';
-import { createSearchString } from '../music/createSearchString';
 
-export function validateMusicBrainzMatch(artistName: string, albumName: string, mbArtistName: string, mbAlbumName: string, threshold: number = 0.8) {
-    const cleanAlbumName = removeFeaturing(createSearchString(albumName));
-    const cleanMbAlbumName = removeFeaturing(createSearchString(mbAlbumName));
+/**
+ * Whether a MusicBrainz release group is the album. Artist and album are judged on
+ * their own: one long title in a joined string carried a wrong artist or release group past.
+ */
+export function validateMusicBrainzMatch(artistName: string, albumName: string, mbArtistNames: string[], mbAlbumName: string, threshold: number = 0.8) {
+    // Any credited name will do: collaborators come in any order, and a renamed act is credited under either name
+    const artistMatches = mbArtistNames.some(name => compareTitles(artistName, name).similarity >= threshold);
+    const { similarity } = compareTitles(albumBaseTitle(albumName), albumBaseTitle(mbAlbumName));
 
-    const expected = `${createSearchString(artistName)} ${cleanAlbumName}`;
-    const received = `${createSearchString(mbArtistName)} ${cleanMbAlbumName}`;
-
-    const { similarity } = compareTitles(expected, received);
-
-    return similarity >= threshold;
+    return artistMatches && similarity >= threshold;
 }
