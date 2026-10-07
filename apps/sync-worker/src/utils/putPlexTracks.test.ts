@@ -83,7 +83,7 @@ describe('putPlexPlaylist', () => {
         expect(removeMock).not.toHaveBeenCalled();
     });
 
-    // Recorded after the adds, a Plex that went away mid-add left a playlist the next sync created again
+    // A Plex that goes away mid-add must not leave an unrecorded playlist for the next sync to create again
     it('records a new playlist before adding its tracks', async () => {
         addMock.mockRejectedValue(new Error('connect ECONNREFUSED'));
 
