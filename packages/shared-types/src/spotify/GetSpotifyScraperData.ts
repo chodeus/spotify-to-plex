@@ -8,7 +8,7 @@ export type GetSpotifyScraperData = {
     images: SpotifyImage[];
     name: string;
     owner: SpotifyOwner;
-    track_count: number;
+    track_count: number | null;
     tracks: SpotifyScraperTrack[];
     truncated?: boolean;
     type: string;
