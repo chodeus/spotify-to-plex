@@ -1,11 +1,2 @@
-
-
-export function removeFeaturing(result = "") {
-    if (result.indexOf('feat') > -1)
-        result = result.slice(0, Math.max(0, result.indexOf('feat')));
-
-    if (result.indexOf('(') > -1)
-        result = result.slice(0, Math.max(0, result.indexOf('(')));
-
-    return result;
-}
+// Owned by shared-utils, so the Plex search and the MusicBrainz check cut credits the same way
+export { removeFeaturing } from "@spotify-to-plex/shared-utils/music/removeFeaturing";
