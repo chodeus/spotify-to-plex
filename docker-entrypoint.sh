@@ -24,8 +24,9 @@ fi
 mkdir -p "$APP_HOME"
 chown "$PUID:$PGID" "$APP_HOME"
 
-# Only what is wrong: an already-correct config tree costs a stat pass, not a rewrite
-find "$CONFIG_DIR" \( ! -user "$PUID" -o ! -group "$PGID" \) -exec chown -h "$PUID:$PGID" {} +
+# Only what is wrong: an already-correct config tree costs a stat pass, not a rewrite.
+# A failed chown alone is not fatal (a read-only or foreign-uid share); the write probe decides
+find "$CONFIG_DIR" \( ! -user "$PUID" -o ! -group "$PGID" \) -exec chown -h "$PUID:$PGID" {} + || true
 
 probe="$CONFIG_DIR/.write-probe.$$"
 if ! runuser -u app -- touch "$probe" 2>/dev/null; then
