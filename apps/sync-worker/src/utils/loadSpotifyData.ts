@@ -54,7 +54,7 @@ export async function loadSpotifyData(uri: string, user?: string, simplified: bo
 
     try {
         return await getSpotifyData(api, uri, simplified, true);
-    } catch {
+    } catch (error) {
 
         if (accessToken) {
             console.log(`User token failed for ${uri}, retrying with client credentials...`);
@@ -66,7 +66,7 @@ export async function loadSpotifyData(uri: string, user?: string, simplified: bo
             return getSpotifyData(clientApi, uri, simplified);
         }
 
-        // Re-throw the original error if we can't/shouldn't fallback
-        throw new Error(`Failed to load Spotify data`);
+        // The scraper's own message ("truncated playlist", "artist link", ...) is what the playlist log needs
+        throw error;
     }
 }
