@@ -29,6 +29,7 @@ export default function PlaylistItemSettings(props: Props) {
     // first item (sync) or blank (mixed labels), and sending that would overwrite the rest
     const [labelEdited, setLabelEdited] = useState(false)
     const [syncEdited, setSyncEdited] = useState(false)
+    const [daysEdited, setDaysEdited] = useState(false)
     const onEditLabelChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
         setLabel(e.target.value)
         setLabelEdited(true)
@@ -45,7 +46,7 @@ export default function PlaylistItemSettings(props: Props) {
     const onDaysChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
         if (e.target.value) {
             setDays(e.target.value)
-            setSyncEdited(true)
+            setDaysEdited(true)
         }
     }, [])
 
@@ -62,7 +63,8 @@ export default function PlaylistItemSettings(props: Props) {
 
             await axios.put(`/api/saved-items/`, {
                 ids: items.map(item => item.id),
-                ...(syncEdited ? { sync: autoSync, sync_interval: days } : {}),
+                ...(syncEdited ? { sync: autoSync } : {}),
+                ...(daysEdited ? { sync_interval: days } : {}),
                 ...(labelEdited ? { label } : {}),
             })
 
@@ -73,7 +75,7 @@ export default function PlaylistItemSettings(props: Props) {
             setLoading(false);
         })
 
-    }, [autoSync, days, items, label, labelEdited, syncEdited, onClose])
+    }, [autoSync, days, items, label, labelEdited, syncEdited, daysEdited, onClose])
 
     //////////////////////////////
     // Close dialog
