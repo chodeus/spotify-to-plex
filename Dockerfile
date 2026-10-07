@@ -25,7 +25,7 @@ RUN NEXT_DOCKER=1 pnpm --filter @spotify-to-plex/web run build
 RUN set -e; \
     rm -rf node_modules apps/*/node_modules packages/*/node_modules; \
     pnpm install --frozen-lockfile --prod --offline --filter "@spotify-to-plex/sync-worker..."; \
-    # Next's standalone output writes some files group-writable; fix it here, where the layer is thrown away
+    # A context checked out under umask 002 is group-writable; normalise here, where the layer is thrown away
     chmod -R go-w /build
 
 # Node and npm come from the official image instead of piping NodeSource's setup script into a shell
@@ -71,12 +71,12 @@ RUN groupadd -o -g 100 app \
 
 RUN mkdir -p /app/config /var/log/supervisor
 
-COPY apps/spotify-scraper/requirements.txt /app/apps/spotify-scraper/
-WORKDIR /app/apps/spotify-scraper
-RUN pip install --no-cache-dir -r requirements.txt \
+RUN --mount=type=bind,source=apps/spotify-scraper/requirements.txt,target=/tmp/requirements.txt \
+    pip install --no-cache-dir -r /tmp/requirements.txt \
     && python3 -c "from spotify_scraper import SpotifyClient; print('SpotifyScraper installed successfully')"
 
-COPY apps/spotify-scraper/ /app/apps/spotify-scraper/
+# From the builder, whose copy has normalised modes
+COPY --from=node-builder /build/apps/spotify-scraper/ /app/apps/spotify-scraper/
 # Compiled here so the scraper never writes __pycache__ into a directory it does not own
 RUN python3 -m compileall -q /app/apps/spotify-scraper
 
