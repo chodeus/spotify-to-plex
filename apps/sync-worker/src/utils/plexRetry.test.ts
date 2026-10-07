@@ -54,9 +54,11 @@ describe('retryAfterMs', () => {
         expect(retryAfterMs(limited(503, new Date(Date.now() + 10_000).toUTCString()))).toBeGreaterThan(8000);
     });
 
-    it('names no wait without the header, for a blank one, or for a 4xx that is not a 429', () => {
+    it('names no wait without the header, for a blank one, a past date or a negative delay, or for a 4xx that is not a 429', () => {
         expect(retryAfterMs(limited(503))).toBeUndefined();
         expect(retryAfterMs(limited(503, ' '))).toBeUndefined();
+        expect(retryAfterMs(limited(503, new Date(Date.now() - 60_000).toUTCString()))).toBeUndefined();
+        expect(retryAfterMs(limited(429, '-5'))).toBeUndefined();
         expect(retryAfterMs(limited(404, '3'))).toBeUndefined();
         expect(retryAfterMs(axiosError())).toBeUndefined();
     });

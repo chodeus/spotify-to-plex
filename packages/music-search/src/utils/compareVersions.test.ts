@@ -108,6 +108,12 @@ describe('versionsMatch', () => {
             expect(match('Bugatti (2013)', 'Bugatti - 2013')).toBe(true);
         });
 
+        // The other title's year dates its master, so it cannot vouch for a year in the name
+        it('rejects a year in the name that the other title only has beside a noise word', () => {
+            expect(match('Song 2013', 'Song - 2013 Remaster')).toBe(false);
+            expect(match('Bugatti 2013', 'Bugatti (2013 Remaster)')).toBe(false);
+        });
+
         it('rejects a title that adds a year to the name', () => {
             expect(match('Bugatti 2013', 'Bugatti')).toBe(false);
             expect(match('Bugatti', 'Bugatti 2013')).toBe(false);

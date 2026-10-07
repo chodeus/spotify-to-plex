@@ -88,29 +88,33 @@ function isCredit(segment: string, credits: string[]) {
     return credited.size > 0 && parts.every(part => credited.has(part));
 }
 
-/**
- * The years in a title's name proper. "Bugatti 2013" is another song than "Bugatti",
- * but a year beside a noise word ("2009 Remaster") dates the master, not the song.
- */
-function titleYears(title: string, filterOutWords: string[]): string[] {
-    // A qualifier holding only a year dates no master, so "Bugatti (2013)" keeps its year
-    const yearOnly = (inner?: string) => (inner && YEAR_ONLY.test(inner) ? ` ${inner} ` : ' ');
-    let name = title.toLowerCase()
-        .replace(BRACKETED, (_whole, round?: string, square?: string, curly?: string) => yearOnly(round ?? square ?? curly))
-        .replace(QUALIFIER_TAIL, (_whole, dashed?: string, colon?: string) => yearOnly(dashed ?? colon));
+/** The years in a text, less any beside a noise word: "2009 Remaster" dates the master, not the song. */
+function songYears(text: string, filterOutWords: string[]): string[] {
+    let result = text.toLowerCase();
 
     // A blank word would match beside every year and switch the rule off
     for (const word of filterOutWords.filter(filterWord => filterWord.trim())) {
         const escaped = escapeForRegex(word.toLowerCase());
-        name = name.replace(new RegExp(String.raw`\b(?:19|20)\d{2}\s+${escaped}\b|\b${escaped}\s+(?:19|20)\d{2}\b`, 'g'), ' ');
+        result = result.replace(new RegExp(String.raw`\b(?:19|20)\d{2}\s+${escaped}\b|\b${escaped}\s+(?:19|20)\d{2}\b`, 'g'), ' ');
     }
 
-    return name.match(YEAR) ?? [];
+    return result.match(YEAR) ?? [];
+}
+
+/** The years in a title's name proper. "Bugatti 2013" is another song than "Bugatti". */
+function titleYears(title: string, filterOutWords: string[]) {
+    // A qualifier holding only a year dates no master, so "Bugatti (2013)" keeps its year
+    const yearOnly = (inner?: string) => (inner && YEAR_ONLY.test(inner) ? ` ${inner} ` : ' ');
+    const name = title
+        .replace(BRACKETED, (_whole, round?: string, square?: string, curly?: string) => yearOnly(round ?? square ?? curly))
+        .replace(QUALIFIER_TAIL, (_whole, dashed?: string, colon?: string) => yearOnly(dashed ?? colon));
+
+    return songYears(name, filterOutWords);
 }
 
 /** Whether every year in each title's name appears somewhere in the other, qualifiers included. */
 function yearsAgree(a: string, b: string, filterOutWords: string[]) {
-    const appearsIn = (title: string) => (year: string) => (title.match(YEAR) ?? []).some(found => found === year);
+    const appearsIn = (title: string) => (year: string) => songYears(title, filterOutWords).includes(year);
 
     return titleYears(a, filterOutWords).every(appearsIn(b)) && titleYears(b, filterOutWords).every(appearsIn(a));
 }

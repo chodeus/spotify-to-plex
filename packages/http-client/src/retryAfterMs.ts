@@ -16,8 +16,9 @@ export function retryAfterMs(error: unknown) {
     // Either delay-seconds or an HTTP date
     const seconds = Number(header);
     const wait = Number.isFinite(seconds) ? seconds * 1000 : Date.parse(String(header)) - Date.now();
-    if (!Number.isFinite(wait))
+    // A date already past or a negative delay names no wait, not a zero one
+    if (!Number.isFinite(wait) || wait < 0)
         return;
 
-    return Math.min(Math.max(wait, 0), MAX_WAIT_MS);
+    return Math.min(wait, MAX_WAIT_MS);
 }
