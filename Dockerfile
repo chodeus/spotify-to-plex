@@ -77,7 +77,9 @@ RUN mkdir -p /app/config /var/log/supervisor
 RUN --mount=type=bind,source=apps/spotify-scraper/requirements.txt,target=/tmp/requirements.txt \
     python3 -m venv /opt/scraper-venv \
     && /opt/scraper-venv/bin/pip install --no-cache-dir -r /tmp/requirements.txt \
-    && /opt/scraper-venv/bin/python -c "from spotify_scraper import SpotifyClient; print('SpotifyScraper installed successfully')"
+    && /opt/scraper-venv/bin/python -c "from spotify_scraper import SpotifyClient; print('SpotifyScraper installed successfully')" \
+    # Nothing installs at runtime, so the venv's own pip is only attack surface
+    && /opt/scraper-venv/bin/pip uninstall -y -q pip
 
 # From the builder, whose copy has normalised modes
 COPY --from=node-builder /build/apps/spotify-scraper/ /app/apps/spotify-scraper/
