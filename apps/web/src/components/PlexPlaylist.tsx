@@ -1,6 +1,6 @@
 /* eslint-disable max-lines */
 import { errorBoundary } from "@/helpers/errors/errorBoundary";
-import { GetPlexPlaylistIdResponse } from "@/pages/api/playlists/[id]";
+import { GetPlexPlaylistIdResponse, SavePlexPlaylistResponse } from "@/pages/api/playlists/[id]";
 import { GetSpotifyAlbum } from "@spotify-to-plex/shared-types/spotify/GetSpotifyAlbum";
 import { GetSpotifyPlaylist } from "@spotify-to-plex/shared-types/spotify/GetSpotifyPlaylist";
 import { Track } from "@spotify-to-plex/shared-types/spotify/Track";
@@ -321,6 +321,9 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
             items: []
         }
 
+        // To name a track Plex refuses, by the key it was sent under
+        const titles = new Map<string, string>()
+
         // Spotify's order: `tracks` holds the cached matches first, then each batch as it loaded
         for (const track of playlist.tracks) {
             const item = findMatchFor(track)
@@ -330,19 +333,29 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
             const trackSelectIdx = trackSelections.find(selectionItem => selectionItem.trackId === track.id)
             const song = item.result?.[trackSelectIdx ? trackSelectIdx.idx : 0];
 
-            if (song)
+            if (song) {
                 data.items.push({ key: song.id, source: song.source })
+                titles.set(song.id, track.title)
+            }
         }
 
         setSaving(true)
         errorBoundary(async () => {
-            if (plexPlaylist) {
-                await axios.put<GetPlexPlaylistIdResponse>(`/api/playlists/${playlist.id}`, data)
-                enqueueSnackbar("Playlist updated")
-            } else {
-                const result = await axios.post<GetPlexPlaylistIdResponse>('/api/playlists', data)
+            const result = plexPlaylist
+                ? await axios.put<SavePlexPlaylistResponse>(`/api/playlists/${playlist.id}`, data)
+                : await axios.post<SavePlexPlaylistResponse>('/api/playlists', data)
+            if (!plexPlaylist)
                 setPlexPlaylist(result.data);
-                enqueueSnackbar("Playlist created")
+
+            const saved = plexPlaylist ? "Playlist updated" : "Playlist created"
+            // The rest of the playlist saved, so this is a warning and not an error
+            const { refused } = result.data
+            if (refused.length > 0) {
+                const named = refused.slice(0, 3).map(key => titles.get(key) ?? key)
+                    .join(', ')
+                enqueueSnackbar(`${saved}, but Plex refused ${refused.length} track(s): ${named}${refused.length > 3 ? ', …' : ''}`, { variant: "warning" })
+            } else {
+                enqueueSnackbar(saved)
             }
 
             setSaving(false)
