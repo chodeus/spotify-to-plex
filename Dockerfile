@@ -112,7 +112,7 @@ VOLUME ["/app/config"]
 
 # Shell form, so a PORT set at run time is the one checked
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -fs "http://localhost:${PORT}/" > /dev/null || exit 1
+    CMD curl -fs "http://localhost:${PORT:-9030}/" > /dev/null || exit 1
 
 ENTRYPOINT ["/docker-entrypoint.sh"]
 

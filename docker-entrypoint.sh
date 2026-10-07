@@ -5,6 +5,8 @@ CONFIG_DIR=/app/config
 APP_HOME=/tmp/app-home
 PUID="${PUID:-99}"
 PGID="${PGID:-100}"
+# supervisord passes it to the web app; an empty value would fall back to Next's 3000
+export PORT="${PORT:-9030}"
 
 echo "🎵 Spotify-to-Plex Starting..."
 echo "=============================="
@@ -35,7 +37,7 @@ if ! runuser -u app -- touch "$probe" 2>/dev/null; then
 fi
 rm -f "$probe"
 
-echo "✅ Web UI Port: ${PORT:-9030}"
+echo "✅ Web UI Port: $PORT"
 echo "✅ Config Directory: $CONFIG_DIR (running as $PUID:$PGID)"
 if [ -n "${SPOTIFY_API_CLIENT_ID:-}" ]; then
     echo "✅ Spotify API configured"
