@@ -67,4 +67,15 @@ describe('monitorAndSearchAlbum', () => {
 
         expect(searched()).toBe(true);
     });
+
+    // A Lidarr that was down used to read as an album it does not have
+    it('reports an unreachable Lidarr as the error it is', async () => {
+        getMock.mockRejectedValue(new Error('connect ECONNREFUSED 10.0.0.5:8686'));
+
+        const outcome = await monitorAndSearchAlbum('rg-1', 'http://lidarr:8686', 'key');
+
+        expect(outcome.success).toBe(false);
+        expect(outcome.message).toContain('ECONNREFUSED');
+        expect(outcome.message).not.toContain('not found');
+    });
 });

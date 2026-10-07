@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { LIDARR_TIMEOUT_MS } from './utils/lidarrTimeout';
 import { withRetry } from './utils/withRetry';
 import { getLidarrAlbum } from './getLidarrAlbum';
 
@@ -45,7 +46,8 @@ export async function monitorAndSearchAlbum(
                     headers: {
                         'X-Api-Key': apiKey,
                         'Content-Type': 'application/json'
-                    }
+                    },
+                    timeout: LIDARR_TIMEOUT_MS
                 })
             );
         }
@@ -60,7 +62,8 @@ export async function monitorAndSearchAlbum(
                 headers: {
                     'X-Api-Key': apiKey,
                     'Content-Type': 'application/json'
-                }
+                },
+                timeout: LIDARR_TIMEOUT_MS
             })
         );
 
