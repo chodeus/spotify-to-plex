@@ -1,4 +1,5 @@
 import { addItemsToPlaylist } from "@spotify-to-plex/plex-helpers/playlist/addItemsToPlaylist";
+import { getPlaylistItemKeys } from "@spotify-to-plex/plex-helpers/playlist/getPlaylistItemKeys";
 import { putPlaylistPoster } from "@spotify-to-plex/plex-helpers/playlist/putPlaylistPoster";
 import { removeItemsFromPlaylist } from "@spotify-to-plex/plex-helpers/playlist/removeItemsFromPlaylist";
 import { storePlaylist } from "@spotify-to-plex/plex-helpers/playlist/storePlaylist";
@@ -23,11 +24,8 @@ export async function putPlexPlaylist(id: string, plexPlaylist: Playlist | undef
         };
     }).filter(item => !!item);
 
-    if (plexTracks.length > 0) {
-        const firstItem = plexTracks.shift();
-        if (!firstItem)
-            return;
-
+    const [firstItem] = plexTracks;
+    if (firstItem) {
         // Get settings once at the start
         const rawSettings = await getSettings();
         if (!rawSettings.uri || !rawSettings.token || !rawSettings.id) {
@@ -39,11 +37,13 @@ export async function putPlexPlaylist(id: string, plexPlaylist: Playlist | undef
 
         if (plexPlaylist) {
             console.log(`Update existing playlist`);
-            // Clear items from playlist
-            await removeItemsFromPlaylist(settings, plexPlaylist.ratingKey, []);
-
-            // Add all items
-            await addItemsToPlaylist(settings, plexPlaylist.ratingKey, plexTracks);
+            // Rewriting empties the playlist until every add lands, so skip it when nothing changed
+            const current = await getPlaylistItemKeys(settings, plexPlaylist.ratingKey);
+            const unchanged = current.length == plexTracks.length && current.every((key, index) => key == plexTracks[index]?.key);
+            if (!unchanged) {
+                await removeItemsFromPlaylist(settings, plexPlaylist.ratingKey, []);
+                await addItemsToPlaylist(settings, plexPlaylist.ratingKey, plexTracks);
+            }
 
             if (plexPlaylist.title != title && title)
                 await updatePlaylist(settings, plexPlaylist.ratingKey, { title });
@@ -57,7 +57,8 @@ export async function putPlexPlaylist(id: string, plexPlaylist: Playlist | undef
             console.log(`Create new playlist`);
             const uri = getPlexUri(settings, firstItem.key, firstItem.source);
             const playlistId = await storePlaylist(settings, title, uri);
-            await addItemsToPlaylist(settings, playlistId, plexTracks);
+            // storePlaylist already added the first track
+            await addItemsToPlaylist(settings, playlistId, plexTracks.slice(1));
 
             try {
                 await putPlaylistPoster(playlistId, thumb)
