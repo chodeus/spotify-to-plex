@@ -6,7 +6,7 @@ import { resetCache, setMusicSearchConfig } from "../session/state";
 export async function analyze(config: PlexMusicSearchConfig, track: PlexMusicSearchTrack) {
     const { searchApproaches: approaches } = config;
 
-    if (!approaches)
+    if (!approaches || approaches.length === 0)
         throw new Error('No search approaches provided. Configuration must include explicit searchApproaches.');
 
     // Set configuration

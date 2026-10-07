@@ -1,0 +1,80 @@
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { syncLidarr } from '../jobs/lidarr';
+
+let dir: string;
+
+const syncStatus = () => JSON.parse(readFileSync(join(dir, 'sync_type_log.json'), 'utf8')).lidarr;
+const settings = (url = 'http://lidarr.test') => writeFileSync(join(dir, 'lidarr.json'), JSON.stringify({ enabled: true, url, root_folder_path: '/music', quality_profile_id: 1, metadata_profile_id: 1, auto_sync: true }));
+
+// Every way the job can end settles its status: early returns, an empty run, and missing lists it cannot use
+describe('syncLidarr status', () => {
+    beforeEach(() => {
+        dir = mkdtempSync(join(tmpdir(), 'lidarr-status-'));
+        process.env.STORAGE_DIR = dir;
+        process.env.LIDARR_API_KEY = 'fake-key';
+    });
+
+    afterEach(() => {
+        rmSync(dir, { recursive: true, force: true });
+        delete process.env.STORAGE_DIR;
+        delete process.env.LIDARR_API_KEY;
+    });
+
+    it('completes when there is nothing to send', async () => {
+        settings();
+
+        await syncLidarr();
+
+        expect(syncStatus().status).toBe('success');
+    });
+
+    it('errors, not completes, when a missing list cannot be read', async () => {
+        settings();
+        writeFileSync(join(dir, 'missing_albums_lidarr.json'), '{ not json');
+
+        await syncLidarr();
+
+        expect(syncStatus()).toMatchObject({ status: 'error', error: 'Could not read missing_albums_lidarr.json' });
+    });
+
+    it('errors when a missing list is not a list', async () => {
+        settings();
+        writeFileSync(join(dir, 'missing_tracks_lidarr.json'), '{}');
+
+        await syncLidarr();
+
+        expect(syncStatus()).toMatchObject({ status: 'error', error: 'Could not read missing_tracks_lidarr.json' });
+    });
+
+    it('errors when a missing list holds an entry with no names', async () => {
+        settings();
+
+        for (const list of ['[null]', '[{}]']) {
+            writeFileSync(join(dir, 'missing_albums_lidarr.json'), list);
+
+            await syncLidarr();
+
+            expect(syncStatus()).toMatchObject({ status: 'error', error: 'Could not read missing_albums_lidarr.json' });
+        }
+    });
+
+    it('errors when no Lidarr URL is set', async () => {
+        settings('');
+
+        await syncLidarr();
+
+        expect(syncStatus()).toMatchObject({ status: 'error', error: 'Lidarr URL not configured' });
+    });
+
+    it('errors when the API key is missing', async () => {
+        settings();
+        delete process.env.LIDARR_API_KEY;
+
+        await syncLidarr();
+
+        expect(syncStatus()).toMatchObject({ status: 'error', error: 'LIDARR_API_KEY not set' });
+    });
+});

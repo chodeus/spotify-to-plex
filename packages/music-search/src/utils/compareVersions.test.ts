@@ -41,6 +41,24 @@ describe('versionsMatch', () => {
             expect(match('The Island, Pt. I: Dawn', 'The Island, Pt. I (Dawn)', ['Pendulum'])).toBe(true);
             expect(match('Feel for You VIP', 'Feel for You - VIP', ['Bladerunner'])).toBe(true);
         });
+
+        // A year in one title's qualifier is not a year the other adds to the name
+        it('reads a year set apart by an en or em dash, a colon, or no separator at all', () => {
+            expect(match('Song – Live 1986', 'Song - Live 1986')).toBe(true);
+            expect(match('Song — Live 1986', 'Song - Live 1986')).toBe(true);
+            expect(match('Song: Live 1986', 'Song - Live 1986')).toBe(true);
+            expect(match('Here Comes the Sun 2019 Mix', 'Here Comes the Sun - 2019 Mix')).toBe(true);
+        });
+
+        it('ignores a year that dates a remaster rather than the song', () => {
+            expect(match('Song - 2011 Remaster', 'Song')).toBe(true);
+            expect(match('Song (2011 Remaster)', 'Song - 2011 Remaster')).toBe(true);
+            expect(match('1999', '1999 - 2019 Remaster')).toBe(true);
+            expect(match('Song 2009 Remaster', 'Song - 2009 Remaster')).toBe(true);
+            expect(match('Song Remastered 2009', 'Song')).toBe(true);
+            expect(match('2002', '2002')).toBe(true);
+            expect(match('Fear of the Dark', 'Fear of the Dark - 1998 Remastered Version')).toBe(true);
+        });
     });
 
     describe('rejects titles that name different recordings', () => {
@@ -76,6 +94,29 @@ describe('versionsMatch', () => {
         // tag. Nothing in the titles can tell these apart, so they stay rejected
         it('rejects a live take whose album carries the only clue', () => {
             expect(match('Enter Sandman', 'Enter Sandman (Live with the SFSO)', ['Metallica'])).toBe(false);
+        });
+
+        // "Future - Bugatti 2013" cached for Ace Hood's "Bugatti": the year is part of the name
+        it('keeps the year rule when a filter word is blank', () => {
+            expect(versionsMatch('Bugatti 2013', 'Bugatti', [...FILTER_OUT_WORDS, '']).match).toBe(false);
+        });
+
+        it('rejects a year-only qualifier the other title lacks', () => {
+            expect(match('Bugatti (2013)', 'Bugatti')).toBe(false);
+            expect(match('Bugatti - 2013', 'Bugatti')).toBe(false);
+            expect(match('Bugatti (2013)', 'Bugatti (2014)')).toBe(false);
+            expect(match('Bugatti (2013)', 'Bugatti - 2013')).toBe(true);
+        });
+
+        // The other title's year dates its master, so it cannot vouch for a year in the name
+        it('rejects a year in the name that the other title only has beside a noise word', () => {
+            expect(match('Song 2013', 'Song - 2013 Remaster')).toBe(false);
+            expect(match('Bugatti 2013', 'Bugatti (2013 Remaster)')).toBe(false);
+        });
+
+        it('rejects a title that adds a year to the name', () => {
+            expect(match('Bugatti 2013', 'Bugatti')).toBe(false);
+            expect(match('Bugatti', 'Bugatti 2013')).toBe(false);
         });
     });
 

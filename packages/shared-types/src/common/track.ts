@@ -5,6 +5,8 @@ export type TrackLink = {
     // Matched on the ISRC's MusicBrainz track id, so the title-based version check must leave it alone
     plex_matched_by?: 'isrc'
     plex_id?: string[]
+    // When a search last confirmed plex_id (ms); a week later the link is searched again
+    plex_checked_at?: number
     tidal_id?: string[]
     slskd_files?: {
         username: string;
