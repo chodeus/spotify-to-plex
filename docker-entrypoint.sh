@@ -24,7 +24,7 @@ if [ "$(id -u app)" != "$PUID" ] || [ "$(id -g app)" != "$PGID" ]; then
     usermod -o -u "$PUID" -g "$PGID" app
 fi
 
-# npm and npx need a writable HOME for their cache and logs
+# supervisord keeps root's HOME when it switches user, so each program is pointed here
 mkdir -p "$APP_HOME"
 chown "$PUID:$PGID" "$APP_HOME"
 
@@ -38,6 +38,13 @@ if ! runuser -u app -- touch "$probe" 2>/dev/null; then
     exit 1
 fi
 rm -f "$probe"
+
+# The probe proves the directory only; an existing entry the sweep could not chown still fails a save
+if ! unwritable="$(runuser -u app -- find "$CONFIG_DIR" \( -type f -o -type d \) ! -writable -print -quit)" \
+    || [ -n "$unwritable" ]; then
+    echo "FATAL: ${unwritable:-an entry below $CONFIG_DIR} is not writable by $PUID:$PGID. Fix its owner or mode." >&2
+    exit 1
+fi
 
 echo "✅ Web UI Port: $PORT"
 echo "✅ Config Directory: $CONFIG_DIR (running as $PUID:$PGID)"

@@ -1,17 +1,22 @@
 # From chodeus-ops templates/caller-docker.yml. Builds, scans and smoke-tests on every PR;
-# pushes to GHCR from testing (the branch the server runs), v* tags and dispatch.
+# pushes to GHCR from testing (the branch the server runs) and dispatch. No v* trigger:
+# a semver tag would also move :latest, which follows testing.
 
 name: Docker build & publish
 
 on:
   push:
     branches: [testing]
-    tags: ['v*']
   pull_request:
   workflow_dispatch:
 
 permissions:
   contents: read
+
+# A newer push must publish last, so pushes and dispatches queue per ref; a PR's superseded run is dropped
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   stamp:
