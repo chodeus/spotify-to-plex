@@ -24,7 +24,7 @@ describe('handleOneRetryAttempt', () => {
         for (const error of [axiosError(500), axiosError(429), axiosError()]) {
             const request = vi.fn().mockRejectedValueOnce(error)
                 .mockResolvedValueOnce({ data: 'ok' });
-            vi.spyOn(console, 'error').mockImplementation(() => {});
+            vi.spyOn(console, 'error').mockImplementation(() => { /* expected */ });
 
             await expect(handleOneRetryAttempt(request, { retryDelay: 0 })).resolves.toEqual({ data: 'ok' });
             expect(request).toHaveBeenCalledTimes(2);
@@ -33,7 +33,7 @@ describe('handleOneRetryAttempt', () => {
 
     // The retry log went to docker logs with the whole axios error, token included
     it('never logs the Plex token', async () => {
-        const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+        const log = vi.spyOn(console, 'error').mockImplementation(() => { /* expected */ });
         const request = vi.fn().mockRejectedValueOnce(axiosError(500))
             .mockResolvedValueOnce({ data: 'ok' });
 
