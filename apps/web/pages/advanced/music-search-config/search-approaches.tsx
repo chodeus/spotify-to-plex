@@ -4,7 +4,6 @@ import { useConfigEditor } from "@/hooks/useConfigEditor";
 import { Add as AddIcon, Refresh, Save } from "@mui/icons-material";
 import { Box, Button, Card, CardContent, Typography } from "@mui/material";
 import { NextPage } from "next";
-import { enqueueSnackbar } from "notistack";
 import { useCallback, useEffect, useState } from "react";
 
 type SearchApproachConfig = {
@@ -48,21 +47,11 @@ const TextProcessingPage: NextPage = () => {
         }
     }, [data]);
 
-    const handleSave = useCallback(async () => {
-        try {
-            await saveData(localData);
-            enqueueSnackbar('Search approaches saved successfully', { variant: 'success' });
-        } catch (error) {
-            const message = error instanceof Error ? error.message : 'Failed to save';
-            enqueueSnackbar(`Failed to save: ${message}`, { variant: 'error' });
-        }
-    }, [localData, saveData]);
-
+    // useConfigEditor reports success once the save lands, and every failure itself; a message
+    // here fired even after a validation error, because saveData resolves before it finishes
     const handleSaveClick = useCallback(() => {
-        handleSave().catch(() => {
-            // Error handled in handleSave
-        });
-    }, [handleSave]);
+        saveData(localData).catch(() => { /* reported by useConfigEditor */ });
+    }, [localData, saveData]);
 
     const handleReset = useCallback(() => {
         // eslint-disable-next-line no-alert
@@ -138,7 +127,7 @@ const TextProcessingPage: NextPage = () => {
                         </Typography>
 
                         {localData.map((approach, index) => (
-                            <SearchApproachCard key={approach.id || index} approach={approach} onChange={createApproachChangeHandler(index)} onDelete={createApproachDeleteHandler(index)} disabled={loading} />
+                            <SearchApproachCard key={index} approach={approach} onChange={createApproachChangeHandler(index)} onDelete={createApproachDeleteHandler(index)} disabled={loading} />
                         ))}
 
                         <Button onClick={handleAddApproach} startIcon={<AddIcon />} variant="outlined" size="small">

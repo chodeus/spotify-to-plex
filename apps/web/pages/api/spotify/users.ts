@@ -73,7 +73,8 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
             users = users.filter(item => item.user.id !== id)
             writeJsonFileAtomic(credentialsPath, users)
 
-            return res.status(200).json(users)
+            // The same shape as GET: the page keeps this as its user list
+            return res.status(200).json(users.map(item => item.user))
 
         }
 

@@ -35,6 +35,11 @@ const MusicSearchConfigLayout = (props: MusicSearchConfigLayoutProps) => {
     const fileInputRef = useRef<HTMLInputElement>(null)
 
     const resetConfiguration = useCallback(() => {
+        // One click used to overwrite all three tuned configs; the per-section resets already ask
+        // eslint-disable-next-line no-alert
+        if (!confirm('Reset ALL music search settings (match filters, text processing and search approaches) to defaults? This overwrites your current configuration.'))
+            return
+
         setResetting(true)
         errorBoundary(
             async () => {
