@@ -2,6 +2,7 @@ import { generateError } from '@/helpers/errors/generateError';
 import { updateSettings } from '@spotify-to-plex/plex-config/functions/updateSettings';
 import { PostPinResponse } from '@spotify-to-plex/shared-types/plex/PostPinResponse';
 import { plexTvClient } from '@spotify-to-plex/http-client/plexTvClient';
+import { describeHttpError } from '@spotify-to-plex/http-client/describeHttpError';
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createRouter } from 'next-connect';
@@ -37,7 +38,7 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
 
                 res.json({ authUrl })
             } catch (error) {
-                console.error('Error creating Plex auth URL:', error);
+                console.error(`Error creating Plex auth URL: ${describeHttpError(error)}`);
                 res.status(500).json({ error: 'Failed to create authentication URL' });
             }
         })

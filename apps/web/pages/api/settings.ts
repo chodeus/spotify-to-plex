@@ -1,6 +1,8 @@
 import { generateError } from '@/helpers/errors/generateError';
 import { getPlexServers } from '@/helpers/plex/getPlexServers';
+import { AxiosRequest } from '@spotify-to-plex/http-client/AxiosRequest';
 import { describeHttpError } from '@spotify-to-plex/http-client/describeHttpError';
+import { getAPIUrl } from '@spotify-to-plex/shared-utils/utils/getAPIUrl';
 import { getSettings } from '@spotify-to-plex/plex-config/functions/getSettings';
 import { updateSettings } from '@spotify-to-plex/plex-config/functions/updateSettings';
 import type { NextApiRequest, NextApiResponse } from 'next';
@@ -25,6 +27,15 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
                     const connection = server?.connections.find(item => item.uri === uri);
                     if (!server || !connection)
                         return res.status(400).json({ error: 'Unknown Plex server or connection' });
+
+                    // Checked before it is saved: a connection that does not answer must not replace one that does
+                    try {
+                        await AxiosRequest.get(getAPIUrl(connection.uri, '/library/sections'), server.accessToken)
+                    } catch (error) {
+                        console.error(`Plex did not answer at the chosen connection: ${describeHttpError(error)}`);
+
+                        return res.status(502).json({ error: 'Plex did not answer at that connection' });
+                    }
 
                     await updateSettings({ uri: connection.uri, id: server.id, serverToken: server.accessToken })
                 }

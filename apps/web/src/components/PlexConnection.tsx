@@ -58,9 +58,6 @@ const PlexConnection = (props: Props) => {
     }, []);
 
     const onSaveClick = useCallback(() => {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000);
-
         errorBoundary(async () => {
             setSaving(true);
             setValidated(false);
@@ -70,23 +67,17 @@ const PlexConnection = (props: Props) => {
             if (!resource)
                 throw new Error("Something went wrong selecting the resource");
 
+            // The route checks the connection with Plex before it saves, and refuses one that does not answer
             const settings = await axios.post<GetSettingsResponse>("/api/settings", {
                 uri: newPlexUri,
                 id: resource.id
             });
 
-            try {
-                await axios.post("/api/plex/search", { query: "x", limit: 3 }, { signal: controller.signal });
-                clearTimeout(timeoutId);
-                setValidated(true);
-                setSettings(settings.data);
-
-                enqueueSnackbar("Plex server selected and verified", { variant: "success" });
-            } catch (_e) {
-            }
+            setValidated(true);
+            setSettings(settings.data);
+            enqueueSnackbar("Plex server selected and verified", { variant: "success" });
             setSaving(false);
         }, () => {
-            clearTimeout(timeoutId);
             setSaving(false);
         });
     }, [newPlexUri, resources, setSettings]);

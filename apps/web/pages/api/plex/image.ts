@@ -13,12 +13,15 @@ export const config = {
     },
 }
 
+// Only artwork: any other Plex path would go out with the server token, /security/token included
+const IMAGE_PATH = /^\/(?:library\/metadata\/\d+\/(?:thumb|art|banner|clearLogo)|playlists\/\d+\/composite)(?:\/\d+)?$/;
+
 const router = createRouter<NextApiRequest, NextApiResponse>()
     .get(
         async (req, res) => {
             const { path } = req.query;
 
-            if (!path || Array.isArray(path))
+            if (!path || Array.isArray(path) || !IMAGE_PATH.test(path))
                 return res.status(400).end();
 
             const settings = await getSettings();
@@ -36,9 +39,16 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
 
             try {
                 const data = await AxiosRequest.get<any>(url, settings.token, { responseType: "arraybuffer" })
-                const contentType = data.headers?.['Content-Type'];
+                // axios keys its headers in lower case
+                const contentType = data.headers?.['content-type'];
+                if (typeof contentType !== 'string' || !contentType.startsWith('image/')) {
+                    res.setHeader("Cache-Control", "no-store");
+
+                    return res.status(502).end();
+                }
+
                 res.setHeader("Cache-Control", `public, immutable, no-transform, s-maxage=31536000, max-age=31536000`);
-                res.setHeader('content-type', typeof contentType === 'string' ? contentType : 'image/jpeg')
+                res.setHeader('content-type', contentType)
                 res.setHeader('content-length', data.data.length)
 
                 return res.status(200).send(data.data)
