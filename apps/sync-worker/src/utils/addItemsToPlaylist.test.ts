@@ -39,4 +39,14 @@ describe('addItemsToPlaylist', () => {
         await expect(addItemsToPlaylist(settings, '500', items, { retryDelay: 0 })).rejects.toThrow('ECONNREFUSED');
         expect(putMock.mock.calls.every(([url]) => isFor('1')(url as string))).toBe(true);
     });
+
+    it('stops on a failure that is not about the item', async () => {
+        for (const status of [503, 429, 401, 403]) {
+            putMock.mockReset();
+            putMock.mockRejectedValue(answered(status));
+
+            await expect(addItemsToPlaylist(settings, '500', items, { retryDelay: 0 })).rejects.toMatchObject({ response: { status } });
+            expect(putMock.mock.calls.every(([url]) => isFor('1')(url as string))).toBe(true);
+        }
+    });
 });
