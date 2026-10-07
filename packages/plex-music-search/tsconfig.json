@@ -13,6 +13,9 @@
   "references": [
     {
       "path": "../music-search"
+    },
+    {
+      "path": "../shared-utils"
     }
   ],
   "include": ["src/**/*"],

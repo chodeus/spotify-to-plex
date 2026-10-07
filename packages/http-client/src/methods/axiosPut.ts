@@ -1,12 +1,11 @@
 import axios from "axios";
-import { Agent } from "node:https";
-
-const agent = new Agent({ rejectUnauthorized: false });
+import { PLEX_WRITE_TIMEOUT_MS, plexHttpsAgent } from "./plexHttpsAgent";
 
 export function axiosPut<T>(url: string, token: string) {
     return axios.put<T>(url, {},
         {
-            httpsAgent: agent,
+            timeout: PLEX_WRITE_TIMEOUT_MS,
+            httpsAgent: plexHttpsAgent(url),
             headers: {
                 'Accept': 'application/json',
                 "X-Plex-Token": token,

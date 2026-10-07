@@ -59,6 +59,14 @@ describe('getSpotifyData scraper fallback', () => {
         await expect(getSpotifyData(api, 'spotify:playlist:p', false)).rejects.toThrow(/loaded partially/);
     });
 
+    // The embed-page fallback reports no total
+    it('says the total is unknown when the scraper could not report one', async () => {
+        const response = scraperResponse(true);
+        postMock.mockResolvedValue({ data: { ...response.data, track_count: null } });
+
+        await expect(getSpotifyData(api, 'spotify:playlist:p', false)).rejects.toThrow('(100 of an unknown number of tracks)');
+    });
+
     it('accepts a full load the scraper did not flag', async () => {
         postMock.mockResolvedValue(scraperResponse(false));
         const playlist = await getSpotifyData(api, 'spotify:playlist:p', false);
