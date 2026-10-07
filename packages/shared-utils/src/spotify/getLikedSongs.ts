@@ -1,5 +1,6 @@
 import { GetSpotifyPlaylist } from "@spotify-to-plex/shared-types/spotify/GetSpotifyPlaylist";
 import { SpotifyApi } from "@spotify/web-api-ts-sdk";
+import { mapSpotifyTracks } from "./mapSpotifyTracks";
 
 
 export async function getLikedSongs(api: SpotifyApi, userId: string, userName: string, simplified: boolean) {
@@ -15,25 +16,7 @@ export async function getLikedSongs(api: SpotifyApi, userId: string, userName: s
             image: '',
             tracks: []
         }
-        const validTracks = result.items
-            .map(item => {
-                if (!item.track)
-                    return null;
-
-                const artists = item.track.artists?.flatMap(artist => artist.name.split(',').map(name => name.trim()));
-
-                return {
-                    id: item.track.id,
-                    title: item.track.name,
-                    artist: item.track.artists?.[0]?.name || 'Unknown',
-                    album: item.track.album?.name || 'Unknown',
-                    artists: artists || [],
-                    album_id: item.track.album?.id || 'unknown',
-                    duration_ms: item.track.duration_ms,
-                    isrc: item.track.external_ids?.isrc
-                }
-            })
-            .filter((track)=>!!track);
+        const validTracks = mapSpotifyTracks(result.items);
 
         playlist.tracks = playlist.tracks.concat(validTracks);
         if (simplified)
@@ -45,22 +28,7 @@ export async function getLikedSongs(api: SpotifyApi, userId: string, userName: s
         if (result.next) {
             while (hasMoreResults) {
                 const loadMore = await api.currentUser.tracks.savedTracks(50, offset)
-                const validLoadMoreTracks = loadMore.items
-                    .map(item => {
-                        if (!item.track) return null;
-
-                        return {
-                            id: item.track.id,
-                            title: item.track.name,
-                            artist: item.track.artists?.[0]?.name || 'Unknown',
-                            album: item.track.album?.name || 'Unknown',
-                            artists: item.track.artists?.map(artist => artist.name) || [],
-                            album_id: item.track.album?.id || 'unknown',
-                            duration_ms: item.track.duration_ms,
-                            isrc: item.track.external_ids?.isrc
-                        }
-                    })
-                    .filter((track)=>!!track);
+                const validLoadMoreTracks = mapSpotifyTracks(loadMore.items);
 
                 playlist.tracks = playlist.tracks.concat(validLoadMoreTracks);
 
