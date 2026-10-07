@@ -1,28 +1,47 @@
 #!/bin/bash
-set -e
+set -euo pipefail
+
+CONFIG_DIR=/app/config
+APP_HOME=/tmp/app-home
+PUID="${PUID:-99}"
+PGID="${PGID:-100}"
 
 echo "🎵 Spotify-to-Plex Starting..."
 echo "=============================="
 
-# Ensure config directory has correct permissions
-if [ ! -w /app/config ]; then
-    echo "⚠️  Warning: /app/config is not writable. Trying to fix permissions..."
-    chmod 755 /app/config || true
+if [ "$(id -u)" != 0 ]; then
+    echo "FATAL: start the container as root and set PUID/PGID; it drops to that user itself." >&2
+    exit 1
 fi
 
-# Set default PORT if not provided
-export PORT="${PORT:-9030}"
+# supervisord stays root so it can start each program as the app user
+if [ "$(id -u app)" != "$PUID" ] || [ "$(id -g app)" != "$PGID" ]; then
+    groupmod -o -g "$PGID" app
+    usermod -o -u "$PUID" -g "$PGID" app
+fi
 
-# Display configuration
-echo "✅ Web UI Port: $PORT"
-echo "✅ Config Directory: /app/config"
-if [ -n "$SPOTIFY_API_CLIENT_ID" ]; then
+# npm and npx need a writable HOME for their cache and logs
+mkdir -p "$APP_HOME"
+chown "$PUID:$PGID" "$APP_HOME"
+
+# Only what is wrong: an already-correct config tree costs a stat pass, not a rewrite
+find "$CONFIG_DIR" \( ! -user "$PUID" -o ! -group "$PGID" \) -exec chown -h "$PUID:$PGID" {} +
+
+probe="$CONFIG_DIR/.write-probe.$$"
+if ! runuser -u app -- touch "$probe" 2>/dev/null; then
+    echo "FATAL: $CONFIG_DIR is not writable by $PUID:$PGID. Check the volume's permissions, or set PUID/PGID to its owner." >&2
+    exit 1
+fi
+rm -f "$probe"
+
+echo "✅ Web UI Port: ${PORT:-9030}"
+echo "✅ Config Directory: $CONFIG_DIR (running as $PUID:$PGID)"
+if [ -n "${SPOTIFY_API_CLIENT_ID:-}" ]; then
     echo "✅ Spotify API configured"
 fi
-if [ -n "$TIDAL_API_CLIENT_ID" ]; then
+if [ -n "${TIDAL_API_CLIENT_ID:-}" ]; then
     echo "✅ Tidal API configured"
 fi
 
-# Start supervisor
 echo "🚀 Starting services..."
 exec "$@"
