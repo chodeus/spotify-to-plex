@@ -1,4 +1,5 @@
 import { generateError } from '@/helpers/errors/generateError';
+import { describeHttpError } from '@spotify-to-plex/http-client/describeHttpError';
 import { syncAlbums } from 'cronjob/albums';
 import { syncPlaylists } from 'cronjob/playlists';
 import { syncUsers } from 'cronjob/users';
@@ -27,43 +28,43 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
                     .then(() => syncMQTT())
                     .then(() => syncSlskd())
                     .catch((error: unknown) => {
-                        console.error('Sync all failed:', error);
+                        console.error(`Sync all failed: ${describeHttpError(error)}`);
                     });
             } else {
                 switch (type) {
                     case "albums":
                         syncAlbums().catch((error: unknown) => {
-                            console.error('Sync albums failed:', error);
+                            console.error(`Sync albums failed: ${describeHttpError(error)}`);
                         });
                         break;
 
                     case "playlists":
                         syncPlaylists().catch((error: unknown) => {
-                            console.error('Sync playlists failed:', error);
+                            console.error(`Sync playlists failed: ${describeHttpError(error)}`);
                         });
                         break;
 
                     case "users":
                         syncUsers().catch((error: unknown) => {
-                            console.error('Sync users failed:', error);
+                            console.error(`Sync users failed: ${describeHttpError(error)}`);
                         });
                         break;
 
                     case "lidarr":
                         syncLidarr().catch((error: unknown) => {
-                            console.error('Sync lidarr failed:', error);
+                            console.error(`Sync lidarr failed: ${describeHttpError(error)}`);
                         });
                         break;
 
                     case "mqtt":
                         syncMQTT().catch((error: unknown) => {
-                            console.error('Sync mqtt failed:', error);
+                            console.error(`Sync mqtt failed: ${describeHttpError(error)}`);
                         });
                         break;
 
                     case "slskd":
                         syncSlskd().catch((error: unknown) => {
-                            console.error('Sync slskd failed:', error);
+                            console.error(`Sync slskd failed: ${describeHttpError(error)}`);
                         });
                         break;
                 }

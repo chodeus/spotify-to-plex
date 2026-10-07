@@ -1,9 +1,11 @@
 import { AxiosRequest } from '@spotify-to-plex/http-client/AxiosRequest';
+import { describeHttpError } from '@spotify-to-plex/http-client/describeHttpError';
 // MIGRATED: Updated to use http-client package
 import { generateError } from '@/helpers/errors/generateError';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createRouter } from 'next-connect';
 import { getSettings } from '@spotify-to-plex/plex-config/functions/getSettings';
+import { getAPIUrl } from '@spotify-to-plex/shared-utils/utils/getAPIUrl';
 
 export const config = {
     api: {
@@ -24,28 +26,28 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
             if (!settings.token)
                 return res.status(400).end();
 
+            // getAPIUrl refuses a path that would send the token to another host
+            let url: string;
             try {
-                res.setHeader(
-                    "Cache-Control",
-                    `public, immutable, no-transform, s-maxage=31536000, max-age=31536000`
-                );
-                const url = path.indexOf('http') > -1 ? path : `${settings.uri}${path}`;
-                try {
-
-                    const data = await AxiosRequest.get<any>(url, settings.token, { responseType: "arraybuffer" })
-                    const contentType = data.headers?.['Content-Type'];
-                    res.setHeader('content-type', typeof contentType === 'string' ? contentType : 'image/jpeg')
-                    res.setHeader('content-length', data.data.length)
-
-                    return res.status(200).send(data.data)
-
-                } catch (e) {
-                    console.log(e)
-                }
-
-                return res.status(200).send('[ ]')
+                url = getAPIUrl(settings.uri, path);
             } catch (_error) {
-                return res.status(404).end();
+                return res.status(400).end();
+            }
+
+            try {
+                const data = await AxiosRequest.get<any>(url, settings.token, { responseType: "arraybuffer" })
+                const contentType = data.headers?.['Content-Type'];
+                res.setHeader("Cache-Control", `public, immutable, no-transform, s-maxage=31536000, max-age=31536000`);
+                res.setHeader('content-type', typeof contentType === 'string' ? contentType : 'image/jpeg')
+                res.setHeader('content-length', data.data.length)
+
+                return res.status(200).send(data.data)
+            } catch (error) {
+                console.error(`Plex image request failed: ${describeHttpError(error)}`);
+                // A failure must not be cached for a year like an image
+                res.setHeader("Cache-Control", "no-store");
+
+                return res.status(502).end();
             }
         })
 

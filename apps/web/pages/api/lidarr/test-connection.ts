@@ -1,4 +1,5 @@
 import { generateError } from '@/helpers/errors/generateError';
+import { describeHttpError } from '@spotify-to-plex/http-client/describeHttpError';
 import axios from 'axios';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createRouter } from 'next-connect';
@@ -45,7 +46,7 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
                 });
             }
         } catch (error: any) {
-            console.error('Lidarr connection test failed:', error);
+            console.error(`Lidarr connection test failed: ${describeHttpError(error)}`);
             res.status(200).json({
                 success: false,
                 message: error.response?.data?.message || error.message || 'Connection failed',

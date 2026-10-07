@@ -1,4 +1,5 @@
 import { AxiosRequest } from '@spotify-to-plex/http-client/AxiosRequest';
+import { describeHttpError } from '@spotify-to-plex/http-client/describeHttpError';
 import { generateError } from '@/helpers/errors/generateError';
 import { getAPIUrl } from '@spotify-to-plex/shared-utils/utils/getAPIUrl';
 import { addItemsToPlaylist } from '@spotify-to-plex/plex-helpers/playlist/addItemsToPlaylist';
@@ -60,7 +61,7 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
                 res.json({ id: playlistIds.plex, link })
 
             } catch (error) {
-                console.error('Error getting Plex playlist by ID:', error);
+                console.error(`Error getting Plex playlist by ID: ${describeHttpError(error)}`);
                 res.status(500).json({ error: 'Failed to get playlist' });
             }
         })
@@ -113,7 +114,7 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
                 const link = getAPIUrl(settings.uri, `/web/index.html#!/server/${settings.id}/playlist?key=${encodeURIComponent(`/playlists/${playlist.ratingKey}`)}`)
                 res.json({ id: playlist.ratingKey, link })
             } catch (error) {
-                console.error('Error updating Plex playlist:', error);
+                console.error(`Error updating Plex playlist: ${describeHttpError(error)}`);
                 res.status(500).json({ error: 'Failed to update playlist' });
             }
         })

@@ -1,4 +1,5 @@
 import { generateError } from '@/helpers/errors/generateError';
+import { describeHttpError } from '@spotify-to-plex/http-client/describeHttpError';
 import axios from 'axios';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createRouter } from 'next-connect';
@@ -45,7 +46,7 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
 
             return res.status(200).json({ qualityProfiles, metadataProfiles } satisfies ProfilesResponse);
         } catch (error: any) {
-            console.error('Failed to fetch Lidarr profiles:', error);
+            console.error(`Failed to fetch Lidarr profiles: ${describeHttpError(error)}`);
 
             return res.status(200).json({
                 error: error.response?.data?.message || error.message || 'Failed to fetch profiles',

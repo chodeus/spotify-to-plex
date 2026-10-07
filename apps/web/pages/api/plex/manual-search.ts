@@ -1,4 +1,5 @@
 import { generateError } from '@/helpers/errors/generateError';
+import { describeHttpError } from '@spotify-to-plex/http-client/describeHttpError';
 import { getSettings } from '@spotify-to-plex/plex-config/functions/getSettings';
 import hubSearch from '@spotify-to-plex/plex-music-search/actions/hubSearch';
 import getAlbumTracks from '@spotify-to-plex/plex-music-search/actions/getAlbumTracks';
@@ -45,7 +46,7 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
 
                 return res.json(tracks);
             } catch (error) {
-                console.error('Error searching Plex library:', error);
+                console.error(`Error searching Plex library: ${describeHttpError(error)}`);
 
                 return res.status(500).json({ error: 'Failed to search the Plex library' });
             }

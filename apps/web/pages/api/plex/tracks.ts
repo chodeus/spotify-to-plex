@@ -1,4 +1,5 @@
 import { generateError } from '@/helpers/errors/generateError';
+import { describeHttpError } from '@spotify-to-plex/http-client/describeHttpError';
 import { getCachedTrackLinks } from '@spotify-to-plex/shared-utils/cache/getCachedTrackLink';
 import { search } from '@spotify-to-plex/plex-music-search/functions/search';
 import { searchAlbum } from '@spotify-to-plex/plex-music-search/functions/searchAlbum';
@@ -76,7 +77,7 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
 
                 res.status(200).json(searchResult);
             } catch (error) {
-                console.error('Error searching Plex tracks:', error);
+                console.error(`Error searching Plex tracks: ${describeHttpError(error)}`);
                 res.status(500).json({ error: 'Failed to search tracks' });
             }
         })

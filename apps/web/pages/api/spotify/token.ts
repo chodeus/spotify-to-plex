@@ -1,4 +1,5 @@
 import { encrypt } from '@spotify-to-plex/shared-utils/security/encrypt';
+import { describeHttpError } from '@spotify-to-plex/http-client/describeHttpError';
 import { generateError } from '@/helpers/errors/generateError';
 import { getStorageDir } from "@spotify-to-plex/shared-utils/utils/getStorageDir";
 import { SpotifyCredentials } from '@spotify-to-plex/shared-types/spotify/SpotifyCredentials';
@@ -198,10 +199,15 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
                     token_type
                 })
                 const user = await api.currentUser.profile()
+                const credentialsPath = join(getStorageDir(), 'spotify.json')
+                const existingCredentials: SpotifyCredentials[] = existsSync(credentialsPath) ? JSON.parse(readFileSync(credentialsPath, 'utf8')) : []
+                const previous = existingCredentials.find(item => item.user.id === user.id)
                 const spotifyCredentials: SpotifyCredentials = {
+                    // A reconnect renews the tokens; the user's sync, label and recent-context settings stay
                     user: {
+                        ...previous?.user,
                         id: user.id,
-                        name: user.display_name
+                        name: user.display_name ?? user.id
                     },
                     access_token: {
                         access_token: encrypt(access_token),
@@ -212,22 +218,11 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
                     expires_at: Date.now() + (expires_in * 1000)
                 }
 
-                const credentialsPath = join(getStorageDir(), 'spotify.json')
-
-                if (existsSync(credentialsPath)) {
-                    // Update
-                    const existingCredentials: SpotifyCredentials[] = JSON.parse(readFileSync(credentialsPath, 'utf8'))
-                    const newCredentials = existingCredentials.filter(item => item.user.id !== spotifyCredentials.user.id)
-                    newCredentials.push(spotifyCredentials)
-
-                    writeJsonFileAtomic(credentialsPath, newCredentials)
-                } else {
-                    writeJsonFileAtomic(credentialsPath, [spotifyCredentials])
-                }
+                writeJsonFileAtomic(credentialsPath, [...existingCredentials.filter(item => item.user.id !== user.id), spotifyCredentials])
 
                 res.redirect('/manage-users');
             } catch (error) {
-                console.error('Error exchanging code for token:', error);
+                console.error(`Error exchanging code for token: ${describeHttpError(error)}`);
                 const { title, message, details } = getAuthErrorMessage(error);
                 const status = axios.isAxiosError(error) ? 400 : 500;
                 res.setHeader('Content-Type', 'text/html');

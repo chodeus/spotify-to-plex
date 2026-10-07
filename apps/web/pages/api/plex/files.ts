@@ -1,4 +1,5 @@
 import { generateError } from "@/helpers/errors/generateError"
+import { describeHttpError } from "@spotify-to-plex/http-client/describeHttpError";
 import { getMetaData } from "@spotify-to-plex/plex-music-search/functions/getMetaData";
 import { Metadata } from "@spotify-to-plex/plex-music-search/types/plex/Metadata";
 import { getMusicSearchConfig } from "@spotify-to-plex/music-search/functions/getMusicSearchConfig";
@@ -44,7 +45,7 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
                 const files = tracks.filter((item: string | null): item is string => item !== null);
                 res.json(files)
             } catch (error) {
-                console.error('Error getting Plex files:', error);
+                console.error(`Error getting Plex files: ${describeHttpError(error)}`);
                 res.status(500).json({ error: 'Failed to get files' });
             }
         })
