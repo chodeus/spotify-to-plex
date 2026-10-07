@@ -7,6 +7,8 @@ PUID="${PUID:-99}"
 PGID="${PGID:-100}"
 # supervisord passes it to the web app; an empty value would fall back to Next's 3000
 export PORT="${PORT:-9030}"
+# supervisord reads it as octal for every program and refuses to start on an empty value
+export UMASK="${UMASK:-002}"
 
 echo "🎵 Spotify-to-Plex Starting..."
 echo "=============================="
