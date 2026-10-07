@@ -11,6 +11,9 @@ const USER_AGENT = 'spotify-to-plex/1.0 ( https://github.com/jjdenhertog/spotify
 // seconds and lost a quarter of a run to "unavailable"
 const MIN_INTERVAL_MS = 1100;
 
+// Without one, a MusicBrainz that stops answering holds the whole Lidarr job
+const REQUEST_TIMEOUT_MS = 20_000;
+
 let nextSlotAt = 0;
 
 /**
@@ -34,8 +37,11 @@ async function pace() {
  * through here, so neither the agent string nor the spacing can be forgotten at
  * a new call site - which is how both came to be missing in the first place.
  */
-export async function musicBrainzGet<T>(url: string) {
-    await pace();
+export function musicBrainzGet<T>(url: string) {
+    // Paced inside the retry too: an unpaced retry and the next request went out together and drew another 503
+    return withRetry(async () => {
+        await pace();
 
-    return withRetry(() => axios.get<T>(url, { headers: { 'User-Agent': USER_AGENT } }));
+        return axios.get<T>(url, { headers: { 'User-Agent': USER_AGENT }, timeout: REQUEST_TIMEOUT_MS });
+    });
 }

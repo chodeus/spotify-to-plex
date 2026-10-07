@@ -1,14 +1,15 @@
 import axios from 'axios';
 
 /**
- * Whether a request failed for a reason that says nothing about the answer -
- * MusicBrainz being busy or the connection dropping. Worth retrying, and never
+ * Whether a request failed for a reason that says nothing about the answer - no
+ * answer at all, a rate limit, or a server error. Worth retrying, and never
  * worth remembering as "there is no such release".
  */
 export function isTransientError(error: unknown) {
-    return axios.isAxiosError(error) &&
-        (error.response?.status === 503 ||
-            error.response?.status === 429 ||
-            error.code === 'ECONNRESET' ||
-            error.code === 'ETIMEDOUT');
+    if (!axios.isAxiosError(error))
+        return false;
+
+    const status = error.response?.status;
+
+    return status === undefined || status === 429 || status >= 500;
 }
