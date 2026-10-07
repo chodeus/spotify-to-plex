@@ -41,6 +41,16 @@ describe('versionsMatch', () => {
             expect(match('The Island, Pt. I: Dawn', 'The Island, Pt. I (Dawn)', ['Pendulum'])).toBe(true);
             expect(match('Feel for You VIP', 'Feel for You - VIP', ['Bladerunner'])).toBe(true);
         });
+
+        it('ignores a year that dates a remaster rather than the song', () => {
+            expect(match('Song - 2011 Remaster', 'Song')).toBe(true);
+            expect(match('Song (2011 Remaster)', 'Song - 2011 Remaster')).toBe(true);
+            expect(match('1999', '1999 - 2019 Remaster')).toBe(true);
+            expect(match('Song 2009 Remaster', 'Song - 2009 Remaster')).toBe(true);
+            expect(match('Song Remastered 2009', 'Song')).toBe(true);
+            expect(match('2002', '2002')).toBe(true);
+            expect(match('Fear of the Dark', 'Fear of the Dark - 1998 Remastered Version')).toBe(true);
+        });
     });
 
     describe('rejects titles that name different recordings', () => {
@@ -76,6 +86,12 @@ describe('versionsMatch', () => {
         // tag. Nothing in the titles can tell these apart, so they stay rejected
         it('rejects a live take whose album carries the only clue', () => {
             expect(match('Enter Sandman', 'Enter Sandman (Live with the SFSO)', ['Metallica'])).toBe(false);
+        });
+
+        // "Future - Bugatti 2013" cached for Ace Hood's "Bugatti": the year is part of the name
+        it('rejects a title that adds a year to the name', () => {
+            expect(match('Bugatti 2013', 'Bugatti')).toBe(false);
+            expect(match('Bugatti', 'Bugatti 2013')).toBe(false);
         });
     });
 

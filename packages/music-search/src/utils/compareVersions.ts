@@ -86,6 +86,21 @@ function isCredit(segment: string, credits: string[]) {
 }
 
 /**
+ * The years in a title's name proper. "Bugatti 2013" is another song than "Bugatti",
+ * but a year beside a noise word ("2009 Remaster") dates the master, not the song.
+ */
+function titleYears(title: string, filterOutWords: string[]) {
+    let name = title.toLowerCase().replace(BRACKETED, ' ').replace(TRAILING_DASH, ' ');
+
+    for (const word of filterOutWords) {
+        const escaped = escapeForRegex(word.toLowerCase());
+        name = name.replace(new RegExp(String.raw`\b(?:19|20)\d{2}\s+${escaped}\b|\b${escaped}\s+(?:19|20)\d{2}\b`, 'g'), ' ');
+    }
+
+    return (name.match(YEAR) ?? []).sort().join(' ');
+}
+
+/**
  * Whether a title states the version outside a qualifier. "The Island, Pt. II:
  * Dusk" and "Feel for You VIP" name the same version as "(Dusk)" and "- VIP",
  * they just do not bracket it.
@@ -151,9 +166,9 @@ export function versionsMatch(a: string, b: string, filterOutWords: string[], cr
     const versionB = extractVersion(b, filterOutWords, credits);
 
     // Only one side bracketing the version is not a disagreement about it
-    const match = versionA === versionB
+    const match = titleYears(a, filterOutWords) === titleYears(b, filterOutWords) && (versionA === versionB
         || (!versionB && titleStatesVersion(b, versionA))
-        || (!versionA && titleStatesVersion(a, versionB));
+        || (!versionA && titleStatesVersion(a, versionB)));
 
     // One side naming a version the other does not is the mismatch worth
     // catching: "Language" offered for "Language - UK Edit"
