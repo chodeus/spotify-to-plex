@@ -120,6 +120,7 @@ export function getCachedTrackLinks(
 
                         trackLink.plex_id = item.result
                             .map(item => item.id)
+                        trackLink.plex_checked_at = Date.now()
 
                         // A later title match must not inherit an earlier ISRC match's exemption
                         if (item.matched_by)
@@ -178,6 +179,17 @@ export function getCachedTrackLinks(
         save()
     }
 
-    return { path, all, found, add, save }
+    // A re-check that found nothing still confirms the cached link for another week
+    const markChecked = (spotifyIds: string[]) => {
+        const now = Date.now()
+
+        for (const link of all)
+            if (spotifyIds.includes(link.spotify_id))
+                link.plex_checked_at = now
+
+        save()
+    }
+
+    return { path, all, found, add, save, markChecked }
 
 }

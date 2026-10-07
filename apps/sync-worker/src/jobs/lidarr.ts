@@ -59,12 +59,19 @@ export async function syncLidarr() {
 
     try {
 
-        if (!settings.url)
+        // Each early return settles the status, or the overview shows "running" until the next run
+        if (!settings.url) {
+            errorSyncType('lidarr', 'Lidarr URL not configured');
+
             return;
+        }
 
         const apiKey = process.env.LIDARR_API_KEY?.trim();
-        if (!apiKey)
+        if (!apiKey) {
+            errorSyncType('lidarr', 'LIDARR_API_KEY not set');
+
             return;
+        }
 
         // Read albums and tracks to sync from both files
         const albumsPath = join(getStorageDir(), 'missing_albums_lidarr.json');
@@ -104,8 +111,11 @@ export async function syncLidarr() {
 
         const albums = Array.from(albumMap.values());
 
-        if (albums.length === 0)
+        if (albums.length === 0) {
+            completeSyncType('lidarr');
+
             return;
+        }
 
         // Initialize logs
         const { putLog, logComplete } = getNestedSyncLogsForType('lidarr');
