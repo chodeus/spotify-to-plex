@@ -79,16 +79,19 @@ export async function syncLidarr() {
 
         // An unreadable list is lost work: the run still sends the other list, then reports an error
         const unreadable: string[] = [];
+        // An entry the merge cannot key ("[null]", no names) would throw there and stop the other list too
+        const isAlbum = (entry: unknown): entry is LidarrAlbumData => typeof entry === 'object' && entry !== null
+            && typeof (entry as LidarrAlbumData).artist_name === 'string' && typeof (entry as LidarrAlbumData).album_name === 'string';
         const readAlbumList = (path: string): LidarrAlbumData[] => {
             if (!existsSync(path))
                 return [];
 
             try {
                 const parsed: unknown = JSON.parse(readFileSync(path, 'utf8'));
-                if (!Array.isArray(parsed))
-                    throw new TypeError('not a list');
+                if (!Array.isArray(parsed) || !parsed.every(isAlbum))
+                    throw new TypeError('not a list of albums');
 
-                return parsed as LidarrAlbumData[];
+                return parsed;
             } catch (e) {
                 console.error(`Error reading ${basename(path)}:`, e);
                 unreadable.push(basename(path));

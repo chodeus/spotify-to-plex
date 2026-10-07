@@ -9,7 +9,7 @@ let dir: string;
 const syncStatus = () => JSON.parse(readFileSync(join(dir, 'sync_type_log.json'), 'utf8')).lidarr;
 const settings = (url = 'http://lidarr.test') => writeFileSync(join(dir, 'lidarr.json'), JSON.stringify({ enabled: true, url, root_folder_path: '/music', quality_profile_id: 1, metadata_profile_id: 1, auto_sync: true }));
 
-// The overview showed "running" for ever after any of these early returns
+// Every way the job can end settles its status: early returns, an empty run, and missing lists it cannot use
 describe('syncLidarr status', () => {
     beforeEach(() => {
         dir = mkdtempSync(join(tmpdir(), 'lidarr-status-'));
@@ -47,6 +47,18 @@ describe('syncLidarr status', () => {
         await syncLidarr();
 
         expect(syncStatus()).toMatchObject({ status: 'error', error: 'Could not read missing_tracks_lidarr.json' });
+    });
+
+    it('errors when a missing list holds an entry with no names', async () => {
+        settings();
+
+        for (const list of ['[null]', '[{}]']) {
+            writeFileSync(join(dir, 'missing_albums_lidarr.json'), list);
+
+            await syncLidarr();
+
+            expect(syncStatus()).toMatchObject({ status: 'error', error: 'Could not read missing_albums_lidarr.json' });
+        }
     });
 
     it('errors when no Lidarr URL is set', async () => {
