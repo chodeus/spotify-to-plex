@@ -60,15 +60,15 @@ class SpotifyScraperService:
 
         data['tracks'] = tracks
         reported = data.get('track_count') or data.get('total_tracks')
+        # Only a degraded read is truncated (a cap or dropped unplayable items also leave a read short),
+        # and the embed-page fallback it degrades to reports no total at all
+        data['truncated'] = bool(max_tracks is None and degraded and (not reported or len(tracks) < reported))
         if not data.get('track_count'):
-            data['track_count'] = reported or len(tracks)
+            data['track_count'] = reported if data['truncated'] else reported or len(tracks)
 
-        # A short read is truncation only when the library said it degraded; a
-        # caller-imposed cap and filtered-out unplayable items also leave it short
-        data['truncated'] = bool(max_tracks is None and reported and len(tracks) < reported and degraded)
         if data['truncated']:
             logger.warning(
-                "Playlist truncated: scraped %d of %d tracks. %s",
+                "Playlist truncated: scraped %d of %s tracks. %s",
                 len(tracks), reported, "; ".join(degraded)
             )
 
@@ -101,7 +101,7 @@ class SpotifyScraperService:
                 library_logger.removeHandler(warnings)
 
             if not playlist:
-                raise ValueError("Failed to scrape playlist data")
+                raise RuntimeError("Failed to scrape playlist data")
 
             raw_data = playlist.to_dict() if hasattr(playlist, 'to_dict') else playlist
             raw_data = self._normalize_playlist(raw_data, max_tracks, warnings.messages)
@@ -167,6 +167,7 @@ class SpotifyScraperService:
             # Return the enhanced playlist data
             return raw_data
             
-        except Exception as e:
-            logger.error(f"Error scraping playlist: {str(e)}")
-            raise ValueError(f"Failed to scrape playlist: {str(e)}")
+        except Exception:
+            # Not a ValueError: app.py answers those 400 as a bad request, and a failed scrape is a 500
+            logger.exception("Error scraping playlist")
+            raise

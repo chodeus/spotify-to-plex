@@ -97,7 +97,9 @@ Earlier fork work that is upstream now, merged or reimplemented by the maintaine
 
 ### Running it
 
-The [Quick Start](#quick-start) command runs `ghcr.io/chodeus/spotify-to-plex:testing`. Use the `:testing` tag, not `:latest` — every branch build tags `latest`, so it is whichever branch built most recently. `testing` is upstream `main` with the fixes above, and every push to it publishes a new image.
+The [Quick Start](#quick-start) command runs `ghcr.io/chodeus/spotify-to-plex:testing`. `:latest` is the same image: it follows `testing`, and builds of other branches never move it. `testing` is upstream `main` with the fixes above. Every push to it publishes a new image, and a daily check rebuilds it when its OS packages fall behind.
+
+The container starts as root and runs the app as `PUID`:`PGID` (default `99:100`, Unraid's nobody:users). On start it hands any config files owned by someone else to that user, and it refuses to start, with a message, if the config directory is not writable by it. Set `PUID`/`PGID` to change the owner. `PORT` moves the web UI (default `9030`).
 
 `PLEX_APP_ID` is not required — the image already sets it, which is why it is absent from the Quick Start. It is the `X-Plex-Client-Identifier` this app presents to Plex, not a credential, and it is the same value for everyone running the image. Pass it explicitly only if you want your install to appear in Plex's authorised devices as its own client:
 
