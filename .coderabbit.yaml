@@ -66,7 +66,7 @@ reviews:
     - path: "**/Dockerfile"
       instructions: |-
         Container build (the root Dockerfile is the only one published):
-        - Base images follow floating major tags on purpose, so every rebuild picks up security patches. Flag a tag that can jump a major version (`latest`), and any remote script piped into a shell.
+        - Pin every base image by version tag plus digest; Renovate moves the digest and the daily refresh rebuilds for OS patches. Flag a bare or floating tag, and any remote script piped into a shell.
         - Never bake a secret into ARG/ENV or a RUN argv — both persist in image history, and /proc/<pid>/cmdline is world-readable in-container. Inject tokens at runtime.
         - A recursive chown/chmod over a tree a previous COPY wrote re-materialises every file in a new layer and duplicates it in the image — use COPY --chown.
         - The runtime stage must not inherit build toolchains, dev dependencies or source maps from the builder.

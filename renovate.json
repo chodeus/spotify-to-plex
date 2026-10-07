@@ -2,6 +2,5 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["github>chodeus/chodeus-ops"],
   "forkProcessing": "enabled",
-  "baseBranches": ["testing"],
-  "enabledManagers": ["github-actions"]
+  "enabledManagers": ["github-actions", "dockerfile"]
 }

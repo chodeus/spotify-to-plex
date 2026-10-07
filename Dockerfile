@@ -1,9 +1,11 @@
-# Builds the pnpm monorepo: the packages, the Next.js standalone web app, and the sync worker's runtime install
-FROM node:22-alpine AS node-builder
+# Both stages share one base, so the builder installs native packages for the runtime's libc
+FROM node:22.23.3-trixie-slim@sha256:154ba2f4d6fec323d28e4f4bb86bba4677f1223391a1979cf521304e03a98dfa AS node-builder
 
-ENV NEXT_DOCKER=1
+ENV NEXT_DOCKER=1 \
+    COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 
-RUN corepack enable && corepack prepare pnpm@10.15.0 --activate
+# pnpm's version comes from packageManager in package.json
+RUN corepack enable
 
 WORKDIR /build
 
@@ -18,7 +20,7 @@ RUN pnpm install --frozen-lockfile
 RUN pnpm run build:packages
 
 # Type checking is disabled for this build via next.config.js
-RUN NEXT_DOCKER=1 pnpm --filter @spotify-to-plex/web run build
+RUN pnpm --filter @spotify-to-plex/web run build
 
 # Swap the dev install for the sync worker's production dependencies only: the web app
 # already carries its own in the standalone output, and the jobs run TypeScript through tsx
@@ -28,42 +30,43 @@ RUN set -e; \
     # A context checked out under umask 002 is group-writable; normalise here, where the layer is thrown away
     chmod -R go-w /build
 
-# Node and npm come from the official image instead of piping NodeSource's setup script into a shell
-FROM node:22-bookworm-slim AS node-runtime
+# Runtime: Node.js for the web app and sync worker, Python for the scraper, supervisord for all three
+FROM node:22.23.3-trixie-slim@sha256:154ba2f4d6fec323d28e4f4bb86bba4677f1223391a1979cf521304e03a98dfa AS production
 
-# Runtime: Node.js 22 for the web app and sync worker, Python 3.10 for the scraper, supervisord for all three
-FROM ubuntu:22.04 AS production
+# Referenced by the apt layer so a refresh build re-runs the upgrade instead of reusing a cached one
+ARG BUILD_DATE
 
-ENV DEBIAN_FRONTEND=noninteractive \
-    TZ=UTC \
+LABEL org.opencontainers.image.base.name="node:22.23.3-trixie-slim" \
+      net.unraid.docker.icon="https://raw.githubusercontent.com/chodeus/spotify-to-plex/testing/apps/web/public/img/logo.png"
+
+ENV TZ=UTC \
     LANG=C.UTF-8 \
     LC_ALL=C.UTF-8 \
     NODE_ENV=production \
     PYTHONPATH=/app/apps/spotify-scraper \
     PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
     PORT=9030 \
     HOSTNAME=0.0.0.0 \
     PLEX_APP_ID=eXf+f9ktw3CZ8i45OY468WxriOCtoFxuNPzVeDcAwfw= \
     SPOTIFY_SCRAPER_URL=http://localhost:3020 \
     STORAGE_DIR=/app/config \
     PUID=99 \
-    PGID=100
+    PGID=100 \
+    UMASK=002
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl ca-certificates \
-    # Without this TZ names nothing: date and the scraper's log stamps stay UTC
-    tzdata \
-    python3 python3-pip \
-    libatomic1 \
-    && rm -rf /var/lib/apt/lists/*
+RUN echo "packages as of ${BUILD_DATE}" && \
+    apt-get update && \
+    apt-get upgrade -y && \
+    apt-get install -y --no-install-recommends \
+        curl ca-certificates tzdata \
+        python3 python3-venv \
+        supervisor && \
+    rm -rf /var/lib/apt/lists/*
 
-COPY --from=node-runtime /usr/local/bin/node /usr/local/bin/node
-COPY --from=node-runtime /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/npm
-RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
-    && ln -s ../lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx \
-    && node --version && npm --version
-
-RUN pip install --no-cache-dir supervisor
+# The jobs run through tsx, so the runtime ships no package manager, and none of their dependencies
+RUN rm -rf /usr/local/lib/node_modules /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack \
+    /usr/local/bin/yarn /usr/local/bin/yarnpkg /opt/yarn-v*
 
 # The programs run as this user; the entrypoint moves it to PUID/PGID. gid 100 is already "users" here
 RUN groupadd -o -g 100 app \
@@ -72,13 +75,14 @@ RUN groupadd -o -g 100 app \
 RUN mkdir -p /app/config /var/log/supervisor
 
 RUN --mount=type=bind,source=apps/spotify-scraper/requirements.txt,target=/tmp/requirements.txt \
-    pip install --no-cache-dir -r /tmp/requirements.txt \
-    && python3 -c "from spotify_scraper import SpotifyClient; print('SpotifyScraper installed successfully')"
+    python3 -m venv /opt/scraper-venv \
+    && /opt/scraper-venv/bin/pip install --no-cache-dir -r /tmp/requirements.txt \
+    && /opt/scraper-venv/bin/python -c "from spotify_scraper import SpotifyClient; print('SpotifyScraper installed successfully')"
 
 # From the builder, whose copy has normalised modes
 COPY --from=node-builder /build/apps/spotify-scraper/ /app/apps/spotify-scraper/
 # Compiled here so the scraper never writes __pycache__ into a directory it does not own
-RUN python3 -m compileall -q /app/apps/spotify-scraper
+RUN /opt/scraper-venv/bin/python -m compileall -q /app/apps/spotify-scraper
 
 COPY --from=node-builder /build/apps/sync-worker/src/ /app/apps/sync-worker/src/
 COPY --from=node-builder /build/apps/sync-worker/package.json /app/apps/sync-worker/
@@ -95,13 +99,13 @@ COPY --from=node-builder /build/apps/web/public/ /app/web/apps/web/public/
 COPY supervisor/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 
-# The app runs as a non-root user, so everything under /app must be readable by it and none of it writable
+# The app runs as a non-root user, so everything it runs must be readable by it and none of it writable
 RUN set -e; \
     chmod 755 /docker-entrypoint.sh; \
-    unreadable="$(find /app \( -type f ! -perm -0004 \) -o \( -type d ! -perm -0005 \) | head -20)"; \
+    unreadable="$(find /app /opt/scraper-venv \( -type f ! -perm -0004 \) -o \( -type d ! -perm -0005 \) | head -20)"; \
     if [ -n "$unreadable" ]; then echo "not world-readable:"; echo "$unreadable"; exit 1; fi; \
-    writable="$(find /app -xdev -path /app/config -prune -o ! -type l -perm /022 -print -quit)"; \
-    if [ -n "$writable" ]; then echo "writable below /app:"; echo "$writable"; exit 1; fi
+    writable="$(find /app /opt/scraper-venv -xdev -path /app/config -prune -o ! -type l \( -perm /022 -o ! -user root \) -print -quit)"; \
+    if [ -n "$writable" ]; then echo "writable by non-root:"; echo "$writable"; exit 1; fi
 
 WORKDIR /app
 
