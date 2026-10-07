@@ -5,7 +5,8 @@ import { removeFeaturing } from "@spotify-to-plex/music-search/utils/removeFeatu
 import { HubSearchResult } from "../types/actions/HubSearchResult";
 import { HubSearchResponse } from "../types/plex/HubSearchResponse";
 import { AxiosRequest } from "@spotify-to-plex/http-client/AxiosRequest";
-import getAPIUrl from "../utils/getAPIUrl";
+import { httpStatusOf } from "@spotify-to-plex/http-client/httpStatusOf";
+import { getAPIUrl } from "@spotify-to-plex/shared-utils/utils/getAPIUrl";
 
 export default function hubSearch(uri: string, token: string, query: string, limit: number = 5) {
     return new Promise<HubSearchResult[]>((resolve, reject) => {
@@ -52,7 +53,7 @@ export default function hubSearch(uri: string, token: string, query: string, lim
                 // eslint-disable-next-line no-console
                 console.error(`Plex API Request failed:\n${url}`)
                 // A status means Plex answered (a bad token answers 401), so it was reachable
-                const status = (error as { response?: { status?: number } } | undefined)?.response?.status;
+                const status = httpStatusOf(error);
                 reject(status ? `Plex answered ${status}` : "Could not connect to server");
             })
     })
