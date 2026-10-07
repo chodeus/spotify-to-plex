@@ -1,6 +1,6 @@
 # From chodeus-ops templates/caller-docker.yml. Builds, scans and smoke-tests on every PR;
-# pushes to GHCR from testing (the branch the server runs) and dispatch. No v* trigger:
-# a semver tag would also move :latest, which follows testing.
+# pushes to GHCR from testing (the branch the server runs) and dispatch. The fork cuts
+# no releases, so there is no v* trigger.
 
 name: Docker build & publish
 
@@ -12,11 +12,6 @@ on:
 
 permissions:
   contents: read
-
-# A newer push must publish last, so pushes and dispatches queue per ref; a PR's superseded run is dropped
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   stamp:
@@ -38,7 +33,7 @@ jobs:
       security-events: write
     # Pin to an immutable SHA and roll it by hand: Renovate is disabled for
     # chodeus-ops pins, and @main would run every new commit with a write token.
-    uses: chodeus/chodeus-ops/.github/workflows/docker-build.yml@2a3b38cf7b999109f780ac960084f5922aae7b9b # main
+    uses: chodeus/chodeus-ops/.github/workflows/docker-build.yml@3dd606d5193ceb36366beed1f1ec90bc3d2084ee # main
     with:
       push: ${{ github.event_name != 'pull_request' }}
       # Wait for the image's own HEALTHCHECK on every platform before pushing.
@@ -51,7 +46,7 @@ jobs:
     if: always() && github.event_name != 'pull_request'
     needs: build
     permissions: {}
-    uses: chodeus/chodeus-ops/.github/workflows/notify-discord.yml@2a3b38cf7b999109f780ac960084f5922aae7b9b # main
+    uses: chodeus/chodeus-ops/.github/workflows/notify-discord.yml@3dd606d5193ceb36366beed1f1ec90bc3d2084ee # main
     with:
       event_type: build
       status: ${{ needs.build.result == 'success' && 'success' || 'failure' }}
