@@ -16,6 +16,12 @@ describe('isTransientError', () => {
             expect(isTransientError(new AxiosError('no answer', code))).toBe(true);
     });
 
+    // axios hands a mid-body reset the 200 response it was reading, and the URL lookup then cached a miss
+    it('treats a connection dropped after the headers as transient', () => {
+        expect(isTransientError(new AxiosError('aborted', 'ECONNRESET', undefined, undefined, { status: 200 } as AxiosResponse))).toBe(true);
+        expect(isTransientError(new AxiosError('stream has been aborted', 'ERR_BAD_RESPONSE', undefined, undefined, { status: 200 } as AxiosResponse))).toBe(true);
+    });
+
     it('treats an answer as an answer', () => {
         expect(isTransientError(answered(404))).toBe(false);
         expect(isTransientError(answered(400))).toBe(false);

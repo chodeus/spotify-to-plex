@@ -16,6 +16,7 @@ import { updateSyncTypeProgress } from "../utils/updateSyncTypeProgress";
 import { getMusicBrainzIds } from "@spotify-to-plex/shared-utils/lidarr/getMusicBrainzIds";
 import { lookupLidarrAlbum } from "@spotify-to-plex/shared-utils/lidarr/lookupLidarrAlbum";
 import { monitorAndSearchAlbum } from "@spotify-to-plex/shared-utils/lidarr/monitorAndSearchAlbum";
+import { LIDARR_TIMEOUT_MS } from "@spotify-to-plex/shared-utils/lidarr/utils/lidarrTimeout";
 
 /**
  * Add the album to Lidarr and start a search for it. Lidarr answering 409 means
@@ -27,10 +28,10 @@ async function addOrMonitorAlbum(addRequest: LidarrAddAlbumRequest, foreignAlbum
     const headers = { 'X-Api-Key': apiKey, 'Content-Type': 'application/json' };
 
     try {
-        const addResponse = await axios.post(`${baseUrl}/api/v1/album`, addRequest, { headers });
+        const addResponse = await axios.post(`${baseUrl}/api/v1/album`, addRequest, { headers, timeout: LIDARR_TIMEOUT_MS });
         const albumId = addResponse.data?.id;
         if (albumId)
-            await axios.post(`${baseUrl}/api/v1/command`, { name: 'AlbumSearch', albumIds: [albumId] }, { headers });
+            await axios.post(`${baseUrl}/api/v1/command`, { name: 'AlbumSearch', albumIds: [albumId] }, { headers, timeout: LIDARR_TIMEOUT_MS });
 
         return { ok: true, message: undefined as string | undefined };
     } catch (error: any) {

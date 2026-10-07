@@ -11,5 +11,6 @@ export function isTransientError(error: unknown) {
 
     const status = error.response?.status;
 
-    return status === undefined || status === 429 || status >= 500;
+    // A body cut off after the headers keeps the 200 it was answering with, which is not the answer
+    return status === undefined || status < 400 || status === 429 || status >= 500;
 }

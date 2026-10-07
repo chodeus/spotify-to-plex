@@ -47,7 +47,7 @@ export async function getMusicBrainzIdsByTextSearch(artistName: string, albumNam
 
             const credits = candidate['artist-credit'] ?? [];
             const mbArtistNames = credits.flatMap(credit => [credit.name, credit.artist?.name]).filter(name => !!name);
-            if (validateMusicBrainzMatch(artistName, albumName, mbArtistNames, candidate.title || ''))
+            if (validateMusicBrainzMatch(artistName, albumName, mbArtistNames, candidate.title || '', candidate['secondary-types'] ?? []))
                 return { status: 'found', releaseGroupId, artistId };
         }
     }

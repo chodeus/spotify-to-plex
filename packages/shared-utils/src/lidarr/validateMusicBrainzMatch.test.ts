@@ -22,7 +22,35 @@ describe('validateMusicBrainzMatch', () => {
         expect(validateMusicBrainzMatch('Billy Idol', 'The Very Best of the Eighties Remastered Collection Volume Two', ['Various Artists'], 'The Very Best of the Eighties Remastered Collection Volume Two')).toBe(false);
     });
 
-    it('rejects a live album for the studio one', () => {
+    // MusicBrainz titles the live release group "Unplugged" and gives it the Live type
+    it('matches a live album by its type, and refuses a studio one however long the title', () => {
+        expect(validateMusicBrainzMatch('Eric Clapton', 'Unplugged (Live)', ['Eric Clapton'], 'Unplugged', ['Live'])).toBe(true);
         expect(validateMusicBrainzMatch('Some Band', 'Album (Live)', ['Some Band'], 'Album')).toBe(false);
+        expect(validateMusicBrainzMatch('Eagles', 'Hell Freezes Over (Live)', ['Eagles'], 'Hell Freezes Over', ['Compilation'])).toBe(false);
+    });
+
+    // Each scored 0 once judged apart, and the miss was cached for 14 days
+    it('matches names too short or too far from Latin letters to score', () => {
+        expect(validateMusicBrainzMatch('Beyoncé', '4', ['Beyoncé'], '4')).toBe(true);
+        expect(validateMusicBrainzMatch('Ed Sheeran', '+', ['Ed Sheeran'], '+')).toBe(true);
+        expect(validateMusicBrainzMatch('MØ', 'No Mythologies to Follow', ['MØ'], 'No Mythologies to Follow')).toBe(true);
+        expect(validateMusicBrainzMatch('Кино', '45', ['Кино'], '45')).toBe(true);
+    });
+
+    it('does not let two names that both normalise to nothing match each other', () => {
+        expect(validateMusicBrainzMatch('Кино', '45', ['Аквариум'], '45')).toBe(false);
+        expect(validateMusicBrainzMatch('Beyoncé', '4', ['Beyoncé'], '5')).toBe(false);
+    });
+
+    // A sequel is one character from the original and cleared 0.8, then was cached as the match
+    it('rejects a release group with another number in its title', () => {
+        expect(validateMusicBrainzMatch('Guns N\' Roses', 'Use Your Illusion I', ['Guns N\' Roses'], 'Use Your Illusion II')).toBe(false);
+        expect(validateMusicBrainzMatch('Lil Wayne', 'Tha Carter III', ['Lil Wayne'], 'Tha Carter IV')).toBe(false);
+        expect(validateMusicBrainzMatch('Eminem', 'The Marshall Mathers LP', ['Eminem'], 'The Marshall Mathers LP 2')).toBe(false);
+    });
+
+    it('reads a number the same whether written as a digit, a word or a numeral', () => {
+        expect(validateMusicBrainzMatch('Queen', 'Greatest Hits II', ['Queen'], 'Greatest Hits 2')).toBe(true);
+        expect(validateMusicBrainzMatch('Various Artists', 'The Very Best of the Eighties Volume Two', ['Various Artists'], 'The Very Best of the Eighties Volume 2')).toBe(true);
     });
 });
