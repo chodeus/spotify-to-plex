@@ -3,6 +3,7 @@ import { getSettings } from '@spotify-to-plex/plex-config/functions/getSettings'
 import { updateSettings } from '@spotify-to-plex/plex-config/functions/updateSettings';
 import { GetPlexPinResponse } from '@spotify-to-plex/shared-types/plex/GetPlexPinResponse';
 import { plexTvClient } from '@spotify-to-plex/http-client/plexTvClient';
+import { describeHttpError } from '@spotify-to-plex/http-client/describeHttpError';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createRouter } from 'next-connect';
 
@@ -22,11 +23,15 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
                     }
                 })
 
+                // Null until the pin is approved on plex.tv; saving that would sign the app out
+                if (!result.data.authToken)
+                    return res.status(409).json({ error: 'Plex has not confirmed the sign-in yet' });
+
                 await updateSettings({ token: result.data.authToken })
                 res.json({ ok: true })
 
             } catch (error) {
-                console.error('Error verifying Plex authentication:', error);
+                console.error(`Error verifying Plex authentication: ${describeHttpError(error)}`);
                 res.status(500).json({ error: 'Failed to verify authentication' });
             }
         })

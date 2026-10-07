@@ -46,8 +46,9 @@ const PlexConnection = (props: Props) => {
     const onPlexLoginClick = useCallback(() => {
         setCreatingUrl(true);
         errorBoundary(async () => {
+            // Home finishes the sign-in (?plex=1), whichever page started it
             const result = await axios.post<GetAuthUrlResponse>('/api/auth/url', {
-                callback: window.location.href
+                callback: `${window.location.origin}/`
             });
             if (top)
                 top.location.href = result.data.authUrl;
@@ -69,11 +70,9 @@ const PlexConnection = (props: Props) => {
             if (!resource)
                 throw new Error("Something went wrong selecting the resource");
 
-            const {id, accessToken} = resource
             const settings = await axios.post<GetSettingsResponse>("/api/settings", {
                 uri: newPlexUri,
-                id,
-                serverToken: accessToken
+                id: resource.id
             });
 
             try {
