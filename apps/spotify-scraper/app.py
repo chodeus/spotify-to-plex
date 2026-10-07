@@ -37,7 +37,7 @@ def scrape_playlist():
         "max_tracks": null  # Optional, null (default) fetches all tracks
     }
     
-    Returns raw JSON data from SpotifyScraper with optional album enrichment
+    Returns the playlist normalised for the sync (flattened tracks, track_count, truncated)
     """
     try:
         # Validate request
