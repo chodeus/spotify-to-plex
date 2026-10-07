@@ -17,6 +17,7 @@ const { removeItemsFromPlaylist } = await import('@spotify-to-plex/plex-helpers/
 const { storePlaylist } = await import('@spotify-to-plex/plex-helpers/playlist/storePlaylist');
 const { updatePlaylist } = await import('@spotify-to-plex/plex-helpers/playlist/updatePlaylist');
 const { getSettings } = await import('@spotify-to-plex/plex-config/functions/getSettings');
+const { addPlaylist } = await import('@spotify-to-plex/plex-config/functions/addPlaylist');
 const { putPlexPlaylist } = await import('./putPlexTracks');
 
 const addMock = addItemsToPlaylist as unknown as Mock;
@@ -36,6 +37,8 @@ describe('putPlexPlaylist', () => {
             mock.mockReset();
         (getSettings as unknown as Mock).mockResolvedValue({ uri: 'http://plex.test:32400', token: 'token', id: 'machine' });
         storeMock.mockResolvedValue('600');
+        addMock.mockResolvedValue([]);
+        (addPlaylist as unknown as Mock).mockReset();
     });
 
     it('rewrites an existing playlist with every matched track, the first included', async () => {
@@ -78,5 +81,13 @@ describe('putPlexPlaylist', () => {
 
         expect(keysMock).not.toHaveBeenCalled();
         expect(removeMock).not.toHaveBeenCalled();
+    });
+
+    // Recorded after the adds, a Plex that went away mid-add left a playlist the next sync created again
+    it('records a new playlist before adding its tracks', async () => {
+        addMock.mockRejectedValue(new Error('connect ECONNREFUSED'));
+
+        await expect(putPlexPlaylist('p', null, [matched('1'), matched('2')], 'Playlist', '')).rejects.toThrow('ECONNREFUSED');
+        expect(addPlaylist).toHaveBeenCalledWith({ type: 'playlist', id: 'p', plex: '600' });
     });
 });
