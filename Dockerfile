@@ -24,7 +24,9 @@ RUN NEXT_DOCKER=1 pnpm --filter @spotify-to-plex/web run build
 # already carries its own in the standalone output, and the jobs run TypeScript through tsx
 RUN set -e; \
     rm -rf node_modules apps/*/node_modules packages/*/node_modules; \
-    pnpm install --frozen-lockfile --prod --offline --filter "@spotify-to-plex/sync-worker..."
+    pnpm install --frozen-lockfile --prod --offline --filter "@spotify-to-plex/sync-worker..."; \
+    # Next's standalone output writes some files group-writable; fix it here, where the layer is thrown away
+    chmod -R go-w /build
 
 # Node and npm come from the official image instead of piping NodeSource's setup script into a shell
 FROM node:22-bookworm-slim AS node-runtime
