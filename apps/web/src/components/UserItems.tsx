@@ -93,21 +93,9 @@ export default function UserItems(props: Props) {
                 }))
 
                 // Remove loading
-                setAddingItems(prev => {
-                    const idx = prev.indexOf(itemId);
-                    if (idx !== -1)
-                        prev.splice(idx, 1)
-
-                    return prev;
-                })
+                setAddingItems(prev => prev.filter(id => id !== itemId))
             }, () => {
-                setAddingItems(prev => {
-                    const idx = prev.indexOf(itemId);
-                    if (idx !== -1)
-                        prev.splice(idx, 1)
-
-                    return prev;
-                })
+                setAddingItems(prev => prev.filter(id => id !== itemId))
             })
         }
     }, [items, label, type, user])
@@ -137,7 +125,7 @@ export default function UserItems(props: Props) {
         <Dialog open onClose={handleClose}>
 
             <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                Plex Server Connection
+                Add Spotify {type}
                 <IconButton onClick={handleCloseClick} size="small">
                     <Close />
                 </IconButton>

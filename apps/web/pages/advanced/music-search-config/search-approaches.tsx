@@ -55,7 +55,7 @@ const TextProcessingPage: NextPage = () => {
 
     const handleReset = useCallback(() => {
         // eslint-disable-next-line no-alert
-        if (confirm('Reset search approaches to defaults? This will overwrite your current configuration.')) {
+        if (confirm('Discard unsaved changes and reload the saved search approaches?')) {
             loadData();
         }
     }, [loadData]);
@@ -109,7 +109,7 @@ const TextProcessingPage: NextPage = () => {
                             <Typography variant="h6">Search Approaches</Typography>
                             <Box sx={{ display: 'flex', gap: 1 }}>
                                 <Button onClick={handleReset} variant="outlined" size="small" startIcon={<Refresh />}>
-                                    Reset to Defaults
+                                    Reload Saved
                                 </Button>
                                 <Button onClick={handleSaveClick} variant="contained" size="small" startIcon={<Save />}>
                                     Save Configuration

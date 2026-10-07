@@ -58,11 +58,11 @@ const OperationSelectorPopup: React.FC<OperationSelectorPopupProps> = ({
         onClose();
     }, [onOperationSelect, onClose, selectedThreshold]);
 
-    const onThresholdChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-        const newThreshold = Number(event.target.value);
-        setSelectedThreshold(newThreshold);
-        // Automatically apply similarity with the selected threshold
-        onOperationSelect('similarity', newThreshold);
+    // A click, not the group's change event: that never fires for the threshold already checked,
+    // so a new pill could not take 85% (or the last value picked)
+    const createThresholdClickHandler = useCallback((threshold: number) => () => {
+        setSelectedThreshold(threshold);
+        onOperationSelect('similarity', threshold);
         onClose();
     }, [onOperationSelect, onClose]);
 
@@ -125,7 +125,6 @@ const OperationSelectorPopup: React.FC<OperationSelectorPopupProps> = ({
                                 <RadioGroup
                                     row
                                     value={selectedThreshold}
-                                    onChange={onThresholdChange}
                                     onClick={handleRadioGroupClick}
                                     sx={{
                                         '& .MuiFormControlLabel-root': {
@@ -137,7 +136,7 @@ const OperationSelectorPopup: React.FC<OperationSelectorPopupProps> = ({
                                     }}
                                 >
                                     {thresholdOptions.map((option) => (
-                                        <FormControlLabel key={option.value} value={option.value} control={<Radio size="small" />} label={option.label} />
+                                        <FormControlLabel key={option.value} value={option.value} control={<Radio size="small" onClick={createThresholdClickHandler(option.value)} />} label={option.label} />
                                     ))}
                                 </RadioGroup>
                             </div>
