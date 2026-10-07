@@ -1,28 +1,59 @@
 #!/bin/bash
-set -e
+set -euo pipefail
+
+CONFIG_DIR=/app/config
+APP_HOME=/tmp/app-home
+PUID="${PUID:-99}"
+PGID="${PGID:-100}"
+# supervisord passes it to the web app; an empty value would fall back to Next's 3000
+export PORT="${PORT:-9030}"
+# supervisord reads it as octal for every program and refuses to start on an empty value
+export UMASK="${UMASK:-002}"
 
 echo "🎵 Spotify-to-Plex Starting..."
 echo "=============================="
 
-# Ensure config directory has correct permissions
-if [ ! -w /app/config ]; then
-    echo "⚠️  Warning: /app/config is not writable. Trying to fix permissions..."
-    chmod 755 /app/config || true
+if [ "$(id -u)" != 0 ]; then
+    echo "FATAL: start the container as root and set PUID/PGID; it drops to that user itself." >&2
+    exit 1
 fi
 
-# Set default PORT if not provided
-export PORT="${PORT:-9030}"
+# supervisord stays root so it can start each program as the app user
+if [ "$(id -u app)" != "$PUID" ] || [ "$(id -g app)" != "$PGID" ]; then
+    groupmod -o -g "$PGID" app
+    usermod -o -u "$PUID" -g "$PGID" app
+fi
 
-# Display configuration
+# supervisord keeps root's HOME when it switches user, so each program is pointed here
+mkdir -p "$APP_HOME"
+chown "$PUID:$PGID" "$APP_HOME"
+
+# Only what is wrong: an already-correct config tree costs a stat pass, not a rewrite.
+# A failed chown alone is not fatal (a read-only or foreign-uid share); the write probe decides
+find "$CONFIG_DIR" \( ! -user "$PUID" -o ! -group "$PGID" \) -exec chown -h "$PUID:$PGID" {} + || true
+
+probe="$CONFIG_DIR/.write-probe.$$"
+if ! runuser -u app -- touch "$probe" 2>/dev/null; then
+    echo "FATAL: $CONFIG_DIR is not writable by $PUID:$PGID. Check the volume's permissions, or set PUID/PGID to its owner." >&2
+    exit 1
+fi
+rm -f "$probe"
+
+# The probe proves the directory only; an existing entry the sweep could not chown still fails a save
+if ! unwritable="$(runuser -u app -- find "$CONFIG_DIR" \( -type f -o -type d \) ! -writable -print -quit)" \
+    || [ -n "$unwritable" ]; then
+    echo "FATAL: ${unwritable:-an entry below $CONFIG_DIR} is not writable by $PUID:$PGID. Fix its owner or mode." >&2
+    exit 1
+fi
+
 echo "✅ Web UI Port: $PORT"
-echo "✅ Config Directory: /app/config"
-if [ -n "$SPOTIFY_API_CLIENT_ID" ]; then
+echo "✅ Config Directory: $CONFIG_DIR (running as $PUID:$PGID)"
+if [ -n "${SPOTIFY_API_CLIENT_ID:-}" ]; then
     echo "✅ Spotify API configured"
 fi
-if [ -n "$TIDAL_API_CLIENT_ID" ]; then
+if [ -n "${TIDAL_API_CLIENT_ID:-}" ]; then
     echo "✅ Tidal API configured"
 fi
 
-# Start supervisor
 echo "🚀 Starting services..."
 exec "$@"
