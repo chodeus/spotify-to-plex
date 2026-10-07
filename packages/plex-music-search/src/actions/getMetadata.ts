@@ -1,7 +1,7 @@
 import { AxiosResponse } from "axios";
 import { Metadata } from "../types/plex/Metadata";
 import { AxiosRequest } from "@spotify-to-plex/http-client/AxiosRequest";
-import { httpStatusOf } from "@spotify-to-plex/http-client/httpStatusOf";
+import { isRetryable } from "@spotify-to-plex/http-client/isRetryable";
 import { getAPIUrl } from "@spotify-to-plex/shared-utils/utils/getAPIUrl";
 
 type GetMetaDataResponse = {
@@ -18,9 +18,7 @@ export async function getMetadata(uri: string, token: string, key: string) {
     try {
         result = await AxiosRequest.get<GetMetaDataResponse>(url, token)
     } catch (error) {
-        // A 4xx (a deleted item, a bad token) answers the same on a retry; 408 and 429 are worth one
-        const status = httpStatusOf(error);
-        if (status && status >= 400 && status < 500 && status != 408 && status != 429)
+        if (!isRetryable(error))
             throw error;
 
         await (new Promise(resolve => { setTimeout(resolve, 1000) }))
