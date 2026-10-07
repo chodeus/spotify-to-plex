@@ -90,7 +90,9 @@ function isCredit(segment: string, credits: string[]) {
  * but a year beside a noise word ("2009 Remaster") dates the master, not the song.
  */
 function titleYears(title: string, filterOutWords: string[]) {
-    let name = title.toLowerCase().replace(BRACKETED, ' ').replace(TRAILING_DASH, ' ');
+    let name = title.toLowerCase()
+        .replace(BRACKETED, ' ')
+        .replace(TRAILING_DASH, ' ');
 
     for (const word of filterOutWords) {
         const escaped = escapeForRegex(word.toLowerCase());
