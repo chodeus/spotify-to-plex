@@ -1,5 +1,5 @@
 import { AxiosResponse } from 'axios';
-import { httpStatusOf } from '@spotify-to-plex/http-client/httpStatusOf';
+import { describeHttpError } from '@spotify-to-plex/http-client/describeHttpError';
 import { isRetryable } from '@spotify-to-plex/http-client/isRetryable';
 import { RetryConfig } from './RetryConfig';
 import { createDelay } from './utils/createDelay';
@@ -19,8 +19,7 @@ export async function handleOneRetryAttempt<T = any>(
         if (!isRetryable(error))
             throw error;
 
-        // Never log the error itself: its request config carries the X-Plex-Token header
-        console.error(`Plex request failed (${httpStatusOf(error) ?? (error instanceof Error ? error.message : 'no response')}), retrying`);
+        console.error(`Plex request failed (${describeHttpError(error)}), retrying`);
 
         // Wait before retry
         await createDelay(retryDelay);

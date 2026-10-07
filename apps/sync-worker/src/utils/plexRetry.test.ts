@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describeHttpError } from '@spotify-to-plex/http-client/describeHttpError';
 import { handleOneRetryAttempt } from '@spotify-to-plex/plex-helpers/retry';
 
 const TOKEN = 'fake-plex-token';
@@ -41,5 +42,17 @@ describe('handleOneRetryAttempt', () => {
 
         expect(log).toHaveBeenCalled();
         expect(JSON.stringify(log.mock.calls)).not.toContain(TOKEN);
+    });
+});
+
+describe('describeHttpError', () => {
+    it('gives the status of an answered request and the message of an unanswered one', () => {
+        expect(describeHttpError(axiosError(404))).toBe('HTTP 404');
+        expect(describeHttpError(axiosError())).toBe('connect ECONNREFUSED');
+        expect(describeHttpError('not an error')).toBe('no response');
+    });
+
+    it('never includes the token the request carried', () => {
+        expect([axiosError(500), axiosError()].map(error => describeHttpError(error)).join(' ')).not.toContain(TOKEN);
     });
 });
