@@ -1,3 +1,4 @@
+import { httpStatusOf } from "@spotify-to-plex/http-client/httpStatusOf";
 import { removeFeaturing } from "@spotify-to-plex/music-search/utils/removeFeaturing";
 import { getMetadata } from "../actions/getMetadata";
 import { PlexMusicSearchConfig } from "../types/PlexMusicSearchConfig";
@@ -8,8 +9,7 @@ export async function getById(config: PlexMusicSearchConfig, key: string) {
     try {
         metaData = await getMetadata(config.uri, config.token, key);
     } catch (error) {
-        const status = (error as { response?: { status?: number } } | undefined)?.response?.status;
-        if (status === 404)
+        if (httpStatusOf(error) === 404)
             throw new PlexItemMissingError(key);
 
         throw error;

@@ -1,7 +1,5 @@
 import axios, { AxiosRequestConfig } from "axios";
-import { Agent } from "node:https";
-
-const agent = new Agent({ rejectUnauthorized: false });
+import { plexHttpsAgent } from "./plexHttpsAgent";
 
 export function axiosGet<T>(url: string, token: string, config: AxiosRequestConfig = {}) {
     return axios.get<T>(url,
@@ -9,7 +7,7 @@ export function axiosGet<T>(url: string, token: string, config: AxiosRequestConf
             ...config,
             // eslint-disable-next-line unicorn/numeric-separators-style
             timeout: 10000,
-            httpsAgent: agent,
+            httpsAgent: plexHttpsAgent(url),
             headers: {
                 "X-Plex-Token": token,
             }
