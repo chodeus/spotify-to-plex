@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
 # pnpm/turbo monorepo: apps/{web,sync-worker,spotify-scraper} + packages/*.
-# Two Dockerfiles are built and pushed to a registry from docker-publish.yml.
+# One image is built from the root Dockerfile and published by docker-publish.yml.
 language: en-US
 reviews:
   # the "**" rule keeps assertive's style nits out
@@ -27,6 +27,18 @@ reviews:
     - "!**/dist/**"
     - "!**/.next/**"
     - "!**/*.png"
+    # Not used on this install (Lidarr does the downloading; no MQTT broker; no saved albums)
+    - "!packages/tidal-music-search/**"
+    - "!packages/slskd-music-search/**"
+    - "!apps/sync-worker/src/jobs/albums.ts"
+    - "!apps/sync-worker/src/jobs/mqtt.ts"
+    - "!apps/sync-worker/src/jobs/slskd.ts"
+    - "!apps/sync-worker/src/services/mqtt/**"
+    - "!apps/sync-worker/src/utils/findMissingTidal*"
+    - "!apps/web/pages/api/slskd/**"
+    - "!apps/web/pages/api/tidal/**"
+    - "!apps/web/src/components/SlskdSettings.tsx"
+    - "!packages/plex-config/src/functions/*Slskd*"
 
   path_instructions:
     - path: "packages/*music-search*/**/*.ts"
@@ -53,13 +65,13 @@ reviews:
         - Never expose a Spotify secret or Plex token to the browser bundle. Anything read at build time into client code is public — server-side route or proxy only.
     - path: "**/Dockerfile"
       instructions: |-
-        Container builds (both are published):
-        - Pin base images by digest and pin package versions; an unpinned tag changes the runtime silently between builds.
+        Container build (the root Dockerfile is the only one published):
+        - Pin every base image by version tag plus digest; Renovate moves the digest and the daily refresh rebuilds for OS patches. Flag a bare or floating tag, and any remote script piped into a shell.
         - Never bake a secret into ARG/ENV or a RUN argv — both persist in image history, and /proc/<pid>/cmdline is world-readable in-container. Inject tokens at runtime.
         - A recursive chown/chmod over a tree a previous COPY wrote re-materialises every file in a new layer and duplicates it in the image — use COPY --chown.
         - The runtime stage must not inherit build toolchains, dev dependencies or source maps from the builder.
         - In this monorepo, only the workspace an image needs should be installed and copied — pulling the whole tree bloats the image and widens its dependency surface.
-    - path: "{docker-entrypoint.sh,supervisor/**,apps/*/docker-entrypoint.sh}"
+    - path: "{docker-entrypoint.sh,supervisor/**}"
       instructions: |-
         Container entrypoint / process supervision:
         - Quote every variable expansion; an unquoted path or token breaks on spaces and can word-split into unintended arguments.

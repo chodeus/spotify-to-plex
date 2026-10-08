@@ -1,43 +1,55 @@
-name: Publish Docker image
+# From chodeus-ops templates/caller-docker.yml. Builds, scans and smoke-tests on every PR;
+# pushes to GHCR from testing (the branch the server runs) and dispatch. The fork cuts
+# no releases, so there is no v* trigger.
+
+name: Docker build & publish
 
 on:
   push:
-    branches: [main, testing]
-    tags: ['v*']
+    branches: [testing]
+  pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
-  build-and-push:
+  stamp:
+    permissions: {}
     runs-on: ubuntu-latest
+    outputs:
+      date: ${{ steps.now.outputs.date }}
+    steps:
+      - id: now
+        run: echo "date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: stamp
+    # The union of what docker-build's jobs declare; GitHub checks it at startup,
+    # even for the push job a PR run skips.
     permissions:
       contents: read
       packages: write
-    steps:
-      - uses: actions/checkout@v4
+      security-events: write
+    # Pin to an immutable SHA and roll it by hand: Renovate is disabled for
+    # chodeus-ops pins, and @main would run every new commit with a write token.
+    uses: chodeus/chodeus-ops/.github/workflows/docker-build.yml@3dd606d5193ceb36366beed1f1ec90bc3d2084ee # main
+    with:
+      push: ${{ github.event_name != 'pull_request' }}
+      # Wait for the image's own HEALTHCHECK on every platform before pushing.
+      smoke_healthcheck: true
+      # A new value per build re-runs the image's apt upgrade, which a refresh build exists for
+      build_args: |
+        BUILD_DATE=${{ needs.stamp.outputs.date }}
 
-      - uses: docker/setup-buildx-action@v3
-
-      - uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ github.repository }}
-          tags: |
-            type=raw,value=latest
-            type=ref,event=branch
-            type=ref,event=tag
-            type=sha
-
-      - uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+  notify:
+    if: always() && github.event_name != 'pull_request'
+    needs: build
+    permissions: {}
+    uses: chodeus/chodeus-ops/.github/workflows/notify-discord.yml@3dd606d5193ceb36366beed1f1ec90bc3d2084ee # main
+    with:
+      event_type: build
+      status: ${{ needs.build.result == 'success' && 'success' || 'failure' }}
+      commit_sha: ${{ github.sha }}
+    secrets:
+      DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}

@@ -13,6 +13,7 @@ import { writeJsonFileAtomic } from "@spotify-to-plex/shared-utils/utils/writeJs
 import { join } from "node:path";
 import { findMissingTidalTracks } from "../utils/findMissingTidalTracks";
 import { getCachedPlexTracks } from "../utils/getCachedPlexTracks";
+import { mergeSearchResults } from "../utils/mergeSearchResults";
 import { getPlexPlaylists } from "../utils/getPlexPlaylists";
 import { getSavedPlaylists } from "../utils/getSavedPlaylists";
 import { getNestedSyncLogsForType } from "../utils/getNestedSyncLogsForType";
@@ -145,16 +146,20 @@ export async function syncPlaylists() {
 
                 // @ts-ignore
                 // eslint-disable-next-line prefer-const
-                let { result, add } = await getCachedPlexTracks(plexSearchConfig, data)
+                let { result, add, markChecked, recheck } = await getCachedPlexTracks(plexSearchConfig, data)
 
                 // eslint-disable-next-line unicorn/consistent-destructuring
                 const toSearchItems = data.tracks.filter(track => !result.some((item: SearchResponse) => item.id == track.id))
-                if (toSearchItems.length > 0) {
-                    console.log(`Searching for ${toSearchItems.length} tracks`)
-                    const searchResult = await matchByIsrc(plexSearchConfig, await plexMusicSearch(plexSearchConfig, toSearchItems), toSearchItems)
-                    result = result.concat(searchResult)
+                const searchItems = [...toSearchItems, ...recheck]
+                if (searchItems.length > 0) {
+                    console.log(`Searching for ${toSearchItems.length} tracks, re-checking ${recheck.length} cached links`)
+                    const searchResult = await matchByIsrc(plexSearchConfig, await plexMusicSearch(plexSearchConfig, searchItems), searchItems)
+                    // eslint-disable-next-line unicorn/consistent-destructuring
+                    const { merged, found, confirmed } = mergeSearchResults(result, searchResult, recheck, data.tracks)
+                    result = merged
 
-                    add(searchResult, 'plex')
+                    add(found, 'plex')
+                    markChecked(confirmed)
                 }
 
                 ////////////
@@ -165,10 +170,17 @@ export async function syncPlaylists() {
                 ////////////
                 // Handle missing tracks
                 ////////////
+                // A search Plex never answered says nothing about the library: keep the last good missing lists
+                const unsearched = result.filter((track: SearchResponse) => track.failed && track.result.length == 0)
+                if (unsearched.length > 0) {
+                    console.log(`Could not search Plex for ${unsearched.length} tracks; they are not reported missing this run`)
+                    incomplete = true
+                }
+
                 const missingTracks = toSearchItems.filter(item => {
                     const { title: trackTitle, artists: trackArtists } = item;
 
-                    return result.some(track => track.title == trackTitle && trackArtists.indexOf(track.artist) > - 1 && track.result.length == 0)
+                    return result.some(track => track.title == trackTitle && trackArtists.indexOf(track.artist) > - 1 && track.result.length == 0 && !track.failed)
                 })
                 processed = true
                 if (missingTracks.length == 0) {
