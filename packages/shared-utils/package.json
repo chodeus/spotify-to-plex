@@ -32,6 +32,7 @@
         "access": "restricted"
     },
     "dependencies": {
+        "@spotify-to-plex/http-client": "workspace:*",
         "@spotify-to-plex/shared-types": "workspace:*",
         "@spotify/web-api-ts-sdk": "^1.2.0",
         "axios": "^1.20.0",

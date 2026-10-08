@@ -38,4 +38,26 @@ describe('musicBrainzGet retry', () => {
         expect(sentAt).toHaveLength(3);
         expect(sentAt[2]! - sentAt[1]!).toBeGreaterThanOrEqual(1100);
     });
+
+    // The queued request had claimed its slot before the 503 arrived
+    it('holds the retry and a queued request for the wait Retry-After names', async () => {
+        vi.useFakeTimers();
+        const sentAt: number[] = [];
+        getMock.mockImplementation(() => {
+            sentAt.push(Date.now());
+
+            if (sentAt.length === 1)
+                return Promise.reject(new AxiosError('busy', 'ERR_BAD_RESPONSE', undefined, undefined, { status: 503, headers: { 'retry-after': '5' } } as unknown as AxiosResponse));
+
+            return Promise.resolve({ data: {} });
+        });
+
+        const first = musicBrainzGet('https://musicbrainz.org/ws/2/a');
+        const queued = musicBrainzGet('https://musicbrainz.org/ws/2/b');
+        await vi.advanceTimersByTimeAsync(60_000);
+        await Promise.all([first, queued]);
+
+        expect(sentAt).toHaveLength(3);
+        expect(Math.min(sentAt[1]!, sentAt[2]!) - sentAt[0]!).toBeGreaterThanOrEqual(5000);
+    });
 });
