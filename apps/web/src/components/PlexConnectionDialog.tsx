@@ -6,8 +6,6 @@ import { useEffect, useState } from "react";
 import { GetSettingsResponse } from "../../pages/api/settings";
 import { errorBoundary } from "@/helpers/errors/errorBoundary";
 import axios from "axios";
-import { useRouter } from "next/router";
-import { enqueueSnackbar } from "notistack";
 
 type PlexConnectionDialogProps = {
     readonly onClose: () => void;
@@ -20,7 +18,6 @@ const PlexConnectionDialog = (props: PlexConnectionDialogProps) => {
     const [settings, setSettings] = useState<GetSettingsResponse>();
     const [connected, setConnected] = useState(false);
     const [loading, setLoading] = useState(true);
-    const router = useRouter()
 
     useEffect(() => {
         errorBoundary(async () => {
@@ -30,31 +27,6 @@ const PlexConnectionDialog = (props: PlexConnectionDialogProps) => {
             setLoading(false);
         }, undefined, true);
     }, []);
-
-
-    useEffect(() => {
-        if (!router.isReady) return;
-
-        if (router.query.plex) {
-            errorBoundary(async () => {
-                const result = await axios.post<{ ok: boolean; }>('/api/auth/verify');
-                if (result.data.ok) {
-                    setLoading(true);
-                    const settings = await axios.get<GetSettingsResponse>("/api/settings");
-                    if (settings.data.loggedin)
-                        setSettings(settings.data);
-
-                    setConnected(settings.data.loggedin);
-                    setLoading(false);
-
-                    enqueueSnackbar("Plex connection verified", { variant: "success" });
-
-                }
-
-                router.replace("/", undefined, { shallow: true });
-            });
-        }
-    }, [router, router.isReady]);
 
 
     return (

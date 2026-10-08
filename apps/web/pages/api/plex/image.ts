@@ -1,9 +1,11 @@
 import { AxiosRequest } from '@spotify-to-plex/http-client/AxiosRequest';
+import { describeHttpError } from '@spotify-to-plex/http-client/describeHttpError';
 // MIGRATED: Updated to use http-client package
 import { generateError } from '@/helpers/errors/generateError';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createRouter } from 'next-connect';
 import { getSettings } from '@spotify-to-plex/plex-config/functions/getSettings';
+import { getAPIUrl } from '@spotify-to-plex/shared-utils/utils/getAPIUrl';
 
 export const config = {
     api: {
@@ -11,12 +13,17 @@ export const config = {
     },
 }
 
+// Only artwork: any other Plex path would go out with the server token, /security/token included
+const IMAGE_PATH = /^\/(?:library\/metadata\/\d+\/(?:thumb|art|banner|clearLogo)|playlists\/\d+\/composite)(?:\/\d+)?$/;
+// Raster only: an SVG served from this origin could run script here
+const IMAGE_TYPE = /^image\/(?:jpe?g|png|gif|webp|avif)\s*(?:;|$)/i;
+
 const router = createRouter<NextApiRequest, NextApiResponse>()
     .get(
         async (req, res) => {
             const { path } = req.query;
 
-            if (!path || Array.isArray(path))
+            if (!path || Array.isArray(path) || !IMAGE_PATH.test(path))
                 return res.status(400).end();
 
             const settings = await getSettings();
@@ -24,28 +31,36 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
             if (!settings.token)
                 return res.status(400).end();
 
+            // getAPIUrl refuses a path that would send the token to another host
+            let url: string;
             try {
-                res.setHeader(
-                    "Cache-Control",
-                    `public, immutable, no-transform, s-maxage=31536000, max-age=31536000`
-                );
-                const url = path.indexOf('http') > -1 ? path : `${settings.uri}${path}`;
-                try {
+                url = getAPIUrl(settings.uri, path);
+            } catch (_error) {
+                return res.status(400).end();
+            }
 
-                    const data = await AxiosRequest.get<any>(url, settings.token, { responseType: "arraybuffer" })
-                    const contentType = data.headers?.['Content-Type'];
-                    res.setHeader('content-type', typeof contentType === 'string' ? contentType : 'image/jpeg')
-                    res.setHeader('content-length', data.data.length)
+            try {
+                const data = await AxiosRequest.get<any>(url, settings.token, { responseType: "arraybuffer" })
+                // axios keys its headers in lower case
+                const contentType = data.headers?.['content-type'];
+                if (typeof contentType !== 'string' || !IMAGE_TYPE.test(contentType)) {
+                    res.setHeader("Cache-Control", "no-store");
 
-                    return res.status(200).send(data.data)
-
-                } catch (e) {
-                    console.log(e)
+                    return res.status(502).end();
                 }
 
-                return res.status(200).send('[ ]')
-            } catch (_error) {
-                return res.status(404).end();
+                res.setHeader("Cache-Control", `public, immutable, no-transform, s-maxage=31536000, max-age=31536000`);
+                res.setHeader('content-type', contentType)
+                res.setHeader('x-content-type-options', 'nosniff')
+                res.setHeader('content-length', data.data.length)
+
+                return res.status(200).send(data.data)
+            } catch (error) {
+                console.error(`Plex image request failed: ${describeHttpError(error)}`);
+                // A failure must not be cached for a year like an image
+                res.setHeader("Cache-Control", "no-store");
+
+                return res.status(502).end();
             }
         })
 

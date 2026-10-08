@@ -46,8 +46,9 @@ const PlexConnection = (props: Props) => {
     const onPlexLoginClick = useCallback(() => {
         setCreatingUrl(true);
         errorBoundary(async () => {
+            // Home finishes the sign-in (?plex=1), whichever page started it
             const result = await axios.post<GetAuthUrlResponse>('/api/auth/url', {
-                callback: window.location.href
+                callback: `${window.location.origin}/`
             });
             if (top)
                 top.location.href = result.data.authUrl;
@@ -57,9 +58,6 @@ const PlexConnection = (props: Props) => {
     }, []);
 
     const onSaveClick = useCallback(() => {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000);
-
         errorBoundary(async () => {
             setSaving(true);
             setValidated(false);
@@ -69,25 +67,17 @@ const PlexConnection = (props: Props) => {
             if (!resource)
                 throw new Error("Something went wrong selecting the resource");
 
-            const {id, accessToken} = resource
+            // The route checks the connection with Plex before it saves, and refuses one that does not answer
             const settings = await axios.post<GetSettingsResponse>("/api/settings", {
                 uri: newPlexUri,
-                id,
-                serverToken: accessToken
+                id: resource.id
             });
 
-            try {
-                await axios.post("/api/plex/search", { query: "x", limit: 3 }, { signal: controller.signal });
-                clearTimeout(timeoutId);
-                setValidated(true);
-                setSettings(settings.data);
-
-                enqueueSnackbar("Plex server selected and verified", { variant: "success" });
-            } catch (_e) {
-            }
+            setValidated(true);
+            setSettings(settings.data);
+            enqueueSnackbar("Plex server selected and verified", { variant: "success" });
             setSaving(false);
         }, () => {
-            clearTimeout(timeoutId);
             setSaving(false);
         });
     }, [newPlexUri, resources, setSettings]);

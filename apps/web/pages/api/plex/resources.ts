@@ -1,6 +1,7 @@
 import { generateError } from '@/helpers/errors/generateError';
+import { getPlexServers } from '@/helpers/plex/getPlexServers';
+import { describeHttpError } from '@spotify-to-plex/http-client/describeHttpError';
 import { getSettings } from '@spotify-to-plex/plex-config/functions/getSettings';
-import { plexTvClient } from '@spotify-to-plex/http-client/plexTvClient';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createRouter } from 'next-connect';
 
@@ -8,11 +9,9 @@ import { createRouter } from 'next-connect';
 export type GetPlexResourcesResponse = {
     name: string
     id: string
-    accessToken: string
     connections: {
         uri: string,
-        local: boolean,
-        accessToken: string
+        local: boolean
     }[]
 }
 
@@ -26,41 +25,13 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
                 if (!settings?.token)
                     return res.status(400).json({ message: "No Plex connection found" });
 
-                const result = await plexTvClient.get(`https://plex.tv/api/v2/resources`, {
-                    params: {
-                        "X-Plex-Product": "Spotify to Plex",
-                        "X-Plex-Client-Identifier": process.env.PLEX_APP_ID,
-                        "X-Plex-Token": settings?.token,
-                    }
-                })
+                // The server tokens stay here; the browser only picks a server and one of its connections
+                const servers = await getPlexServers(settings.token);
+                const result: GetPlexResourcesResponse[] = servers.map(({ name, id, connections }) => ({ name, id, connections }));
 
-                const servers: GetPlexResourcesResponse[] = [];
-                result.data.forEach((item: { product: string; name: string; clientIdentifier: string; connections: { local: boolean; uri: string }[]; httpsRequired?: boolean; accessToken: string }) => {
-                    if (item.product === "Plex Media Server") {
-
-                        const { accessToken, httpsRequired, name, clientIdentifier } = item
-                        const connections = item.connections.map((connection: { local: boolean; uri: string }) => {
-                            const { local } = connection;
-                            let { uri } = connection
-                            if (httpsRequired)
-                                uri = uri.split('http://').join('https://')
-
-                            return { uri, local, accessToken }
-                        })
-
-                        servers.push({
-                            name,
-                            id: clientIdentifier,
-                            accessToken,
-                            connections
-                        })
-                    }
-                })
-
-
-                return res.status(200).json(servers)
+                return res.status(200).json(result)
             } catch (error) {
-                console.error('Error fetching Plex resources:', error);
+                console.error(`Error fetching Plex resources: ${describeHttpError(error)}`);
 
                 return res.status(400).json({ message: "No resources found" })
             }
@@ -72,5 +43,4 @@ export default router.handler({
         generateError(req, res, "Songs", err);
     }
 });
-
 

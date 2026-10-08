@@ -1,4 +1,5 @@
 import { generateError } from '@/helpers/errors/generateError';
+import { describeHttpError } from '@spotify-to-plex/http-client/describeHttpError';
 import { analyze } from '@spotify-to-plex/plex-music-search/functions/analyze';
 import { PlexMusicSearchTrack } from '@spotify-to-plex/plex-music-search/types/PlexMusicSearchTrack';
 import { getMusicSearchConfig } from "@spotify-to-plex/music-search/functions/getMusicSearchConfig";
@@ -37,7 +38,7 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
 
                 res.status(200).json(searchResponse);
             } catch (error) {
-                console.error('Error analyzing Plex music:', error);
+                console.error(`Error analyzing Plex music: ${describeHttpError(error)}`);
                 res.status(500).json({ error: 'Failed to analyze music' });
             }
         })

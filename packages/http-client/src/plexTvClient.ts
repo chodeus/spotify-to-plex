@@ -16,6 +16,8 @@ import axios from "axios";
  * forgotten at a new call site.
  */
 export const plexTvClient = axios.create({
+    // Every caller has a user waiting on it, and axios has no deadline of its own
+    timeout: 10_000,
     headers: {
         Accept: "application/json"
     }
