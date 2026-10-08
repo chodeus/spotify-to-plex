@@ -11,6 +11,7 @@
         "tsBuildInfoFile": "./dist/.tsbuildinfo"
     },
     "references": [
+        { "path": "../http-client" },
         { "path": "../shared-types" }
     ],
     "include": ["src/**/*"],

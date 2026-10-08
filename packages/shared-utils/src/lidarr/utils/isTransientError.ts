@@ -1,14 +1,8 @@
 import axios from 'axios';
+import { isRetryable } from '@spotify-to-plex/http-client/isRetryable';
 
-/**
- * Whether a request failed for a reason that says nothing about the answer -
- * MusicBrainz being busy or the connection dropping. Worth retrying, and never
- * worth remembering as "there is no such release".
- */
+/** A failure that says nothing about the answer (no answer, 408, 429, 5xx): retry it, and never cache it as a miss. */
 export function isTransientError(error: unknown) {
-    return axios.isAxiosError(error) &&
-        (error.response?.status === 503 ||
-            error.response?.status === 429 ||
-            error.code === 'ECONNRESET' ||
-            error.code === 'ETIMEDOUT');
+    // A body cut off after the headers keeps the 200 it was answering with, and isRetryable passes that too
+    return axios.isAxiosError(error) && isRetryable(error);
 }
