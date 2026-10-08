@@ -1,6 +1,7 @@
 import { AxiosResponse } from 'axios';
 import { describeHttpError } from '@spotify-to-plex/http-client/describeHttpError';
 import { isRetryable } from '@spotify-to-plex/http-client/isRetryable';
+import { retryAfterMs } from '@spotify-to-plex/http-client/retryAfterMs';
 import { RetryConfig } from './RetryConfig';
 import { createDelay } from './utils/createDelay';
 
@@ -21,8 +22,7 @@ export async function handleOneRetryAttempt<T = any>(
 
         console.error(`Plex request failed (${describeHttpError(error)}), retrying`);
 
-        // Wait before retry
-        await createDelay(retryDelay);
+        await createDelay(retryAfterMs(error) ?? retryDelay);
 
         // One more attempt
         return request();
