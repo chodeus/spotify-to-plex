@@ -1,4 +1,5 @@
 import { AxiosRequest } from '@spotify-to-plex/http-client/AxiosRequest';
+import { describeHttpError } from '@spotify-to-plex/http-client/describeHttpError';
 import { generateError } from '@/helpers/errors/generateError';
 import { getAPIUrl } from '@spotify-to-plex/shared-utils/utils/getAPIUrl';
 import { putPlaylistPoster } from '@spotify-to-plex/plex-helpers/playlist/putPlaylistPoster';
@@ -53,7 +54,7 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
                 })
                 res.json(result);
             } catch (error) {
-                console.error('Error getting Plex playlists:', error);
+                console.error(`Error getting Plex playlists: ${describeHttpError(error)}`);
                 res.status(500).json({ error: 'Failed to get playlists' });
             }
         })
@@ -76,6 +77,8 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
 
                 const uri = getPlexUri(settings, firstItem.key, firstItem.source);
                 const playlistId = await storePlaylist(settings, name, uri)
+                // Recorded before the adds, so a failed add cannot leave a playlist that is created again
+                await addPlaylist({ type, id, plex: playlistId })
                 await addItemsToPlaylist(settings, playlistId, items)
 
                 // Update thumbnail of playlist
@@ -86,12 +89,10 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
                     }
                 }
 
-                await addPlaylist({ type, id, plex: playlistId })
-
                 const link = getAPIUrl(settings.uri, `/web/index.html#!/server/${settings.id}/playlist?key=${encodeURIComponent(`/playlists/${playlistId}`)}`)
                 res.json({ id: playlistId, link })
             } catch (error) {
-                console.error('Error creating Plex playlist:', error);
+                console.error(`Error creating Plex playlist: ${describeHttpError(error)}`);
                 res.status(500).json({ error: 'Failed to create playlist' });
             }
         })

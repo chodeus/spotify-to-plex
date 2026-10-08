@@ -25,4 +25,26 @@ describe('hubSearch', () => {
 
         await expect(hubSearch('http://plex.test:32400', 'token', 'Song')).rejects.toBe('Could not connect to server');
     });
+
+    // A title of only stripped characters ("...") left nothing to ask, and read as a failed search
+    it('answers a query with nothing left to search with no match, without asking Plex', async () => {
+        await expect(hubSearch('http://plex.test:32400', 'token', '...')).resolves.toEqual([]);
+        expect(getMock).not.toHaveBeenCalled();
+    });
+
+    it('waits out a Retry-After and asks Plex once more', async () => {
+        getMock.mockRejectedValueOnce(Object.assign(new Error('Request failed with status code 429'), { response: { status: 429, headers: { 'retry-after': '0' } } }))
+            .mockResolvedValueOnce({ data: { MediaContainer: { Hub: [] } } });
+
+        await expect(hubSearch('http://plex.test:32400', 'token', 'Song')).resolves.toEqual([]);
+        expect(getMock).toHaveBeenCalledTimes(2);
+    });
+
+    // Without a wait to honour, a retry would only hit a struggling Plex again at once
+    it('fails a query Plex answered with a 5xx and no Retry-After, without retrying', async () => {
+        getMock.mockRejectedValue(Object.assign(new Error('Request failed with status code 503'), { response: { status: 503, headers: {} } }));
+
+        await expect(hubSearch('http://plex.test:32400', 'token', 'Song')).rejects.toBe('Plex answered 503');
+        expect(getMock).toHaveBeenCalledTimes(1);
+    });
 });
