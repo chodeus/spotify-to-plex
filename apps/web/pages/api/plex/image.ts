@@ -15,6 +15,8 @@ export const config = {
 
 // Only artwork: any other Plex path would go out with the server token, /security/token included
 const IMAGE_PATH = /^\/(?:library\/metadata\/\d+\/(?:thumb|art|banner|clearLogo)|playlists\/\d+\/composite)(?:\/\d+)?$/;
+// Raster only: an SVG served from this origin could run script here
+const IMAGE_TYPE = /^image\/(?:jpe?g|png|gif|webp|avif)\s*(?:;|$)/i;
 
 const router = createRouter<NextApiRequest, NextApiResponse>()
     .get(
@@ -41,7 +43,7 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
                 const data = await AxiosRequest.get<any>(url, settings.token, { responseType: "arraybuffer" })
                 // axios keys its headers in lower case
                 const contentType = data.headers?.['content-type'];
-                if (typeof contentType !== 'string' || !contentType.startsWith('image/')) {
+                if (typeof contentType !== 'string' || !IMAGE_TYPE.test(contentType)) {
                     res.setHeader("Cache-Control", "no-store");
 
                     return res.status(502).end();
@@ -49,6 +51,7 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
 
                 res.setHeader("Cache-Control", `public, immutable, no-transform, s-maxage=31536000, max-age=31536000`);
                 res.setHeader('content-type', contentType)
+                res.setHeader('x-content-type-options', 'nosniff')
                 res.setHeader('content-length', data.data.length)
 
                 return res.status(200).send(data.data)

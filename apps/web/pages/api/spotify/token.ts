@@ -207,7 +207,7 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
                     user: {
                         ...previous?.user,
                         id: user.id,
-                        name: user.display_name ?? user.id
+                        name: user.display_name ?? previous?.user.name ?? user.id
                     },
                     access_token: {
                         access_token: encrypt(access_token),

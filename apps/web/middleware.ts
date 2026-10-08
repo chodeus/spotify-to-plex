@@ -12,8 +12,13 @@ function fromThisApp(request: NextRequest) {
     if (!origin)
         return true;
 
+    const host = request.headers.get('host');
+    if (!host)
+        return false;
+
     try {
-        return new URL(origin).host === request.headers.get('host');
+        // nextUrl's host is the server's own, but its scheme follows the TLS socket or X-Forwarded-Proto
+        return new URL(origin).origin === new URL(`${request.nextUrl.protocol}//${host}`).origin;
     } catch {
         // "null" from a sandboxed frame or a file
         return false;

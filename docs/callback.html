@@ -133,6 +133,38 @@ search_exclude: true
                 };
             }
 
+            // Whoever runs the return host can redeem the code, so only a LAN or loopback app gets it without asking
+            function isLocalHost(hostname) {
+                // A single-label name (http://tower:9030) only resolves on the local network
+                if (/^[^.[]+$/.test(hostname) || /\.(?:localhost|local|lan|internal|home\.arpa)$/.test(hostname))
+                    return true;
+
+                const v4 = hostname.match(/^(\d+)\.(\d+)\.\d+\.\d+$/);
+                if (v4) {
+                    const a = Number(v4[1]);
+                    const b = Number(v4[2]);
+                    return a === 10 || a === 127 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 169 && b === 254);
+                }
+
+                // URL keeps IPv6 hosts in brackets: loopback, unique local, link-local
+                return /^\[(?:::1\]|f[cd][0-9a-f]{0,2}:|fe[89ab][0-9a-f]:)/i.test(hostname);
+            }
+
+            function showConfirm(url) {
+                content.innerHTML = `
+                    <h2>Check the address</h2>
+                    <p>The sign-in code will be sent to:</p>
+                    <div class="code-block"></div>
+                    <button>Continue</button>
+                    <p class="subtle">Continue only if this is your own Spotify-to-Plex. If you did not start a sign-in, close this window.</p>
+                `;
+                // textContent, never innerHTML - the address comes from the query string
+                content.querySelector('.code-block').textContent = url.origin;
+                content.querySelector('button').addEventListener('click', () => {
+                    window.location.href = url.toString();
+                });
+            }
+
             function showLanding() {
                 content.innerHTML = `
                     <h2>Spotify to Plex</h2>
@@ -185,8 +217,10 @@ search_exclude: true
                         url.searchParams.set('state', stateData.csrf);
                     }
 
-                    // Redirect
-                    window.location.href = url.toString();
+                    if (isLocalHost(url.hostname))
+                        window.location.href = url.toString();
+                    else
+                        showConfirm(url);
 
                 } catch (e) {
                     console.error('State parsing failed:', e);
