@@ -11,6 +11,19 @@ import { getById } from "@spotify-to-plex/plex-music-search/functions/getById";
 import { PlexMusicSearchConfig } from "@spotify-to-plex/plex-music-search/types/PlexMusicSearchConfig";
 import { PlexItemMissingError } from "@spotify-to-plex/plex-music-search/utils/PlexItemMissingError";
 
+const RECHECK_AFTER_MS = 7 * 24 * 60 * 60 * 1000;
+
+// Stamps a link cached before stamps existed somewhere in the past week, by its id, so
+// the existing links come due a few at a time instead of all on the first sync
+function spreadStamp(spotifyId: string, now: number) {
+    let hash = 0;
+
+    for (const char of spotifyId)
+        hash = Math.trunc(hash * 31 + (char.codePointAt(0) ?? 0)) % RECHECK_AFTER_MS;
+
+    return now - hash;
+}
+
 // Loads the cached plex tracks for one link, dropping any whose duration
 // contradicts the spotify track. Returns the ids worth keeping in the cache:
 // a rejected id is dropped, but an id we simply failed to load is kept -
@@ -57,9 +70,12 @@ async function loadLinkedTracks(config: PlexMusicSearchConfig, trackLink: TrackL
 }
 
 export async function getCachedPlexTracks(plexSearchConfig: PlexMusicSearchConfig, data: GetSpotifyPlaylist | GetSpotifyAlbum) {
-    const { add, save, found: cachedTrackLinks } = getCachedTrackLinks(data.tracks, 'plex');
+    const { add, save, markChecked, found: cachedTrackLinks } = getCachedTrackLinks(data.tracks, 'plex');
     const result: SearchResponse[] = [];
-    let pruned = false;
+    // Links due a fresh search: the caller searches them, and a better match replaces the cached one
+    const recheck: SpotifyTrack[] = [];
+    const now = Date.now();
+    let changed = false;
     // Read from the config rather than music-search state: the search that sets
     // that state runs after this, so on the first playlist it is still empty
     const filterOutWords = plexSearchConfig.musicSearchConfig?.textProcessing?.filterOutWords ?? [];
@@ -83,7 +99,7 @@ export async function getCachedPlexTracks(plexSearchConfig: PlexMusicSearchConfi
             if (keptIds.length == 0)
                 delete trackLink.manual;
 
-            pruned = true;
+            changed = true;
         }
 
         // A manual pick whose lookups all failed is not evidence of a bad link.
@@ -97,13 +113,27 @@ export async function getCachedPlexTracks(plexSearchConfig: PlexMusicSearchConfi
             title: searchItem.title,
             artist: searchItem.artists?.[0] || 'Unknown',
             album: searchItem.album || "",
-            result: tracks
+            result: tracks,
+            matched_by: trackLink.plex_matched_by
         });
+
+        // A person's pick is never second-guessed
+        if (trackLink.manual)
+            continue;
+
+        // A stamp ahead of this clock (skew, a restored backup) would never come due
+        if (trackLink.plex_checked_at === undefined || trackLink.plex_checked_at > now) {
+            trackLink.plex_checked_at = spreadStamp(trackLink.spotify_id, now);
+            changed = true;
+        }
+
+        if (now - trackLink.plex_checked_at >= RECHECK_AFTER_MS)
+            recheck.push(searchItem);
     }
 
-    // The prune must reach disk even when nothing else triggered a re-search
-    if (pruned)
+    // Prunes and new stamps must reach disk even when nothing else triggered a re-search
+    if (changed)
         save();
 
-    return { add, result };
+    return { add, markChecked, result, recheck };
 }

@@ -42,7 +42,7 @@ export async function putPlexPlaylist(id: string, plexPlaylist: Playlist | undef
             const unchanged = current.length == plexTracks.length && current.every((key, index) => key == plexTracks[index]?.key);
             if (!unchanged) {
                 await removeItemsFromPlaylist(settings, plexPlaylist.ratingKey, []);
-                await addItemsToPlaylist(settings, plexPlaylist.ratingKey, plexTracks);
+                logRefused(await addItemsToPlaylist(settings, plexPlaylist.ratingKey, plexTracks));
             }
 
             if (plexPlaylist.title != title && title)
@@ -57,16 +57,21 @@ export async function putPlexPlaylist(id: string, plexPlaylist: Playlist | undef
             console.log(`Create new playlist`);
             const uri = getPlexUri(settings, firstItem.key, firstItem.source);
             const playlistId = await storePlaylist(settings, title, uri);
+            // Recorded before the adds, so a failed add cannot leave a playlist the next sync creates again
+            await addPlaylist({ type: 'playlist', id, plex: playlistId });
             // storePlaylist already added the first track
-            await addItemsToPlaylist(settings, playlistId, plexTracks.slice(1));
+            logRefused(await addItemsToPlaylist(settings, playlistId, plexTracks.slice(1)));
 
             try {
                 await putPlaylistPoster(playlistId, thumb)
             } catch (_e) {
                 console.log(`** Could not update poster image`)
             }
-            // Store new playlist
-            await addPlaylist({ type: 'playlist', id, plex: playlistId });
         }
     }
+}
+
+function logRefused(keys: string[]) {
+    if (keys.length > 0)
+        console.log(`* Plex refused ${keys.length} track(s): ${keys.join(', ')}`);
 }

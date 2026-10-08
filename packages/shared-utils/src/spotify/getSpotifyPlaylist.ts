@@ -1,12 +1,13 @@
 import { GetSpotifyPlaylist } from "@spotify-to-plex/shared-types/spotify/GetSpotifyPlaylist";
 import { Page, PlaylistedTrack, SpotifyApi, Track } from "@spotify/web-api-ts-sdk";
+import { mapSpotifyTracks } from "./mapSpotifyTracks";
 
 // ~350ms between pages keeps well under Spotify's ~180 requests/minute
 const PAGE_DELAY = 350;
 
 /**
  * The first page of a playlist's tracks from the dedicated endpoint. Returns
- * undefined rather than throwing so a refusal just falls through to whatever
+ * null rather than throwing so a refusal just falls through to whatever
  * the caller was going to do anyway.
  */
 async function fetchTracksPage(id: string, accessToken?: string): Promise<Page<PlaylistedTrack<Track>> | null> {
@@ -30,34 +31,6 @@ async function fetchTracksPage(id: string, accessToken?: string): Promise<Page<P
 
         return null;
     }
-}
-
-// One mapping for every page - tracks past the first used to keep "A, B" as one artist
-function mapTracks(items: PlaylistedTrack<Track>[]) {
-    return items
-        .map(item => {
-            const track: Track | undefined = (item as any).item ?? (item as any).track;
-            if (!track || typeof track !== 'object')
-                return null;
-
-            // Local files have no id but do have a spotify:local: uri
-            if (!track.id && !track.uri)
-                return null;
-
-            const artists = track.artists?.flatMap(artist => artist.name.split(',').map(name => name.trim()));
-
-            return {
-                id: track.id || track.uri,
-                title: track.name,
-                artist: track.artists?.[0]?.name || 'Unknown',
-                album: track.album?.name || 'Unknown',
-                artists: artists || [],
-                album_id: track.album?.id || 'unknown',
-                duration_ms: track.duration_ms,
-                isrc: track.external_ids?.isrc
-            }
-        })
-        .filter((track) => !!track);
 }
 
 export async function getSpotifyPlaylist(api: SpotifyApi, id: string, simplified: boolean) {
@@ -98,7 +71,7 @@ export async function getSpotifyPlaylist(api: SpotifyApi, id: string, simplified
             return null;
         }
 
-        playlist.tracks = mapTracks(tracksPage.items);
+        playlist.tracks = mapSpotifyTracks(tracksPage.items);
         if (simplified)
             return playlist;
 
@@ -120,7 +93,7 @@ export async function getSpotifyPlaylist(api: SpotifyApi, id: string, simplified
             if (!Array.isArray(loadMore.items))
                 throw new Error(`Page fetch returned no items`);
 
-            playlist.tracks = playlist.tracks.concat(mapTracks(loadMore.items));
+            playlist.tracks = playlist.tracks.concat(mapSpotifyTracks(loadMore.items));
             nextUrl = loadMore.next
 
             if (nextUrl)

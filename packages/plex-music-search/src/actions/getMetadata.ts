@@ -1,7 +1,8 @@
 import { AxiosResponse } from "axios";
 import { Metadata } from "../types/plex/Metadata";
 import { AxiosRequest } from "@spotify-to-plex/http-client/AxiosRequest";
-import getAPIUrl from "../utils/getAPIUrl";
+import { isRetryable } from "@spotify-to-plex/http-client/isRetryable";
+import { getAPIUrl } from "@spotify-to-plex/shared-utils/utils/getAPIUrl";
 
 type GetMetaDataResponse = {
     MediaContainer: {
@@ -16,8 +17,10 @@ export async function getMetadata(uri: string, token: string, key: string) {
 
     try {
         result = await AxiosRequest.get<GetMetaDataResponse>(url, token)
-    } catch (_e) {
-        // Cooldown
+    } catch (error) {
+        if (!isRetryable(error))
+            throw error;
+
         await (new Promise(resolve => { setTimeout(resolve, 1000) }))
         result = await AxiosRequest.get<GetMetaDataResponse>(url, token)
     }

@@ -1,7 +1,7 @@
 import { schedule } from 'node-cron';
-import { spawn } from 'node:child_process';
 import { getLidarrSettings } from '@spotify-to-plex/plex-config/functions/getLidarrSettings';
 import { getSlskdSettings } from '@spotify-to-plex/plex-config/functions/getSlskdSettings';
+import { runScript } from './utils/runScript';
 
 const SYNC_SCHEDULE = '0 2 * * *'; // Every day at 02:00
 const LIDARR_SYNC_SCHEDULE = '0 4 * * *'; // Every day at 04:00
@@ -22,12 +22,7 @@ console.log(`⏰ Timezone: ${TIMEZONE}`);
 function runSync() {
     console.log(`\n📅 Starting scheduled sync at ${new Date().toISOString()}`);
 
-    // In production, the sync script already uses compiled JS files
-    const syncProcess = spawn('npm', ['run', 'sync'], {
-        cwd: '/app/apps/sync-worker',
-        stdio: 'inherit',
-        shell: true
-    });
+    const syncProcess = runScript('sync');
 
     syncProcess.on('exit', (code) => {
         if (code === 0) {
@@ -63,11 +58,7 @@ async function runLidarrSync() {
 
         console.log('✅ Lidarr auto-sync is enabled. Starting sync...');
 
-        const lidarrProcess = spawn('npm', ['run', 'sync:lidarr'], {
-            cwd: '/app/apps/sync-worker',
-            stdio: 'inherit',
-            shell: true
-        });
+        const lidarrProcess = runScript('sync:lidarr');
 
         lidarrProcess.on('exit', (code) => {
             if (code === 0) {
@@ -118,11 +109,7 @@ async function runSlskdSync() {
 
         console.log('✅ SLSKD auto-sync is enabled. Starting sync...');
 
-        const slskdProcess = spawn('npm', ['run', 'sync:slskd'], {
-            cwd: '/app/apps/sync-worker',
-            stdio: 'inherit',
-            shell: true
-        });
+        const slskdProcess = runScript('sync:slskd');
 
         slskdProcess.on('exit', (code) => {
             if (code === 0) {
@@ -144,11 +131,7 @@ async function runSlskdSync() {
 function runMqttSync() {
     console.log(`\n📡 Starting MQTT sync at ${new Date().toISOString()}`);
 
-    const mqttProcess = spawn('npm', ['run', 'mqtt'], {
-        cwd: '/app/apps/sync-worker',
-        stdio: 'inherit',
-        shell: true
-    });
+    const mqttProcess = runScript('mqtt');
 
     mqttProcess.on('exit', (code) => {
         if (code === 0) {
