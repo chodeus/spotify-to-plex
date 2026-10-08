@@ -47,10 +47,9 @@ const TextProcessingPage: NextPage = () => {
         }
     }, [data]);
 
-    // useConfigEditor reports success once the save lands, and every failure itself; a message
-    // here fired even after a validation error, because saveData resolves before it finishes
+    // useConfigEditor reports success and every failure itself
     const handleSaveClick = useCallback(() => {
-        saveData(localData).catch(() => { /* reported by useConfigEditor */ });
+        saveData(localData);
     }, [localData, saveData]);
 
     const handleReset = useCallback(() => {

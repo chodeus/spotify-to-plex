@@ -101,12 +101,14 @@ export default function ConfirmProvider() {
     }, [handleClose, resolveReject])
 
     const onPressEnter = useCallback((e: KeyboardEvent) => {
-        // A focused button answers Enter itself: Tab to Cancel then Enter used to confirm the delete
+        if (e.key !== "Enter" || resolveReject.length !== 2)
+            return;
+
+        // A focused button answers Enter itself, so Enter on Cancel must not confirm
         if (e.target instanceof HTMLElement && e.target.closest('button'))
             return;
 
-        if (e.key === "Enter" && resolveReject.length === 2)
-            handleConfirm();
+        handleConfirm();
     }, [handleConfirm, resolveReject.length])
 
     useEffect(() => {

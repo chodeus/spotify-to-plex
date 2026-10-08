@@ -58,8 +58,8 @@ const OperationSelectorPopup: React.FC<OperationSelectorPopupProps> = ({
         onClose();
     }, [onOperationSelect, onClose, selectedThreshold]);
 
-    // A click, not the group's change event: that never fires for the threshold already checked,
-    // so a new pill could not take 85% (or the last value picked)
+    // A click, not the group's change event: change never fires for the threshold already checked,
+    // and a new pill must still be able to take 85% (or the last value picked)
     const createThresholdClickHandler = useCallback((threshold: number) => () => {
         setSelectedThreshold(threshold);
         onOperationSelect('similarity', threshold);

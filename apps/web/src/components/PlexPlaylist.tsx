@@ -298,10 +298,8 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
             setShowEditPlaylistName(false)
         })
     }, [playlist, newPlaylistName])
-    // Single owner for "which search result belongs to this track" - the filter
-    // and the row renderer must agree or the counts lie
-    // Matching on the spotify id - title+artist returns the same entry for both
-    // rows when a playlist holds the same song twice
+    // The one owner of a track's search result, so the filter and the rows agree. By spotify id:
+    // title+artist finds the same entry for both rows when a playlist holds a song twice
     const findMatchFor = useCallback((track: { id: string }) =>
         tracks.find(item => item.id === track.id)
     , [tracks])
@@ -349,7 +347,7 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
 
             const saved = plexPlaylist ? "Playlist updated" : "Playlist created"
             // The rest of the playlist saved, so this is a warning and not an error
-            const { refused } = result.data
+            const refused = result.data.refused ?? []
             if (refused.length > 0) {
                 const named = refused.slice(0, 3).map(key => titles.get(key) ?? key)
                     .join(', ')
@@ -357,9 +355,7 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
             } else {
                 enqueueSnackbar(saved)
             }
-
-            setSaving(false)
-        }, () => {
+        }).finally(() => {
             setSaving(false)
         })
 

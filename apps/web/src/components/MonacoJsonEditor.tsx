@@ -45,6 +45,8 @@ const MonacoJsonEditor = forwardRef<MonacoJsonEditorHandle, MonacoJsonEditorProp
     const latestJson = useRef(jsonString);
     latestJson.current = jsonString;
 
+    const emitted = useRef<unknown>(undefined);
+
     const handleEditorDidMount = useCallback((editor: monaco.editor.IStandaloneCodeEditor, monacoInstance: typeof monaco) => {
         editorRef.current = editor;
         if (editor.getValue() !== latestJson.current)
@@ -81,6 +83,7 @@ const MonacoJsonEditor = forwardRef<MonacoJsonEditorHandle, MonacoJsonEditorProp
 
         try {
             const parsedValue = JSON.parse(value);
+            emitted.current = parsedValue;
             onChange(parsedValue);
         } catch {
             // Don't call onChange with invalid JSON - let Monaco handle validation visually
@@ -104,11 +107,11 @@ const MonacoJsonEditor = forwardRef<MonacoJsonEditorHandle, MonacoJsonEditorProp
         getCurrentValue
     }));
 
-    // Uncontrolled: as a controlled value, each valid edit came back re-formatted and the cursor jumped.
-    // Only a value from outside (a load or a reload) replaces the text
+    // Uncontrolled, so an edit never comes back re-formatted under the cursor. Only a value from
+    // outside (a load or a reload) replaces the text, never the one this editor emitted
     useEffect(() => {
         const editor = editorRef.current;
-        if (editor && !holdsValue(editor.getValue(), value))
+        if (editor && value !== emitted.current && !holdsValue(editor.getValue(), value))
             editor.setValue(jsonString);
     }, [value, jsonString]);
 
