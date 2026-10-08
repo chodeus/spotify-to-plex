@@ -58,7 +58,7 @@ export default function PlaylistItemSettings(props: Props) {
                 return;
 
             const validateDays = Number(days)
-            if (isNaN(validateDays) || validateDays < 0)
+            if (daysEdited && (isNaN(validateDays) || validateDays < 0))
                 throw new Error(`The value should not be lower than zero days.`)
 
             await axios.put(`/api/saved-items/`, {

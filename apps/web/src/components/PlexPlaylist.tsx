@@ -300,9 +300,20 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
     }, [playlist, newPlaylistName])
     // The one owner of a track's search result, so the filter and the rows agree. By spotify id:
     // title+artist finds the same entry for both rows when a playlist holds a song twice
+    const matchById = useMemo(() => {
+        const byId = new Map<string, SearchResponse>()
+
+        for (const item of tracks) {
+            if (!byId.has(item.id))
+                byId.set(item.id, item)
+        }
+
+        return byId
+    }, [tracks])
+
     const findMatchFor = useCallback((track: { id: string }) =>
-        tracks.find(item => item.id === track.id)
-    , [tracks])
+        matchById.get(track.id)
+    , [matchById])
 
     ///////////////////////////////////////////////
     // Saving playlists

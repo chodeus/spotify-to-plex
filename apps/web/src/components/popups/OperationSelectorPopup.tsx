@@ -60,7 +60,8 @@ const OperationSelectorPopup: React.FC<OperationSelectorPopupProps> = ({
 
     // A click, not the group's change event: change never fires for the threshold already checked,
     // and a new pill must still be able to take 85% (or the last value picked)
-    const createThresholdClickHandler = useCallback((threshold: number) => () => {
+    const handleThresholdClick = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
+        const threshold = Number(e.currentTarget.dataset.threshold);
         setSelectedThreshold(threshold);
         onOperationSelect('similarity', threshold);
         onClose();
@@ -136,7 +137,7 @@ const OperationSelectorPopup: React.FC<OperationSelectorPopupProps> = ({
                                     }}
                                 >
                                     {thresholdOptions.map((option) => (
-                                        <FormControlLabel key={option.value} value={option.value} control={<Radio size="small" onClick={createThresholdClickHandler(option.value)} />} label={option.label} />
+                                        <FormControlLabel key={option.value} value={option.value} control={<Radio size="small" data-threshold={option.value} onClick={handleThresholdClick} />} label={option.label} />
                                     ))}
                                 </RadioGroup>
                             </div>
