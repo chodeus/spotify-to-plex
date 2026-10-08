@@ -15,10 +15,7 @@ export type LidarrAlbum = {
     };
 };
 
-/**
- * Get an existing album from Lidarr by its MusicBrainz release group ID: null when
- * Lidarr has no such album. A failed request throws, so it is not mistaken for that.
- */
+/** Lidarr's album for a MusicBrainz release group, or null when it has none; a failed request throws instead. */
 export async function getLidarrAlbum(foreignAlbumId: string, lidarrUrl: string, apiKey: string): Promise<LidarrAlbum | null> {
     const baseUrl = lidarrUrl.endsWith('/') ? lidarrUrl.slice(0, -1) : lidarrUrl;
     const url = `${baseUrl}/api/v1/album?foreignAlbumId=${foreignAlbumId}`;

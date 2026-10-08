@@ -1,8 +1,10 @@
 const EDITION = String.raw`edition|deluxe|expanded|extended|explicit|clean|remaster(?:ed)?|bonus tracks?|anniversary|radio edit|soundtrack|motion picture|original score`;
 // A word that makes a bracket or a dash suffix an edition label rather than part of the title
 const EDITION_WORD = new RegExp(String.raw`\b(?:${EDITION})\b`, 'i');
-// What else a label may hold: "Super Deluxe", "20th Anniversary", "2008", "Live / Deluxe Edition"
-const LABEL_FILLER = new RegExp(String.raw`\b(?:${EDITION}|live|super|special|limited|collector'?s|version|\d+(?:st|nd|rd|th)?)\b|[^\da-z]+`, 'gi');
+const LABEL_WORDS = String.raw`${EDITION}|live|super|special|limited|collector'?s|version`;
+const LABEL_WORD = new RegExp(String.raw`\b(?:${LABEL_WORDS})\b`, 'i');
+// What else a label may hold: "Super Deluxe", "20th Anniversary", "Live / Deluxe Edition"; never other letters, in any script
+const LABEL_FILLER = new RegExp(String.raw`\b(?:${LABEL_WORDS}|\d+(?:st|nd|rd|th)?)\b|[\s\p{P}\p{S}]+`, 'giu');
 const CREDIT = /^\s*(?:feat\.?|featuring|ft\.|with)\s/i;
 // A remix or a mix is another release group, whatever else its bracket says
 const OTHER_RELEASE = /\b(?:re)?mix\b/i;
@@ -14,7 +16,8 @@ const TRAILING_LABEL = /\s+(?:(?:super|special|limited|expanded|\d+(?:st|nd|rd|t
 // Stand-ins for a bracket that stays, so the loop moves on to its parent
 const HIDDEN: Record<string, string> = { '(': '\uE000', ')': '\uE001', '[': '\uE002', ']': '\uE003' };
 
-const onlyLabelWords = (segment: string) => !segment.replace(LABEL_FILLER, '').trim();
+// A bare number or name is title: "Album - 2" and "Album - 3" must not both become "Album"
+const onlyLabelWords = (segment: string) => LABEL_WORD.test(segment) && !segment.replace(LABEL_FILLER, '').trim();
 
 /** Whether a bracket or suffix names an edition of the album rather than part of its title. */
 function isLabel(segment: string) {
@@ -31,10 +34,7 @@ function isLabel(segment: string) {
     return EDITION_WORD.test(segment) || onlyLabelWords(segment);
 }
 
-/**
- * An album title without the edition labels Spotify adds, and whether one of them said
- * "live": MusicBrainz never titles a live album "(Live)", it gives the release group the Live type.
- */
+/** An album title without the edition labels Spotify adds, and whether one said "live" (MusicBrainz marks that by type). */
 export function albumEdition(title: string) {
     let base = title;
     let live = false;

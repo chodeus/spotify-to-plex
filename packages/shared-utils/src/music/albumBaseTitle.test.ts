@@ -18,13 +18,13 @@ describe('albumBaseTitle', () => {
         expect(albumBaseTitle(title)).toBe(base);
     });
 
-    // Labels outside brackets, nested, or with words the first list lacked: each came back "not found" and was cached
+    // Labels after a dash or a colon, trailing, nested, or with other edition words
     it.each([
         ['In Utero - 20th Anniversary Remaster', 'In Utero'],
         ['Bleach: Deluxe Edition', 'Bleach'],
         ['Pure Heroine (Extended)', 'Pure Heroine'],
         ['Thriller 25 Super Deluxe Edition', 'Thriller 25'],
-        ['Back to Black (Deluxe Edition) – 2008', 'Back to Black'],
+        ['Back to Black (Deluxe Edition) – 2008 Remaster', 'Back to Black'],
         ['Album (Deluxe Edition [Remastered])', 'Album'],
         ['Guardians of the Galaxy Vol. 2: Awesome Mix Vol. 2 (Original Motion Picture Soundtrack)', 'Guardians of the Galaxy Vol. 2: Awesome Mix Vol. 2']
     ])('drops the label from "%s"', (title, base) => {
@@ -47,6 +47,16 @@ describe('albumBaseTitle', () => {
     it('keeps a live qualifier that names more than the edition, and "Live" in the title itself', () => {
         expect(albumEdition('Songs (Live at the Anniversary Party)')).toEqual({ base: 'Songs (Live at the Anniversary Party)', live: false });
         expect(albumEdition('Live Through This')).toEqual({ base: 'Live Through This', live: false });
+        expect(albumEdition('Звезда (Live в Москве)')).toEqual({ base: 'Звезда (Live в Москве)', live: false });
+    });
+
+    // Both sides of the match lose their labels, so a number or a name cut here would make two albums one
+    it('keeps a number or non-Latin text, which no label is made of', () => {
+        expect(albumBaseTitle('Album - 2')).toBe('Album - 2');
+        expect(albumBaseTitle('Album (2)')).toBe('Album (2)');
+        expect(albumBaseTitle('Back to Black – 2008')).toBe('Back to Black – 2008');
+        expect(albumBaseTitle('Кино - Группа крови')).toBe('Кино - Группа крови');
+        expect(albumBaseTitle('Группа крови (Звезда)')).toBe('Группа крови (Звезда)');
     });
 
     it('keeps a title that is nothing but a label', () => {

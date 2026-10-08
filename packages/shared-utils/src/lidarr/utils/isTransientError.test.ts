@@ -5,7 +5,7 @@ import { isTransientError } from './isTransientError';
 const answered = (status: number) => new AxiosError(`Request failed with status code ${status}`, 'ERR_BAD_RESPONSE', undefined, undefined, { status } as AxiosResponse);
 
 describe('isTransientError', () => {
-    // A 500, 502 or 504 used to end the lookup, and a URL lookup then cached the album as a permanent miss
+    // Any 5xx, not only 503: a URL lookup that ends on one falls through to a search that can cache a miss
     it('treats every server error, a rate limit and a request timeout as transient', () => {
         for (const status of [500, 502, 503, 504, 429, 408])
             expect(isTransientError(answered(status))).toBe(true);
@@ -16,7 +16,7 @@ describe('isTransientError', () => {
             expect(isTransientError(new AxiosError('no answer', code))).toBe(true);
     });
 
-    // axios hands a mid-body reset the 200 response it was reading, and the URL lookup then cached a miss
+    // A body cut off after the headers: axios keeps the 200 it was reading
     it('treats a connection dropped after the headers as transient', () => {
         expect(isTransientError(new AxiosError('aborted', 'ECONNRESET', undefined, undefined, { status: 200 } as AxiosResponse))).toBe(true);
         expect(isTransientError(new AxiosError('stream has been aborted', 'ERR_BAD_RESPONSE', undefined, undefined, { status: 200 } as AxiosResponse))).toBe(true);

@@ -13,7 +13,7 @@ describe('validateMusicBrainzMatch', () => {
         expect(validateMusicBrainzMatch('Ye', 'Late Registration', ['Kanye West', 'Ye'], 'Late Registration')).toBe(true);
     });
 
-    // Both used to clear 0.8 as one joined string and were cached for good
+    // Each clears 0.8 as one joined string, so artist and album must be judged apart
     it('rejects the same artist\'s other release group', () => {
         expect(validateMusicBrainzMatch('Eminem', 'Curtain Call: The Hits', ['Eminem'], 'Curtain Call 2')).toBe(false);
     });
@@ -29,7 +29,7 @@ describe('validateMusicBrainzMatch', () => {
         expect(validateMusicBrainzMatch('Eagles', 'Hell Freezes Over (Live)', ['Eagles'], 'Hell Freezes Over', ['Compilation'])).toBe(false);
     });
 
-    // Each scored 0 once judged apart, and the miss was cached for 14 days
+    // Nothing is left to score once normalised, so only the same name matches
     it('matches names too short or too far from Latin letters to score', () => {
         expect(validateMusicBrainzMatch('Beyoncé', '4', ['Beyoncé'], '4')).toBe(true);
         expect(validateMusicBrainzMatch('Ed Sheeran', '+', ['Ed Sheeran'], '+')).toBe(true);
@@ -42,11 +42,18 @@ describe('validateMusicBrainzMatch', () => {
         expect(validateMusicBrainzMatch('Beyoncé', '4', ['Beyoncé'], '5')).toBe(false);
     });
 
-    // A sequel is one character from the original and cleared 0.8, then was cached as the match
+    // A sequel is one character from the original, well inside 0.8
     it('rejects a release group with another number in its title', () => {
         expect(validateMusicBrainzMatch('Guns N\' Roses', 'Use Your Illusion I', ['Guns N\' Roses'], 'Use Your Illusion II')).toBe(false);
         expect(validateMusicBrainzMatch('Lil Wayne', 'Tha Carter III', ['Lil Wayne'], 'Tha Carter IV')).toBe(false);
         expect(validateMusicBrainzMatch('Eminem', 'The Marshall Mathers LP', ['Eminem'], 'The Marshall Mathers LP 2')).toBe(false);
+    });
+
+    // Both titles lose their labels before the compare, so a suffix that is not a label must survive on each
+    it('tells apart titles that differ only after a dash', () => {
+        expect(validateMusicBrainzMatch('Some Band', 'Album - 2', ['Some Band'], 'Album - 3')).toBe(false);
+        expect(validateMusicBrainzMatch('Кино', 'Кино - Группа крови', ['Кино'], 'Кино - Звезда')).toBe(false);
+        expect(validateMusicBrainzMatch('Кино', 'Кино - Группа крови', ['Кино'], 'Кино - Группа крови')).toBe(true);
     });
 
     it('reads a number the same whether written as a digit, a word or a numeral', () => {

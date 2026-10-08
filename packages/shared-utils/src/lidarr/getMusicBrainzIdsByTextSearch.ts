@@ -19,9 +19,8 @@ function escapeLucene(value: string) {
  * Uses artist and album names to search MusicBrainz
  */
 export async function getMusicBrainzIdsByTextSearch(artistName: string, albumName: string): Promise<MusicBrainzLookup> {
-    // Fielded first so the words have to land in the right fields; the loose
-    // query is only a second chance for names the fields spell differently.
-    // No release group is titled "Bugatti (Explicit Version)", so the edition label stays out
+    // Fielded first so the words land in the right fields; the loose query is a second chance.
+    // Labels stay out: no release group is titled "Bugatti (Explicit Version)"
     const albumTitle = albumBaseTitle(albumName);
     const queries = [
         `artist:"${escapeLucene(artistName)}" AND releasegroup:"${escapeLucene(albumTitle)}"`,

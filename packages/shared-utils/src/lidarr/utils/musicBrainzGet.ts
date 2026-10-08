@@ -61,6 +61,6 @@ async function request<T>(url: string) {
  * a new call site - which is how both came to be missing in the first place.
  */
 export function musicBrainzGet<T>(url: string) {
-    // Paced inside the retry too: an unpaced retry and the next request went out together and drew another 503
+    // Paced inside the retry, so a retry takes its own slot like any other request
     return withRetry(() => request<T>(url));
 }

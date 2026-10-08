@@ -26,10 +26,7 @@ function similar(a: string, b: string, threshold: number) {
     return compareTitles(a, b).similarity >= threshold;
 }
 
-/**
- * Whether a MusicBrainz release group is the album. Artist and album are judged on
- * their own: one long title in a joined string carried a wrong artist or release group past.
- */
+/** Whether a MusicBrainz release group is the album, judging artist and album each on their own. */
 export function validateMusicBrainzMatch(artistName: string, albumName: string, mbArtistNames: string[], mbAlbumName: string, mbSecondaryTypes: string[] = [], threshold: number = 0.8) {
     // Any credited name will do: collaborators come in any order, and a renamed act is credited under either name
     const artistMatches = mbArtistNames.some(name => similar(artistName, name, threshold));

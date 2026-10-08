@@ -14,7 +14,7 @@ const getMock = axios.get as unknown as Mock;
 describe('musicBrainzGet retry', () => {
     afterEach(() => vi.useRealTimers());
 
-    // A retry fired outside the pacing, so the next request went out right behind it and drew another 503
+    // The pacing interval is 1100 ms, retries included
     it('keeps a retry and the next request a full interval apart', async () => {
         vi.useFakeTimers();
         const sentAt: number[] = [];

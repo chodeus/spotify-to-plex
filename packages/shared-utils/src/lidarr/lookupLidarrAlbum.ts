@@ -3,10 +3,7 @@ import type { LidarrLookupResult } from '@spotify-to-plex/shared-types/musicbrai
 import { LIDARR_TIMEOUT_MS } from './utils/lidarrTimeout';
 import { withRetry } from './utils/withRetry';
 
-/**
- * Lookup album in Lidarr using MusicBrainz release group ID: null when Lidarr
- * knows no such album. A failed request throws, so it is not mistaken for that.
- */
+/** Lidarr's lookup of a MusicBrainz release group, or null when it knows none; a failed request throws instead. */
 export async function lookupLidarrAlbum(releaseGroupId: string, lidarrUrl: string, apiKey: string) {
     const baseUrl = lidarrUrl.endsWith('/') ? lidarrUrl.slice(0, -1) : lidarrUrl;
     const lookupUrl = `${baseUrl}/api/v1/album/lookup?term=lidarr:${releaseGroupId}`;
