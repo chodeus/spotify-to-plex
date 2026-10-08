@@ -17,7 +17,7 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
     .post(
         async (req, res) => {
             try {
-                const { id, uri } = req.body;
+                const { id, uri } = req.body ?? {};
                 if (uri) {
                     const { token } = await getSettings(true);
                     // Only a connection plex.tv lists for one of this account's servers, with that server's own token:
