@@ -1,4 +1,5 @@
 import { getMusicBrainzTrackIdsByIsrc } from "@spotify-to-plex/shared-utils/musicbrainz/getMusicBrainzTrackIdsByIsrc";
+import { albumBaseTitle } from "@spotify-to-plex/shared-utils/music/albumBaseTitle";
 import { durationsContradict } from "@spotify-to-plex/shared-utils/music/durationSimilarity";
 import { findTracksByMusicBrainzIds } from "@spotify-to-plex/plex-music-search/functions/findTracksByMusicBrainzIds";
 import { PlexMusicSearchConfig } from "@spotify-to-plex/plex-music-search/types/PlexMusicSearchConfig";
@@ -29,15 +30,18 @@ async function findByIsrc(config: PlexMusicSearchConfig, track: SpotifyTrack, is
     // getCachedPlexTracks would drop a contradicting hit next sync, and the ISRC would add it back
     const fitting = (hits: PlexTrack[]) => hits.filter(hit => !durationsContradict(track.duration_ms, hit.duration_ms));
 
-    // Spotify's own album decides when it holds the recording; other releases are only a fallback
-    if (track.album.trim()) {
-        const onSpotifyAlbum = fitting(await findTracksByMusicBrainzIds(config, artist, track.album, lookup.trackIds, ANY_ALBUM_ARTIST));
+    // Spotify's own album decides when it holds the recording; other releases are only a fallback.
+    // Its base title too: Plex files "Graduation" where Spotify says "Graduation (Deluxe Edition)"
+    const spotifyAlbums = [...new Set([track.album, albumBaseTitle(track.album)])].filter(title => title.trim());
+
+    for (const album of spotifyAlbums) {
+        const onSpotifyAlbum = fitting(await findTracksByMusicBrainzIds(config, artist, album, lookup.trackIds, ANY_ALBUM_ARTIST));
         if (onSpotifyAlbum.length > 0)
             return onlyHit(onSpotifyAlbum);
     }
 
     const otherTitles = lookup.releaseTitles
-        .filter(title => title != track.album && title.trim())
+        .filter(title => !spotifyAlbums.includes(title) && title.trim())
         .slice(0, MAX_OTHER_RELEASES);
     const elsewhere: PlexTrack[] = [];
 

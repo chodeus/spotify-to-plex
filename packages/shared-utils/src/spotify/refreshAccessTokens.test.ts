@@ -83,4 +83,14 @@ describe('refreshAccessTokens', () => {
         expect(postMock).not.toHaveBeenCalled();
         expect(stored()[0]?.access_token.access_token).toBe('enc:old');
     });
+
+    // Every playlist load waits on the refresh, so it must give up
+    it('gives up on the token request after 15 s', async () => {
+        writeFileSync(path(), JSON.stringify([credential('expired', 0)]));
+        postMock.mockResolvedValue({ data: { access_token: 'new', expires_in: 3600, token_type: 'Bearer' } });
+
+        await refreshAccessTokens();
+
+        expect(postMock.mock.calls[0]?.[2]?.timeout).toBe(15_000);
+    });
 });

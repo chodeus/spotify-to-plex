@@ -4,6 +4,7 @@ import { LidarrAddAlbumRequest } from '@spotify-to-plex/shared-types/lidarr/Lida
 import { getMusicBrainzIds } from '@spotify-to-plex/shared-utils/lidarr/getMusicBrainzIds';
 import { lookupLidarrAlbum } from '@spotify-to-plex/shared-utils/lidarr/lookupLidarrAlbum';
 import { monitorAndSearchAlbum } from '@spotify-to-plex/shared-utils/lidarr/monitorAndSearchAlbum';
+import { LIDARR_TIMEOUT_MS } from '@spotify-to-plex/shared-utils/lidarr/utils/lidarrTimeout';
 import axios from 'axios';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createRouter } from 'next-connect';
@@ -112,6 +113,7 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
                         'X-Api-Key': apiKey,
                         'Content-Type': 'application/json',
                     },
+                    timeout: LIDARR_TIMEOUT_MS,
                 });
 
                 // Trigger explicit album search to start download
@@ -126,6 +128,7 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
                             'X-Api-Key': apiKey,
                             'Content-Type': 'application/json',
                         },
+                        timeout: LIDARR_TIMEOUT_MS,
                     });
                 }
 

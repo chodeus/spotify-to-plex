@@ -12,6 +12,7 @@ export type MusicBrainzTextSearchResponse = {
         title: string;
         'first-release-date': string;
         'primary-type': string;
+        'secondary-types'?: string[];
         'artist-credit': {
             name: string;
             artist: {

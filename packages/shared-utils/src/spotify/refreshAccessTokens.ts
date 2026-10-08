@@ -48,6 +48,8 @@ export async function refreshAccessTokens() {
                         headers: {
                             'Content-Type': 'application/x-www-form-urlencoded',
                         },
+                        // Every playlist load waits on this, so a hung Spotify endpoint would hang the sync
+                        timeout: 15_000,
                     }
                 );
 
