@@ -6,8 +6,8 @@ const answered = (status: number) => new AxiosError(`Request failed with status 
 
 describe('isTransientError', () => {
     // A 500, 502 or 504 used to end the lookup, and a URL lookup then cached the album as a permanent miss
-    it('treats every server error and a rate limit as transient', () => {
-        for (const status of [500, 502, 503, 504, 429])
+    it('treats every server error, a rate limit and a request timeout as transient', () => {
+        for (const status of [500, 502, 503, 504, 429, 408])
             expect(isTransientError(answered(status))).toBe(true);
     });
 

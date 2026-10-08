@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { isRetryable } from '@spotify-to-plex/http-client/isRetryable';
 
 /**
  * Whether a request failed for a reason that says nothing about the answer - no
@@ -6,11 +7,6 @@ import axios from 'axios';
  * worth remembering as "there is no such release".
  */
 export function isTransientError(error: unknown) {
-    if (!axios.isAxiosError(error))
-        return false;
-
-    const status = error.response?.status;
-
-    // A body cut off after the headers keeps the 200 it was answering with, which is not the answer
-    return status === undefined || status < 400 || status === 429 || status >= 500;
+    // A body cut off after the headers keeps the 200 it was answering with, and isRetryable passes that too
+    return axios.isAxiosError(error) && isRetryable(error);
 }
