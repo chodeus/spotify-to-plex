@@ -13,7 +13,6 @@ describe('encrypt', () => {
         ({ decrypt } = await import('./decrypt'));
     });
 
-    // One IV per process made two equal tokens encrypt to the same string
     it('gives the same text a different ciphertext each time', () => {
         const first = encrypt('refresh-token');
         const second = encrypt('refresh-token');
@@ -26,7 +25,7 @@ describe('encrypt', () => {
         expect(decrypt(encrypt('refresh-token'))).toBe('refresh-token');
     });
 
-    // spotify.json written before this change has to keep working
+    // Tokens already in spotify.json share one IV and must still decrypt
     it('still decrypts a token written with a fixed IV', () => {
         const iv = Buffer.alloc(16, 7);
         const cipher = createCipheriv('aes-256-cbc', Buffer.from(KEY, 'hex'), iv);
