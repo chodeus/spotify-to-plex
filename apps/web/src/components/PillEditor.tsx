@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useMemo } from 'react';
+import React, { useCallback, useState, useMemo, useId } from 'react';
 import { Box } from '@mui/material';
 import { expressionToPills, Pill } from '../utils/expressionToPills';
 import { pillsToExpression } from '../utils/pillsToExpression';
@@ -29,6 +29,8 @@ const PillEditor: React.FC<PillEditorProps> = ({
     const [operationSelectorOpen, setOperationSelectorOpen] = useState(false);
     const [selectedPillId, setSelectedPillId] = useState<string | null>(null);
     const [popupAnchorEl, setPopupAnchorEl] = useState<HTMLElement | null>(null);
+    // Pill ids restart at pill-0 in every expression, and a table renders one editor per row
+    const scope = useId();
 
     // Parse expression to pills
     const pills = useMemo(() => {
@@ -176,7 +178,7 @@ const PillEditor: React.FC<PillEditorProps> = ({
     // Create field pill click handler for a specific pill
     const createFieldPillClickHandler = useCallback((pill: Pill) => {
         return () => {
-            const element = document.getElementById(`pill-${pill.id}`);
+            const element = document.getElementById(`${scope}-pill-${pill.id}`);
             if (element) {
                 const event = {
                     currentTarget: element,
@@ -185,7 +187,7 @@ const PillEditor: React.FC<PillEditorProps> = ({
                 handleFieldPillClick(pill.id, event);
             }
         };
-    }, [handleFieldPillClick]);
+    }, [handleFieldPillClick, scope]);
 
     return (
         <Box>
@@ -212,7 +214,7 @@ const PillEditor: React.FC<PillEditorProps> = ({
                 {pills.map((pill) => (
                     <React.Fragment key={pill.id}>
                         {pill.type === 'condition' && pill.field ? (
-                            <Box id={`pill-${pill.id}`}>
+                            <Box id={`${scope}-pill-${pill.id}`}>
                                 <FieldPill field={pill.field} isConfigured={isPillConfigured(pill)} onClick={createFieldPillClickHandler(pill)} disabled={disabled} displayText={isPillConfigured(pill) ? pill.text : pill.field} />
                             </Box>
                         ) : pill.type === 'combinator' ? (

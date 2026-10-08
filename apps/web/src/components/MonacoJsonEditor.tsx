@@ -1,7 +1,16 @@
-import React, { useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
+import React, { useRef, useCallback, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { Box, Paper, Alert, Typography } from '@mui/material';
 import Editor from '@monaco-editor/react';
 import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
+
+// Whether the editor's text already holds this value, however it is formatted
+function holdsValue(text: string, value: unknown) {
+    try {
+        return JSON.stringify(JSON.parse(text)) === JSON.stringify(value);
+    } catch {
+        return false;
+    }
+}
 
 type MonacoJsonEditorProps = {
     readonly value: any;
@@ -28,8 +37,20 @@ const MonacoJsonEditor = forwardRef<MonacoJsonEditorHandle, MonacoJsonEditorProp
 
     const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | undefined>(undefined);
 
+    const jsonString = React.useMemo(() => {
+        return JSON.stringify(value, null, 2);
+    }, [value]);
+
+    // Monaco mounts asynchronously, so the value may have moved on by then
+    const latestJson = useRef(jsonString);
+    latestJson.current = jsonString;
+
+    const emitted = useRef<unknown>(undefined);
+
     const handleEditorDidMount = useCallback((editor: monaco.editor.IStandaloneCodeEditor, monacoInstance: typeof monaco) => {
         editorRef.current = editor;
+        if (editor.getValue() !== latestJson.current)
+            editor.setValue(latestJson.current);
 
         // Configure JSON schema validation if provided
         if (schema) {
@@ -62,6 +83,7 @@ const MonacoJsonEditor = forwardRef<MonacoJsonEditorHandle, MonacoJsonEditorProp
 
         try {
             const parsedValue = JSON.parse(value);
+            emitted.current = parsedValue;
             onChange(parsedValue);
         } catch {
             // Don't call onChange with invalid JSON - let Monaco handle validation visually
@@ -85,9 +107,13 @@ const MonacoJsonEditor = forwardRef<MonacoJsonEditorHandle, MonacoJsonEditorProp
         getCurrentValue
     }));
 
-    const jsonString = React.useMemo(() => {
-        return JSON.stringify(value, null, 2);
-    }, [value]);
+    // Uncontrolled, so an edit never comes back re-formatted under the cursor. Only a value from
+    // outside (a load or a reload) replaces the text, never the one this editor emitted
+    useEffect(() => {
+        const editor = editorRef.current;
+        if (editor && value !== emitted.current && !holdsValue(editor.getValue(), value))
+            editor.setValue(jsonString);
+    }, [value, jsonString]);
 
     return (
         <Box>
@@ -102,7 +128,7 @@ const MonacoJsonEditor = forwardRef<MonacoJsonEditorHandle, MonacoJsonEditorProp
                 <Editor
                     height={`${height}px`}
                     language="json"
-                    value={jsonString}
+                    defaultValue={jsonString}
                     onChange={handleEditorChange}
                     onMount={handleEditorDidMount}
                     options={{

@@ -17,6 +17,8 @@ export type GetPlexPlaylistIdResponse = {
     id: string,
     link: string
 }
+// Saving also says which tracks Plex would not add, which are missing from the saved playlist
+export type SavePlexPlaylistResponse = GetPlexPlaylistIdResponse & { refused: string[] }
 // Large playlists ship thousands of tracks in one request/response (issue #94)
 export const config = {
     api: {
@@ -97,7 +99,7 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
                 await removeItemsFromPlaylist(settings, playlist.ratingKey, []);
 
                 // Add all items
-                await addItemsToPlaylist(settings, playlist.ratingKey, items)
+                const refused = await addItemsToPlaylist(settings, playlist.ratingKey, items)
 
                 if (playlist.title !== name && name)
                     await updatePlaylist(settings, playlist.ratingKey, { title: name })
@@ -111,7 +113,8 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
                 }
 
                 const link = getAPIUrl(settings.uri, `/web/index.html#!/server/${settings.id}/playlist?key=${encodeURIComponent(`/playlists/${playlist.ratingKey}`)}`)
-                res.json({ id: playlist.ratingKey, link })
+                const saved: SavePlexPlaylistResponse = { id: playlist.ratingKey, link, refused }
+                res.json(saved)
             } catch (error) {
                 console.error('Error updating Plex playlist:', error);
                 res.status(500).json({ error: 'Failed to update playlist' });

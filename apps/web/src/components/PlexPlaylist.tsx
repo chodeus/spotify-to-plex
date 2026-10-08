@@ -1,6 +1,6 @@
 /* eslint-disable max-lines */
 import { errorBoundary } from "@/helpers/errors/errorBoundary";
-import { GetPlexPlaylistIdResponse } from "@/pages/api/playlists/[id]";
+import { GetPlexPlaylistIdResponse, SavePlexPlaylistResponse } from "@/pages/api/playlists/[id]";
 import { GetSpotifyAlbum } from "@spotify-to-plex/shared-types/spotify/GetSpotifyAlbum";
 import { GetSpotifyPlaylist } from "@spotify-to-plex/shared-types/spotify/GetSpotifyPlaylist";
 import { Track } from "@spotify-to-plex/shared-types/spotify/Track";
@@ -298,6 +298,23 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
             setShowEditPlaylistName(false)
         })
     }, [playlist, newPlaylistName])
+    // The one owner of a track's search result, so the filter and the rows agree. By spotify id:
+    // title+artist finds the same entry for both rows when a playlist holds a song twice
+    const matchById = useMemo(() => {
+        const byId = new Map<string, SearchResponse>()
+
+        for (const item of tracks) {
+            if (!byId.has(item.id))
+                byId.set(item.id, item)
+        }
+
+        return byId
+    }, [tracks])
+
+    const findMatchFor = useCallback((track: { id: string }) =>
+        matchById.get(track.id)
+    , [matchById])
+
     ///////////////////////////////////////////////
     // Saving playlists
     ///////////////////////////////////////////////
@@ -313,43 +330,47 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
             items: []
         }
 
-        for (let i = 0; i < tracks.length; i++) {
-            const item = tracks[i];
+        // To name a track Plex refuses, by the key it was sent under
+        const titles = new Map<string, string>()
+
+        // Spotify's order: `tracks` holds the cached matches first, then each batch as it loaded
+        for (const track of playlist.tracks) {
+            const item = findMatchFor(track)
             if (!item)
                 continue;
 
-            const trackSelectIdx = trackSelections.find(selectionItem => selectionItem.trackId === item?.id)
+            const trackSelectIdx = trackSelections.find(selectionItem => selectionItem.trackId === track.id)
             const song = item.result?.[trackSelectIdx ? trackSelectIdx.idx : 0];
 
-            if (song)
+            if (song) {
                 data.items.push({ key: song.id, source: song.source })
+                titles.set(song.id, track.title)
+            }
         }
 
         setSaving(true)
         errorBoundary(async () => {
-            if (plexPlaylist) {
-                await axios.put<GetPlexPlaylistIdResponse>(`/api/playlists/${playlist.id}`, data)
-                enqueueSnackbar("Playlist updated")
-            } else {
-                const result = await axios.post<GetPlexPlaylistIdResponse>('/api/playlists', data)
+            const result = plexPlaylist
+                ? await axios.put<SavePlexPlaylistResponse>(`/api/playlists/${playlist.id}`, data)
+                : await axios.post<SavePlexPlaylistResponse>('/api/playlists', data)
+            if (!plexPlaylist)
                 setPlexPlaylist(result.data);
-                enqueueSnackbar("Playlist created")
-            }
 
-            setSaving(false)
-        }, () => {
+            const saved = plexPlaylist ? "Playlist updated" : "Playlist created"
+            // The rest of the playlist saved, so this is a warning and not an error
+            const refused = result.data.refused ?? []
+            if (refused.length > 0) {
+                const named = refused.slice(0, 3).map(key => titles.get(key) ?? key)
+                    .join(', ')
+                enqueueSnackbar(`${saved}, but Plex refused ${refused.length} track(s): ${named}${refused.length > 3 ? ', …' : ''}`, { variant: "warning" })
+            } else {
+                enqueueSnackbar(saved)
+            }
+        }).finally(() => {
             setSaving(false)
         })
 
-    }, [playlist, newPlaylistName, plexPlaylist, trackSelections, tracks])
-
-    // Single owner for "which search result belongs to this track" - the filter
-    // and the row renderer must agree or the counts lie
-    // Matching on the spotify id - title+artist returns the same entry for both
-    // rows when a playlist holds the same song twice
-    const findMatchFor = useCallback((track: { id: string }) =>
-        tracks.find(item => item.id === track.id)
-    , [tracks])
+    }, [playlist, newPlaylistName, plexPlaylist, trackSelections, findMatchFor])
 
     // Every track is already loaded client-side, so searching covers the whole
     // playlist rather than the current page
@@ -442,6 +463,10 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
 
     }, [playlist, findMatchFor])
 
+    // A batch that failed or was cancelled leaves tracks with no entry, and saving
+    // then would rewrite the Plex playlist without them
+    const notLoaded = useMemo(() => playlist.tracks.filter(track => !findMatchFor(track)), [playlist.tracks, findMatchFor])
+
     if (error) {
         return (
             <Box sx={{ mt: 2 }}>
@@ -502,7 +527,7 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
                 }
 
                 <Box sx={{ display: 'flex', gap: 1 }}>
-                    <Button disabled={loadingTracks || saving} onClick={onPutPlaylistClick}>{plexPlaylist ? "Update" : "Create"} playlist</Button>
+                    <Button disabled={loadingTracks || saving || notLoaded.length > 0} onClick={onPutPlaylistClick}>{plexPlaylist ? "Update" : "Create"} playlist</Button>
                     <Button component="a" disabled={!plexPlaylist} href={plexPlaylist?.link} target='_blank'>Open playlist</Button>
                 </Box>
             </Paper>
@@ -558,7 +583,20 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
                 </Box>
             }
 
-            {missingTracks.length === 0 && !loadingTracks &&
+            {notLoaded.length > 0 && !loadingTracks &&
+                <Box sx={{ mt: 1, mb: 1 }}>
+                    <Alert variant="outlined" color="warning">
+                        <Box sx={{ p: 1 }}>
+                            <Typography variant="h6" sx={{ mb: 0.5 }} color="warning">{notLoaded.length} tracks not loaded</Typography>
+                            <Typography variant="body2">
+                                Loading stopped before these tracks were searched. Reload the page to try again; saving stays off until every track has loaded.
+                            </Typography>
+                        </Box>
+                    </Alert>
+                </Box>
+            }
+
+            {missingTracks.length === 0 && notLoaded.length === 0 && !loadingTracks &&
                 <Box sx={{ mt: 1, mb: 1 }}>
                     <Alert variant="outlined" color="success">
                         <Box sx={{ p: 1 }}>

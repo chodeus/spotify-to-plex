@@ -77,7 +77,7 @@ const MatchFiltersPage: NextPage = () => {
 
     const handleReset = useCallback(async () => {
         // eslint-disable-next-line no-alert
-        if (confirm('Reset match filters to defaults? This will overwrite your current configuration.')) {
+        if (confirm('Discard unsaved changes and reload the saved match filters?')) {
             await loadData();
             setValidationError('');
         }
@@ -147,7 +147,7 @@ const MatchFiltersPage: NextPage = () => {
                                     <ToggleButton value="json">JSON</ToggleButton>
                                 </ToggleButtonGroup>
                                 <Button onClick={handleResetClick} variant="outlined" size="small" startIcon={<Refresh />}>
-                                    Reset to Defaults
+                                    Reload Saved
                                 </Button>
                                 <Button onClick={handleSaveClick} variant="contained" size="small" startIcon={<Save />}>
                                     Save Configuration

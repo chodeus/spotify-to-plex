@@ -218,10 +218,12 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
                 if (!saveItem)
                     return res.status(400).json({ error: `Item not found` })
 
-                if (typeof sync === 'boolean' && typeof sync_interval === 'string') {
+                // Each on its own: a bulk edit of one must not reset the other on every selected item
+                if (typeof sync === 'boolean')
                     saveItem.sync = sync
+
+                if (typeof sync_interval === 'string')
                     saveItem.sync_interval = sync_interval
-                }
 
                 if (typeof label === 'string')
                     saveItem.label = label;

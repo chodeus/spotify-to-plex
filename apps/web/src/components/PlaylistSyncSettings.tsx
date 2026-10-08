@@ -25,8 +25,14 @@ export default function PlaylistItemSettings(props: Props) {
     // Modify labels
     ///////////////////////////////////////////////
     const [label, setLabel] = useState('')
+    // Only touched fields are sent: with several items selected the form starts from the
+    // first item (sync) or blank (mixed labels), and sending that would overwrite the rest
+    const [labelEdited, setLabelEdited] = useState(false)
+    const [syncEdited, setSyncEdited] = useState(false)
+    const [daysEdited, setDaysEdited] = useState(false)
     const onEditLabelChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
         setLabel(e.target.value)
+        setLabelEdited(true)
     }, [])
 
     //////////////////////////////
@@ -34,11 +40,14 @@ export default function PlaylistItemSettings(props: Props) {
     //////////////////////////////
     const onAutoSyncChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
         setAutoSync(e.target.checked)
+        setSyncEdited(true)
     }, [])
 
     const onDaysChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
-        if (e.target.value)
+        if (e.target.value) {
             setDays(e.target.value)
+            setDaysEdited(true)
+        }
     }, [])
 
     const onSaveChangesClick = useCallback(() => {
@@ -49,14 +58,14 @@ export default function PlaylistItemSettings(props: Props) {
                 return;
 
             const validateDays = Number(days)
-            if (isNaN(validateDays) || validateDays < 0)
+            if (daysEdited && (isNaN(validateDays) || validateDays < 0))
                 throw new Error(`The value should not be lower than zero days.`)
 
             await axios.put(`/api/saved-items/`, {
                 ids: items.map(item => item.id),
-                sync: autoSync,
-                sync_interval: days,
-                label,
+                ...(syncEdited ? { sync: autoSync } : {}),
+                ...(daysEdited ? { sync_interval: days } : {}),
+                ...(labelEdited ? { label } : {}),
             })
 
             enqueueSnackbar(`Changes saved`)
@@ -66,7 +75,7 @@ export default function PlaylistItemSettings(props: Props) {
             setLoading(false);
         })
 
-    }, [autoSync, days, items, label, onClose])
+    }, [autoSync, days, items, label, labelEdited, syncEdited, daysEdited, onClose])
 
     //////////////////////////////
     // Close dialog
@@ -99,8 +108,10 @@ export default function PlaylistItemSettings(props: Props) {
 
     const onEditLabelChipClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
         const labelValue = e.currentTarget.dataset.label;
-        if (labelValue?.trim())
+        if (labelValue?.trim()) {
             setLabel(labelValue.trim())
+            setLabelEdited(true)
+        }
     }, [])
 
     return (

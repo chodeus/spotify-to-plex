@@ -10,6 +10,7 @@ import { GetPlaylistResponse } from '@spotify-to-plex/shared-types/plex/GetPlayl
 import { Playlist } from '@spotify-to-plex/shared-types/plex/Playlist';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createRouter } from 'next-connect';
+import type { SavePlexPlaylistResponse } from './[id]';
 import { addPlaylist } from '@spotify-to-plex/plex-config/functions/addPlaylist';
 import { getSettings } from '@spotify-to-plex/plex-config/functions/getSettings';
 
@@ -79,7 +80,7 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
                 const playlistId = await storePlaylist(settings, name, uri)
                 // Recorded before the adds, so a failed add cannot leave a playlist that is created again
                 await addPlaylist({ type, id, plex: playlistId })
-                await addItemsToPlaylist(settings, playlistId, items)
+                const refused = await addItemsToPlaylist(settings, playlistId, items)
 
                 // Update thumbnail of playlist
                 if (typeof thumb === 'string') {
@@ -90,7 +91,8 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
                 }
 
                 const link = getAPIUrl(settings.uri, `/web/index.html#!/server/${settings.id}/playlist?key=${encodeURIComponent(`/playlists/${playlistId}`)}`)
-                res.json({ id: playlistId, link })
+                const saved: SavePlexPlaylistResponse = { id: playlistId, link, refused }
+                res.json(saved)
             } catch (error) {
                 console.error(`Error creating Plex playlist: ${describeHttpError(error)}`);
                 res.status(500).json({ error: 'Failed to create playlist' });
