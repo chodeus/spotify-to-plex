@@ -101,8 +101,14 @@ export default function ConfirmProvider() {
     }, [handleClose, resolveReject])
 
     const onPressEnter = useCallback((e: KeyboardEvent) => {
-        if (e.key === "Enter" && resolveReject.length === 2)
-            handleConfirm();
+        if (e.key !== "Enter" || resolveReject.length !== 2)
+            return;
+
+        // A focused button answers Enter itself, so Enter on Cancel must not confirm
+        if (e.target instanceof HTMLElement && e.target.closest('button'))
+            return;
+
+        handleConfirm();
     }, [handleConfirm, resolveReject.length])
 
     useEffect(() => {

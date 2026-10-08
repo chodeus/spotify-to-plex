@@ -55,6 +55,17 @@ describe('matchByIsrc', () => {
         expect(result?.matched_by).toBeUndefined();
     });
 
+    // "Kanye West - Graduation (Deluxe Edition)": Plex files the album as "Graduation", under "Ye"
+    it('finds the track on the Spotify album filed without its edition label', async () => {
+        plexHas({ 'Graduation': [plexTrack('/library/metadata/4')] });
+        const deluxe = { ...spotifyTrack, album: 'Graduation (Deluxe Edition)' };
+
+        const [result] = await matchByIsrc(config, [{ ...unmatched, album: deluxe.album }], [deluxe]);
+
+        expect(result?.result.map(track => track.id)).toEqual(['/library/metadata/4']);
+        expect(findMock.mock.calls.find(call => call[2] === 'Graduation')?.[4]).toBe(findMock.mock.calls[0]?.[4]);
+    });
+
     it('falls back to the other releases only when the Spotify album finds nothing', async () => {
         plexHas({ 'Single': [plexTrack('/library/metadata/3')] });
 

@@ -94,7 +94,7 @@ const TextProcessingPage: NextPage = () => {
 
     const handleReset = useCallback(async () => {
         // eslint-disable-next-line no-alert
-        if (confirm('Reset to default text processing configuration? This will overwrite your current settings.')) {
+        if (confirm('Discard unsaved changes and reload the saved text processing settings?')) {
             await loadConfig();
             setValidationError('');
         }
@@ -159,7 +159,7 @@ const TextProcessingPage: NextPage = () => {
                             </Typography>
                             <Box sx={{ display: 'flex', gap: 1 }}>
                                 <Button onClick={handleResetClick} variant="outlined" size="small" startIcon={<Refresh />}>
-                                    Reset to Defaults
+                                    Reload Saved
                                 </Button>
                                 <Button onClick={handleSaveClick} variant="contained" size="small" startIcon={<Save />}>
                                     Save Configuration

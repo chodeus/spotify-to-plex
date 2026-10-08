@@ -1,5 +1,6 @@
 import { MusicBrainzTextSearchResponse } from '@spotify-to-plex/shared-types/musicbrainz/MusicBrainzTextSearchResponse';
 import { MusicBrainzLookup } from '@spotify-to-plex/shared-types/musicbrainz/MusicBrainzLookup';
+import { albumBaseTitle } from '../music/albumBaseTitle';
 import { musicBrainzGet } from './utils/musicBrainzGet';
 import { validateMusicBrainzMatch } from './validateMusicBrainzMatch';
 
@@ -18,11 +19,12 @@ function escapeLucene(value: string) {
  * Uses artist and album names to search MusicBrainz
  */
 export async function getMusicBrainzIdsByTextSearch(artistName: string, albumName: string): Promise<MusicBrainzLookup> {
-    // Fielded first so the words have to land in the right fields; the loose
-    // query is only a second chance for names the fields spell differently
+    // Fielded first so the words land in the right fields; the loose query is a second chance.
+    // Labels stay out: no release group is titled "Bugatti (Explicit Version)"
+    const albumTitle = albumBaseTitle(albumName);
     const queries = [
-        `artist:"${escapeLucene(artistName)}" AND releasegroup:"${escapeLucene(albumName)}"`,
-        `${artistName} ${albumName}`
+        `artist:"${escapeLucene(artistName)}" AND releasegroup:"${escapeLucene(albumTitle)}"`,
+        `${artistName} ${albumTitle}`
     ];
 
     for (const query of queries) {
@@ -42,8 +44,9 @@ export async function getMusicBrainzIdsByTextSearch(artistName: string, albumNam
             if (!releaseGroupId || !artistId)
                 continue;
 
-            const mbArtistName = candidate['artist-credit']?.[0]?.artist?.name || '';
-            if (validateMusicBrainzMatch(artistName, albumName, mbArtistName, candidate.title || ''))
+            const credits = candidate['artist-credit'] ?? [];
+            const mbArtistNames = credits.flatMap(credit => [credit.name, credit.artist?.name]).filter(name => !!name);
+            if (validateMusicBrainzMatch(artistName, albumName, mbArtistNames, candidate.title || '', candidate['secondary-types'] ?? []))
                 return { status: 'found', releaseGroupId, artistId };
         }
     }
