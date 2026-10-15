@@ -30,7 +30,9 @@ export function filterOutWords(input: string, textProcessing: TextProcessingConf
     if (cutOffSeperators)
         for (let i = 0; i < separators.length; i++) {
             const separator = separators[i];
-            if (separator && result.indexOf(separator) > 4) {
+            const at = separator ? result.indexOf(separator) : -1;
+            // A short title trims too when a space sets the separator off: "679 (feat. x)", but not "x-ray"
+            if (separator && (at > 4 || (at > 0 && /\s/.test(result.charAt(at - 1))))) {
                 // Use indexOf for separators containing commas to cut at first occurrence, lastIndexOf for others
                 const cutIndex = separator.includes(",") ? result.indexOf(separator) : result.lastIndexOf(separator);
                 result = result.slice(0, Math.max(0, cutIndex));
