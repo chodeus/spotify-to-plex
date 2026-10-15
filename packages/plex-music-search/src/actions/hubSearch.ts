@@ -28,11 +28,14 @@ export default function hubSearch(uri: string, token: string, query: string, lim
             return;
         }
 
-        let url = getAPIUrl(uri, `/hubs/search?query=${fixedEncodeURIComponent(query.trim())}&limit=${limit}`);
-        const get = () => AxiosRequest.get<HubSearchResponse>(url, token);
-        // Plex asking for a pause gets it and one more try; any other failure ends this query alone
-        const ask = () => get()
-            .catch(async (error: unknown) => {
+        const urlFor = (text: string) => getAPIUrl(uri, `/hubs/search?query=${fixedEncodeURIComponent(text)}&limit=${limit}`);
+        // The last URL asked, for the failure log
+        let url = urlFor(query.trim());
+        // Plex asking for a pause gets it and one more try
+        const ask = (target: string) => {
+            const get = () => AxiosRequest.get<HubSearchResponse>(target, token);
+
+            return get().catch(async (error: unknown) => {
                 const wait = retryAfterMs(error);
                 if (wait === undefined)
                     throw error;
@@ -41,20 +44,21 @@ export default function hubSearch(uri: string, token: string, query: string, lim
 
                 return get();
             });
+        };
 
         // Plex answers 500 to some bracketed queries ("i love it (& lil pump)") and searches the same words without them
         const unbracketed = query
             .replace(/[()[\]{}]/g, ' ')
             .replace(/\s+/g, ' ')
             .trim();
-        ask()
+        ask(url)
             .catch((error: unknown) => {
                 if (httpStatusOf(error) !== 500 || !unbracketed || unbracketed == query.trim())
                     throw error;
 
-                url = getAPIUrl(uri, `/hubs/search?query=${fixedEncodeURIComponent(unbracketed)}&limit=${limit}`);
+                url = urlFor(unbracketed);
 
-                return ask();
+                return ask(url);
             })
             .then((result) => {
                 const response: HubSearchResult[] = [];
