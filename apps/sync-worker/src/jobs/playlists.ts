@@ -179,7 +179,7 @@ export async function syncPlaylists() {
                 // status, and the lists are still rewritten for every other track
                 const unsearched = result.filter((track: SearchResponse) => track.failed && track.result.length == 0)
                 if (unsearched.length > 0)
-                    console.log(`Could not search Plex for ${unsearched.length} tracks; they keep their missing status from the last run`)
+                    console.log(`Could not search Plex for ${unsearched.length} tracks; they keep their status from the last missing list`)
 
                 const missingTracks = findMissingTracks(toSearchItems, result, lastMissing)
                 processed = true
