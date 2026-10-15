@@ -30,6 +30,9 @@ import { getSettings } from "@spotify-to-plex/plex-config/functions/getSettings"
 import { LidarrAlbumData } from "@spotify-to-plex/shared-types/lidarr/LidarrAlbumData";
 import { SlskdTrackData } from "@spotify-to-plex/shared-types/slskd/SlskdTrackData";
 import { isLocalTrack } from "@spotify-to-plex/shared-utils/spotify/isLocalTrack";
+import { findMissingTracks } from "../utils/findMissingTracks";
+import { readMissingSpotifyTrackIds } from "../utils/readMissingSpotifyTrackIds";
+import { spotifyTrackId } from "../utils/spotifyTrackId";
 
 
 export async function syncPlaylists() {
@@ -68,6 +71,8 @@ export async function syncPlaylists() {
         const missingTidalTracks: string[] = []
         const missingAlbumsLidarr: LidarrAlbumData[] = []
         const missingTracksSlskd: SlskdTrackData[] = []
+        // Read before this run rewrites it
+        const lastMissing = readMissingSpotifyTrackIds()
         let processed = false
         let incomplete = false
 
@@ -170,18 +175,13 @@ export async function syncPlaylists() {
                 ////////////
                 // Handle missing tracks
                 ////////////
-                // A search Plex never answered says nothing about the library: keep the last good missing lists
+                // A search Plex never answered says nothing about the library: that track keeps its last
+                // status, and the lists are still rewritten for every other track
                 const unsearched = result.filter((track: SearchResponse) => track.failed && track.result.length == 0)
-                if (unsearched.length > 0) {
-                    console.log(`Could not search Plex for ${unsearched.length} tracks; they are not reported missing this run`)
-                    incomplete = true
-                }
+                if (unsearched.length > 0)
+                    console.log(`Could not search Plex for ${unsearched.length} tracks; they keep their missing status from the last run`)
 
-                const missingTracks = toSearchItems.filter(item => {
-                    const { title: trackTitle, artists: trackArtists } = item;
-
-                    return result.some(track => track.title == trackTitle && trackArtists.indexOf(track.artist) > - 1 && track.result.length == 0 && !track.failed)
-                })
+                const missingTracks = findMissingTracks(toSearchItems, result, lastMissing)
                 processed = true
                 if (missingTracks.length == 0) {
                     logComplete(itemLog)
@@ -194,7 +194,7 @@ export async function syncPlaylists() {
                     // would yield the artist name
                     if (!item.id || isLocalTrack(item.id)) return;
 
-                    const id = item.id.indexOf(":") > -1 ? item.id.split(":")[2] : item.id;
+                    const id = spotifyTrackId(item.id);
                     if (typeof id === 'string' && !missingSpotifyTracks.includes(id))
                         missingSpotifyTracks.push(id)
                 })
@@ -234,7 +234,7 @@ export async function syncPlaylists() {
                     // would yield the artist name
                     if (!track.id || isLocalTrack(track.id)) return;
 
-                    const spotifyId = track.id.indexOf(":") > -1 ? track.id.split(":")[2] : track.id;
+                    const spotifyId = spotifyTrackId(track.id);
                     const artist = track.artists[0] || 'Unknown Artist';
                     const trackName = track.title || 'Unknown Track';
                     const album = track.album || 'Unknown Album';
