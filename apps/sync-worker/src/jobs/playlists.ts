@@ -189,20 +189,20 @@ export async function syncPlaylists() {
                 }
 
                 console.log(`Missing ${missingTracks.length} tracks`)
-                missingTracks.forEach(item => {
+                missingTracks.forEach(track => {
                     // A local file has no spotify id to export - splitting its uri
                     // would yield the artist name
-                    if (!item.id || isLocalTrack(item.id)) return;
+                    if (!track.id || isLocalTrack(track.id)) return;
 
-                    const id = spotifyTrackId(item.id);
+                    const id = spotifyTrackId(track.id);
                     if (typeof id === 'string' && !missingSpotifyTracks.includes(id))
                         missingSpotifyTracks.push(id)
                 })
 
                 const tidalTracks = await findMissingTidalTracks(missingTracks)
-                tidalTracks.forEach(item => {
-                    if (!missingTidalTracks.includes(item.tidal_id))
-                        missingTidalTracks.push(item.tidal_id)
+                tidalTracks.forEach(tidalTrack => {
+                    if (!missingTidalTracks.includes(tidalTrack.tidal_id))
+                        missingTidalTracks.push(tidalTrack.tidal_id)
                 })
 
                 // Collect unique albums for Lidarr
@@ -219,7 +219,7 @@ export async function syncPlaylists() {
                     const key = `${artist}|${album}`;
 
                     // Check if album already exists in the array
-                    if (!missingAlbumsLidarr.some(item => `${item.artist_name}|${item.album_name}` === key)) {
+                    if (!missingAlbumsLidarr.some(queued => `${queued.artist_name}|${queued.album_name}` === key)) {
                         missingAlbumsLidarr.push({
                             artist_name: artist,
                             album_name: album,
@@ -241,7 +241,7 @@ export async function syncPlaylists() {
                     const key = `${spotifyId}`;
 
                     // Check if track already exists in the array
-                    if (spotifyId && !missingTracksSlskd.some(item => item.spotify_id === key)) {
+                    if (spotifyId && !missingTracksSlskd.some(queued => queued.spotify_id === key)) {
                         missingTracksSlskd.push({
                             spotify_id: spotifyId,
                             artist_name: artist,

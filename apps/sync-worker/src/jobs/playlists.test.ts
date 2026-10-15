@@ -12,9 +12,9 @@ vi.mock('@spotify-to-plex/plex-config/functions/getSettings', () => ({ getSettin
 vi.mock('@spotify-to-plex/music-search/functions/getMusicSearchConfig', () => ({ getMusicSearchConfig: async () => ({ searchApproaches: [{ id: 'normal' }] }) }));
 vi.mock('../utils/getPlexPlaylists', () => ({ getPlexPlaylists: async () => ({ playlists: [] }) }));
 vi.mock('../utils/loadSpotifyData', () => ({ loadSpotifyData: async () => ({ title: 'Playlist', image: '', tracks }) }));
-vi.mock('../utils/getCachedPlexTracks', () => ({ getCachedPlexTracks: async () => ({ result: [], add: () => undefined, markChecked: () => undefined, recheck: [] }) }));
+vi.mock('../utils/getCachedPlexTracks', () => ({ getCachedPlexTracks: async () => ({ result: [], add: vi.fn(), markChecked: vi.fn(), recheck: [] }) }));
 vi.mock('../utils/matchByIsrc', () => ({ matchByIsrc: async (_config: unknown, results: unknown) => results }));
-vi.mock('../utils/putPlexTracks', () => ({ putPlexPlaylist: async () => undefined }));
+vi.mock('../utils/putPlexTracks', () => ({ putPlexPlaylist: vi.fn() }));
 vi.mock('../utils/findMissingTidalTracks', () => ({ findMissingTidalTracks: async () => [] }));
 // "Gone" is not in Plex; Plex answered no query for "Unasked"
 vi.mock('@spotify-to-plex/plex-music-search/functions/search', () => ({
