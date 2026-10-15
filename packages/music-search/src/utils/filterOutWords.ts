@@ -33,8 +33,8 @@ export function filterOutWords(input: string, textProcessing: TextProcessingConf
             const at = separator ? result.indexOf(separator) : -1;
             // A short title trims too when a space sets the separator off: "679 (feat. x)", but not "x-ray"
             if (separator && (at > 4 || (at > 0 && /\s/.test(result.charAt(at - 1))))) {
-                // Use indexOf for separators containing commas to cut at first occurrence, lastIndexOf for others
-                const cutIndex = separator.includes(",") ? result.indexOf(separator) : result.lastIndexOf(separator);
+                // Cut at the first occurrence for a comma separator or a short title, at the last for others
+                const cutIndex = separator.includes(",") || at <= 4 ? at : result.lastIndexOf(separator);
                 result = result.slice(0, Math.max(0, cutIndex));
             }
         }

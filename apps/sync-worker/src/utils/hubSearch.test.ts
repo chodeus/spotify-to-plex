@@ -48,7 +48,6 @@ describe('hubSearch', () => {
         expect(getMock).toHaveBeenCalledTimes(1);
     });
 
-    // Plex answered 500 to these every night, so the track was never searched and its playlist never counted as complete
     it('asks again without brackets when Plex answers 500 to a bracketed query', async () => {
         getMock.mockRejectedValueOnce(Object.assign(new Error('Request failed with status code 500'), { response: { status: 500, headers: {} } }))
             .mockResolvedValueOnce({ data: { MediaContainer: { Hub: [] } } });
