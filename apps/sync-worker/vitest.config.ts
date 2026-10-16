@@ -16,6 +16,7 @@ export default defineConfig({
             workspace('shared-types'),
             workspace('music-search'),
             workspace('plex-music-search'),
+            workspace('tidal-music-search'),
             workspace('plex-config'),
             workspace('plex-helpers'),
             workspace('http-client')
