@@ -23,4 +23,29 @@ describe('filterOutWords', () => {
     it('leaves a title without dashes alone', () => {
         expect(filterOutWords('Song Title', textProcessing)).toBe('song title');
     });
+
+    it('trims a short title at a separator a space sets off', () => {
+        const separators = { ...textProcessing, cutOffSeparators: ['(', '-'] };
+
+        expect(filterOutWords('679 (feat. Remy Boyz)', separators, false, true)).toBe('679');
+        expect(filterOutWords('Me (feat. BOI)', separators, false, true)).toBe('me');
+        expect(filterOutWords('Up - Remix', separators, false, true)).toBe('up');
+        expect(filterOutWords('Up - Remix-X', separators, false, true)).toBe('up');
+        expect(filterOutWords('Up - Remix', textProcessing, false, true)).toBe('up');
+    });
+
+    it('does not trim a short title inside a word', () => {
+        const separators = { ...textProcessing, cutOffSeparators: ['(', '-'] };
+
+        expect(filterOutWords('X-Ray', separators, false, true)).toBe('x-ray');
+        expect(filterOutWords('(Intro)', separators, false, true)).toBe('(intro)');
+    });
+
+    it('trims at a later separator when the first is inside a word or opens the title', () => {
+        const separators = { ...textProcessing, cutOffSeparators: ['(', '-'] };
+
+        expect(filterOutWords('X-Ray - Remix', separators, false, true)).toBe('x-ray');
+        expect(filterOutWords('(Intro) Song (Remix)', separators, false, true)).toBe('(intro) song');
+        expect(filterOutWords(' - Song - Remix', textProcessing, false, true)).toBe('song');
+    });
 });

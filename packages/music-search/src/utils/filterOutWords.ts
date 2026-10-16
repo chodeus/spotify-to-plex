@@ -30,9 +30,10 @@ export function filterOutWords(input: string, textProcessing: TextProcessingConf
     if (cutOffSeperators)
         for (let i = 0; i < separators.length; i++) {
             const separator = separators[i];
-            if (separator && result.indexOf(separator) > 4) {
-                // Use indexOf for separators containing commas to cut at first occurrence, lastIndexOf for others
-                const cutIndex = separator.includes(",") ? result.indexOf(separator) : result.lastIndexOf(separator);
+            const at = separator ? separatorAt(result, separator) : -1;
+            if (separator && at > 0) {
+                // Cut at the first occurrence for a comma separator or a short title, at the last for others
+                const cutIndex = separator.includes(",") || at <= 4 ? at : result.lastIndexOf(separator);
                 result = result.slice(0, Math.max(0, cutIndex));
             }
         }
@@ -46,4 +47,13 @@ export function filterOutWords(input: string, textProcessing: TextProcessingConf
         result = result.slice(1).trim();
 
     return result;
+}
+
+/** Where a separator cuts: past the fifth character, or where a space sets it off ("679 (feat. x)", not "x-ray") */
+function separatorAt(text: string, separator: string) {
+    for (let at = text.indexOf(separator, 1); at > 0; at = text.indexOf(separator, at + 1))
+        if (at > 4 || /\s/.test(text.charAt(at - 1)) || /^\s/.test(separator))
+            return at;
+
+    return -1;
 }

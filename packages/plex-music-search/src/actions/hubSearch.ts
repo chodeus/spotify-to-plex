@@ -28,11 +28,14 @@ export default function hubSearch(uri: string, token: string, query: string, lim
             return;
         }
 
-        const url = getAPIUrl(uri, `/hubs/search?query=${fixedEncodeURIComponent(query.trim())}&limit=${limit}`);
-        const get = () => AxiosRequest.get<HubSearchResponse>(url, token);
-        // Plex asking for a pause gets it and one more try; any other failure ends this query alone
-        get()
-            .catch(async (error: unknown) => {
+        const urlFor = (text: string) => getAPIUrl(uri, `/hubs/search?query=${fixedEncodeURIComponent(text)}&limit=${limit}`);
+        // The last URL asked, for the failure log
+        let url = urlFor(query.trim());
+        // Plex asking for a pause gets it and one more try
+        const ask = (target: string) => {
+            const get = () => AxiosRequest.get<HubSearchResponse>(target, token);
+
+            return get().catch(async (error: unknown) => {
                 const wait = retryAfterMs(error);
                 if (wait === undefined)
                     throw error;
@@ -40,6 +43,24 @@ export default function hubSearch(uri: string, token: string, query: string, lim
                 await new Promise(resolve => { setTimeout(resolve, wait) });
 
                 return get();
+            });
+        };
+
+        // Plex answers 500 to some bracketed queries ("i love it (& lil pump)") and searches the same words without them
+        const bracket = /[()[\]{}]/;
+        const unbracketed = query
+            .split(bracket)
+            .join(' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+        ask(url)
+            .catch((error: unknown) => {
+                if (httpStatusOf(error) !== 500 || !bracket.test(query) || !unbracketed)
+                    throw error;
+
+                url = urlFor(unbracketed);
+
+                return ask(url);
             })
             .then((result) => {
                 const response: HubSearchResult[] = [];
