@@ -8,6 +8,8 @@ export type LidarrAlbum = {
     title: string;
     monitored: boolean;
     artistId: number;
+    anyReleaseOk?: boolean;
+    releases?: { id: number; foreignReleaseId: string; monitored: boolean }[];
     statistics?: {
         trackFileCount: number;
         // trackCount skips an unmonitored album's tracks without files; this counts them all

@@ -1,9 +1,7 @@
 import { getLidarrSettings } from "@spotify-to-plex/plex-config/functions/getLidarrSettings";
 import { getStorageDir } from "@spotify-to-plex/shared-utils/utils/getStorageDir";
 import { LidarrAlbumData } from "@spotify-to-plex/shared-types/lidarr/LidarrAlbumData";
-import { LidarrAddAlbumRequest } from "@spotify-to-plex/shared-types/lidarr/LidarrAddAlbumRequest";
 import { LidarrSyncLog } from "@spotify-to-plex/shared-types/lidarr/LidarrSyncLog";
-import axios from "axios";
 import { existsSync, readFileSync } from "node:fs";
 import { writeJsonFileAtomic } from "@spotify-to-plex/shared-utils/utils/writeJsonFileAtomic";
 import { basename, join } from "node:path";
@@ -15,36 +13,7 @@ import { errorSyncType } from "../utils/errorSyncType";
 import { updateSyncTypeProgress } from "../utils/updateSyncTypeProgress";
 import { getMusicBrainzIds } from "@spotify-to-plex/shared-utils/lidarr/getMusicBrainzIds";
 import { lookupLidarrAlbum } from "@spotify-to-plex/shared-utils/lidarr/lookupLidarrAlbum";
-import { monitorAndSearchAlbum } from "@spotify-to-plex/shared-utils/lidarr/monitorAndSearchAlbum";
-import { LIDARR_TIMEOUT_MS } from "@spotify-to-plex/shared-utils/lidarr/utils/lidarrTimeout";
-
-/**
- * Add the album to Lidarr and start a search for it. Lidarr answering 409 means
- * it already has the album, in which case monitor what is there and search that
- * instead. One owner for the whole outcome, so the job body does not nest a
- * try/catch inside its own try inside the loop.
- */
-async function addOrMonitorAlbum(addRequest: LidarrAddAlbumRequest, foreignAlbumId: string, baseUrl: string, url: string, apiKey: string) {
-    const headers = { 'X-Api-Key': apiKey, 'Content-Type': 'application/json' };
-
-    try {
-        const addResponse = await axios.post(`${baseUrl}/api/v1/album`, addRequest, { headers, timeout: LIDARR_TIMEOUT_MS });
-        const albumId = addResponse.data?.id;
-        if (albumId)
-            await axios.post(`${baseUrl}/api/v1/command`, { name: 'AlbumSearch', albumIds: [albumId] }, { headers, timeout: LIDARR_TIMEOUT_MS });
-
-        return { ok: true, message: undefined as string | undefined };
-    } catch (error: any) {
-        const result = error.response?.data?.[0];
-        const albumExists = error.response?.status === 409 || result?.errorCode === 'AlbumExistsValidator';
-        if (!albumExists)
-            return { ok: false, message: error.message as string | undefined };
-
-        const monitorResult = await monitorAndSearchAlbum(foreignAlbumId, url, apiKey);
-
-        return { ok: monitorResult.success, message: monitorResult.message as string | undefined };
-    }
-}
+import { addOrMonitorAlbum } from "@spotify-to-plex/shared-utils/lidarr/addOrMonitorAlbum";
 
 export async function syncLidarr() {
     console.log('Starting Lidarr sync...');
@@ -194,12 +163,11 @@ export async function syncLidarr() {
                     continue;
                 }
 
-                const { releaseGroupId, artistId } = musicBrainzIds;
+                const { releaseGroupId, artistId, releaseId } = musicBrainzIds;
                 albumLog.musicbrainz_album_id = releaseGroupId;
                 albumLog.musicbrainz_artist_id = artistId;
 
                 // STEP 2: Lookup album in Lidarr using MusicBrainz ID
-                const baseUrl = settings.url.endsWith('/') ? settings.url.slice(0, -1) : settings.url;
                 const lidarrAlbum = await lookupLidarrAlbum(releaseGroupId, settings.url, apiKey);
 
                 if (!lidarrAlbum?.artist) {
@@ -211,36 +179,8 @@ export async function syncLidarr() {
                     continue;
                 }
 
-                // STEP 3: Add to Lidarr (this part remains the same)
-                const addRequest: LidarrAddAlbumRequest = {
-                    foreignAlbumId: lidarrAlbum.foreignAlbumId,
-                    title: lidarrAlbum.title,
-                    artistId: 0,
-                    profileId: settings.quality_profile_id,
-                    qualityProfileId: settings.quality_profile_id,
-                    metadataProfileId: settings.metadata_profile_id,
-                    monitored: true,
-                    anyReleaseOk: true,
-                    rootFolderPath: settings.root_folder_path,
-                    addOptions: {
-                        searchForNewAlbum: true,
-                    },
-                    artist: {
-                        foreignArtistId: lidarrAlbum.artist.foreignArtistId,
-                        artistName: lidarrAlbum.artist.artistName,
-                        qualityProfileId: settings.quality_profile_id,
-                        metadataProfileId: settings.metadata_profile_id,
-                        rootFolderPath: settings.root_folder_path,
-                        monitored: true,
-                        addOptions: {
-                            monitor: "none",
-                            monitored: true,
-                            searchForMissingAlbums: false,
-                        },
-                    },
-                };
-
-                const outcome = await addOrMonitorAlbum(addRequest, lidarrAlbum.foreignAlbumId, baseUrl, settings.url, apiKey);
+                // STEP 3: Add to Lidarr, or monitor the album it has, then search
+                const outcome = await addOrMonitorAlbum(lidarrAlbum, releaseId, settings, apiKey);
                 albumLog.status = outcome.ok ? 'success' : 'error';
                 albumLog.error = outcome.message;
                 albumLog.end = Date.now();

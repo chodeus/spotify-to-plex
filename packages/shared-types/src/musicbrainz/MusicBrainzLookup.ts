@@ -4,6 +4,7 @@
  * which is not the same thing and must not be remembered as a miss.
  */
 export type MusicBrainzLookup =
-    | { status: 'found'; releaseGroupId: string; artistId: string }
+    // releaseId: the release Spotify's album URL is linked to; absent when only the name search matched
+    | { status: 'found'; releaseGroupId: string; artistId: string; releaseId?: string }
     | { status: 'not-found' }
     | { status: 'unavailable' };
