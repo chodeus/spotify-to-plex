@@ -31,6 +31,7 @@ describe('filterOutWords', () => {
         expect(filterOutWords('Me (feat. BOI)', separators, false, true)).toBe('me');
         expect(filterOutWords('Up - Remix', separators, false, true)).toBe('up');
         expect(filterOutWords('Up - Remix-X', separators, false, true)).toBe('up');
+        expect(filterOutWords('Up - Remix', textProcessing, false, true)).toBe('up');
     });
 
     it('does not trim a short title inside a word', () => {
@@ -38,5 +39,13 @@ describe('filterOutWords', () => {
 
         expect(filterOutWords('X-Ray', separators, false, true)).toBe('x-ray');
         expect(filterOutWords('(Intro)', separators, false, true)).toBe('(intro)');
+    });
+
+    it('trims at a later separator when the first is inside a word or opens the title', () => {
+        const separators = { ...textProcessing, cutOffSeparators: ['(', '-'] };
+
+        expect(filterOutWords('X-Ray - Remix', separators, false, true)).toBe('x-ray');
+        expect(filterOutWords('(Intro) Song (Remix)', separators, false, true)).toBe('(intro) song');
+        expect(filterOutWords(' - Song - Remix', textProcessing, false, true)).toBe('song');
     });
 });

@@ -47,13 +47,15 @@ export default function hubSearch(uri: string, token: string, query: string, lim
         };
 
         // Plex answers 500 to some bracketed queries ("i love it (& lil pump)") and searches the same words without them
+        const bracket = /[()[\]{}]/;
         const unbracketed = query
-            .replace(/[()[\]{}]/g, ' ')
+            .split(bracket)
+            .join(' ')
             .replace(/\s+/g, ' ')
             .trim();
         ask(url)
             .catch((error: unknown) => {
-                if (httpStatusOf(error) !== 500 || !unbracketed || unbracketed == query.trim())
+                if (httpStatusOf(error) !== 500 || !bracket.test(query) || !unbracketed)
                     throw error;
 
                 url = urlFor(unbracketed);

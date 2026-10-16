@@ -75,6 +75,14 @@ describe('hubSearch', () => {
         getMock.mockRejectedValue(Object.assign(new Error('Request failed with status code 500'), { response: { status: 500, headers: {} } }));
 
         await expect(hubSearch('http://plex.test:32400', 'token', 'song')).rejects.toBe('Plex answered 500');
+        await expect(hubSearch('http://plex.test:32400', 'token', 'song  remix')).rejects.toBe('Plex answered 500');
+        expect(getMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not ask again when a 500 query is only brackets', async () => {
+        getMock.mockRejectedValue(Object.assign(new Error('Request failed with status code 500'), { response: { status: 500, headers: {} } }));
+
+        await expect(hubSearch('http://plex.test:32400', 'token', '( )')).rejects.toBe('Plex answered 500');
         expect(getMock).toHaveBeenCalledTimes(1);
     });
 });
