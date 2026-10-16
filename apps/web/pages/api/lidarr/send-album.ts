@@ -1,11 +1,8 @@
 import { generateError } from '@/helpers/errors/generateError';
 import { getLidarrSettings } from '@spotify-to-plex/plex-config/functions/getLidarrSettings';
-import { LidarrAddAlbumRequest } from '@spotify-to-plex/shared-types/lidarr/LidarrAddAlbumRequest';
+import { addOrMonitorAlbum } from '@spotify-to-plex/shared-utils/lidarr/addOrMonitorAlbum';
 import { getMusicBrainzIds } from '@spotify-to-plex/shared-utils/lidarr/getMusicBrainzIds';
 import { lookupLidarrAlbum } from '@spotify-to-plex/shared-utils/lidarr/lookupLidarrAlbum';
-import { monitorAndSearchAlbum } from '@spotify-to-plex/shared-utils/lidarr/monitorAndSearchAlbum';
-import { LIDARR_TIMEOUT_MS } from '@spotify-to-plex/shared-utils/lidarr/utils/lidarrTimeout';
-import axios from 'axios';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createRouter } from 'next-connect';
 
@@ -63,7 +60,7 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
                 });
             }
 
-            const { releaseGroupId } = musicBrainzIds;
+            const { releaseGroupId, releaseId } = musicBrainzIds;
 
             // Step 2: Lookup album in Lidarr
             const lidarrAlbum = await lookupLidarrAlbum(releaseGroupId, settings.url, apiKey);
@@ -75,113 +72,22 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
                 });
             }
 
-            // Step 3: Add to Lidarr
-            const baseUrl = settings.url.endsWith('/') ? settings.url.slice(0, -1) : settings.url;
-            const addRequest: LidarrAddAlbumRequest = {
-                foreignAlbumId: lidarrAlbum.foreignAlbumId,
-                title: lidarrAlbum.title,
-                artistId: 0,
-                profileId: settings.quality_profile_id,
-                qualityProfileId: settings.quality_profile_id,
-                metadataProfileId: settings.metadata_profile_id,
-                monitored: true,
-                anyReleaseOk: true,
-                rootFolderPath: settings.root_folder_path,
-                addOptions: {
-                    searchForNewAlbum: true,
-                },
-                artist: {
-                    foreignArtistId: lidarrAlbum.artist.foreignArtistId,
-                    artistName: lidarrAlbum.artist.artistName,
-                    qualityProfileId: settings.quality_profile_id,
-                    metadataProfileId: settings.metadata_profile_id,
-                    rootFolderPath: settings.root_folder_path,
-                    monitored: true,
-                    addOptions: {
-                        monitor: "none",
-                        monitored: true,
-                        searchForMissingAlbums: false,
-                    },
-                },
-            };
+            // Step 3: Add to Lidarr, or monitor the album it has, then search
+            const outcome = await addOrMonitorAlbum(lidarrAlbum, releaseId, settings, apiKey);
 
-            const addUrl = `${baseUrl}/api/v1/album`;
-
-            try {
-                const addResponse = await axios.post(addUrl, addRequest, {
-                    headers: {
-                        'X-Api-Key': apiKey,
-                        'Content-Type': 'application/json',
-                    },
-                    timeout: LIDARR_TIMEOUT_MS,
-                });
-
-                // Trigger explicit album search to start download
-                const albumId = addResponse.data?.id;
-                if (albumId) {
-                    const commandUrl = `${baseUrl}/api/v1/command`;
-                    await axios.post(commandUrl, {
-                        name: 'AlbumSearch',
-                        albumIds: [albumId],
-                    }, {
-                        headers: {
-                            'X-Api-Key': apiKey,
-                            'Content-Type': 'application/json',
-                        },
-                        timeout: LIDARR_TIMEOUT_MS,
-                    });
-                }
-
-                return res.status(200).json({
-                    success: true,
-                    message: `Successfully added "${lidarrAlbum.title}" to Lidarr`,
-                });
-
-            } catch (error: any) {
-                console.error('Error sending album to Lidarr:', error.message);
-
-                // Log detailed error response from Lidarr
-                if (error.response?.data) {
-                    console.error('Lidarr API Response:', JSON.stringify(error.response.data, null, 2));
-                }
-
-                // Handle "already exists" error - monitor and search the existing album
-                const result = error.response?.data?.[0];
-                const albumExists = error.response?.status === 409 || result?.errorCode === 'AlbumExistsValidator';
-
-                if (albumExists) {
-                    const monitorResult = await monitorAndSearchAlbum(
-                        lidarrAlbum.foreignAlbumId,
-                        settings.url,
-                        apiKey
-                    );
-
-                    return res.status(200).json({
-                        success: monitorResult.success,
-                        message: monitorResult.message,
-                    });
-                }
-
-                // Extract error message from Lidarr's response
-                let errorMessage = 'Failed to send album';
-                if (error.response?.data) {
-                    const { data } = error.response;
-                    // Handle array response (validation errors)
-                    if (Array.isArray(data) && data.length > 0) {
-                        const [firstError] = data;
-                        errorMessage = firstError.errorMessage || firstError.message || JSON.stringify(firstError);
-                    } else if (data.message) {
-                        errorMessage = data.message;
-                    }
-                } else if (error.message) {
-                    errorMessage = error.message;
-                }
+            if (outcome.result === 'failed') {
+                console.error('Error sending album to Lidarr:', outcome.message);
 
                 return res.status(500).json({
                     success: false,
-                    message: errorMessage,
+                    message: outcome.message,
                 });
             }
+
+            return res.status(200).json({
+                success: outcome.ok,
+                message: outcome.result === 'added' && outcome.ok ? `Successfully added "${lidarrAlbum.title}" to Lidarr` : outcome.message,
+            });
 
         } catch (error: unknown) {
             const message = error instanceof Error ? error.message : 'Unknown error';

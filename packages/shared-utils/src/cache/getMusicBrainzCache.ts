@@ -3,10 +3,12 @@ import { getStorageDir } from "../utils/getStorageDir"
 import { writeJsonFileAtomic } from "../utils/writeJsonFileAtomic"
 import { readCacheFile } from "./readCacheFile"
 
-type MusicBrainzAlbumCache = {
+export type MusicBrainzAlbumCache = {
     spotify_album_id: string;
     musicbrainz_release_group_id: string;
     musicbrainz_artist_id: string;
+    // null: no release is linked to the Spotify URL; absent: cached before releases were kept
+    musicbrainz_release_id?: string | null;
     cached_at: number; // Unix timestamp
 }
 

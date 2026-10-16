@@ -1,5 +1,5 @@
 import { MusicBrainzLookup } from '@spotify-to-plex/shared-types/musicbrainz/MusicBrainzLookup';
-import { getMusicBrainzCache } from '../cache/getMusicBrainzCache';
+import { getMusicBrainzCache, type MusicBrainzAlbumCache } from '../cache/getMusicBrainzCache';
 import { musicBrainzGet } from './utils/musicBrainzGet';
 import { isTransientError } from './utils/isTransientError';
 import { getMusicBrainzIdsByTextSearch } from './getMusicBrainzIdsByTextSearch';
@@ -82,7 +82,7 @@ async function lookupBySpotifyUrl(spotifyAlbumId: string): Promise<MusicBrainzLo
         if (!releaseGroupId || !artistId)
             return { status: 'not-found' };
 
-        return { status: 'found', releaseGroupId, artistId };
+        return { status: 'found', releaseGroupId, artistId, releaseId };
 
     } catch (error: unknown) {
         if (isTransientError(error))
@@ -102,24 +102,15 @@ export async function getMusicBrainzIds(spotifyAlbumId: string, artistName?: str
     const cache = getMusicBrainzCache();
 
     const cached = cache.get(spotifyAlbumId);
-    if (cached) {
-        return {
-            status: 'found',
-            releaseGroupId: cached.musicbrainz_release_group_id,
-            artistId: cached.musicbrainz_artist_id
-        };
-    }
+    if (cached)
+        return cached.musicbrainz_release_id === undefined ? fillReleaseId(cache, cached) : fromCache(cached);
 
     if (cache.hasRecentMiss(spotifyAlbumId))
         return { status: 'not-found' };
 
     const direct = await lookupBySpotifyUrl(spotifyAlbumId);
     if (direct.status === 'found') {
-        cache.add({
-            spotify_album_id: spotifyAlbumId,
-            musicbrainz_release_group_id: direct.releaseGroupId,
-            musicbrainz_artist_id: direct.artistId
-        });
+        cache.add(cacheEntry(spotifyAlbumId, direct));
 
         return direct;
     }
@@ -134,14 +125,43 @@ export async function getMusicBrainzIds(spotifyAlbumId: string, artistName?: str
 
     const found = await getMusicBrainzIdsByTextSearch(artistName, albumName);
     if (found.status === 'found') {
-        cache.add({
-            spotify_album_id: spotifyAlbumId,
-            musicbrainz_release_group_id: found.releaseGroupId,
-            musicbrainz_artist_id: found.artistId
-        });
+        cache.add(cacheEntry(spotifyAlbumId, found));
     } else if (found.status === 'not-found') {
         cache.addMiss(spotifyAlbumId);
     }
+
+    return found;
+}
+
+type Found = Extract<MusicBrainzLookup, { status: 'found' }>;
+
+function fromCache(cached: MusicBrainzAlbumCache): Found {
+    return {
+        status: 'found',
+        releaseGroupId: cached.musicbrainz_release_group_id,
+        artistId: cached.musicbrainz_artist_id,
+        releaseId: cached.musicbrainz_release_id ?? undefined
+    };
+}
+
+function cacheEntry(spotifyAlbumId: string, found: Found) {
+    return {
+        spotify_album_id: spotifyAlbumId,
+        musicbrainz_release_group_id: found.releaseGroupId,
+        musicbrainz_artist_id: found.artistId,
+        musicbrainz_release_id: found.releaseId ?? null
+    };
+}
+
+/** An entry cached before releases were kept: one URL lookup fills its release in, and keeps its mapping when no URL is on file. */
+async function fillReleaseId(cache: ReturnType<typeof getMusicBrainzCache>, cached: MusicBrainzAlbumCache): Promise<MusicBrainzLookup> {
+    const direct = await lookupBySpotifyUrl(cached.spotify_album_id);
+    // Left unfilled, so the next run asks again
+    if (direct.status === 'unavailable')
+        return fromCache(cached);
+
+    const found = direct.status === 'found' ? direct : fromCache(cached);
+    cache.add(cacheEntry(cached.spotify_album_id, found));
 
     return found;
 }
