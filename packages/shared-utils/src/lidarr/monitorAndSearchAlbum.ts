@@ -92,7 +92,11 @@ export async function monitorAndSearchAlbum(
  * Only while the album has no files: switching a release drops Lidarr's links to the files it has.
  */
 function pinToRelease(album: LidarrAlbum, releaseId: string): { change?: Partial<LidarrAlbum>; note?: string } {
-    if (album.statistics?.trackFileCount !== 0)
+    // No statistics until Lidarr has loaded the album's tracks, so nothing says it is empty
+    if (!album.statistics)
+        return { note: "Lidarr had not loaded the album's releases yet, so none was selected" };
+
+    if (album.statistics.trackFileCount !== 0)
         return {};
 
     const releases = album.releases ?? [];

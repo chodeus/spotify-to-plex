@@ -46,24 +46,23 @@ export async function addOrMonitorAlbum(lidarrAlbum: LidarrLookupResult, release
     }
 
     // A fresh album has no releases until the refresh Lidarr queues after the add; the pin needs them
-    const loaded = result === 'existing' || !releaseId || await releasesLoaded(lidarrAlbum.foreignAlbumId, settings.url, apiKey);
-    const outcome = await monitorAndSearchAlbum(lidarrAlbum.foreignAlbumId, settings.url, apiKey, releaseId);
-    const message = loaded ? outcome.message : `${outcome.message}; Lidarr had not loaded its releases yet, so none was selected`;
+    if (result === 'added' && releaseId)
+        await waitForReleases(lidarrAlbum.foreignAlbumId, settings.url, apiKey);
 
-    return { result, ok: outcome.success, message };
+    // Its own read decides the pin and says what happened, even if the wait gave up just before Lidarr finished
+    const outcome = await monitorAndSearchAlbum(lidarrAlbum.foreignAlbumId, settings.url, apiKey, releaseId);
+
+    return { result, ok: outcome.success, message: outcome.message };
 }
 
-async function releasesLoaded(foreignAlbumId: string, url: string, apiKey: string) {
+async function waitForReleases(foreignAlbumId: string, url: string, apiKey: string) {
     const deadline = Date.now() + RELEASE_WAIT_MS;
 
     for (;;) {
         // A failed read is monitorAndSearchAlbum's to report
         const album = await getLidarrAlbum(foreignAlbumId, url, apiKey).catch(() => null);
-        if (album?.releases?.length && album.statistics)
-            return true;
-
-        if (Date.now() >= deadline)
-            return false;
+        if ((album?.releases?.length && album.statistics) || Date.now() >= deadline)
+            return;
 
         await new Promise(resolve => { setTimeout(resolve, RELEASE_POLL_MS) });
     }

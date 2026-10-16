@@ -107,12 +107,13 @@ describe('monitorAndSearchAlbum', () => {
             expect(searched()).toBe(true);
         });
 
-        it('leaves an album alone when Lidarr sends no statistics', async () => {
+        it('leaves an album alone when Lidarr sends no statistics, and says nothing was selected', async () => {
             lidarrHas({ anyReleaseOk: true, releases });
 
-            await monitorAndSearchAlbum('rg-1', 'http://lidarr:8686', 'key', 'rel-spotify');
+            const outcome = await monitorAndSearchAlbum('rg-1', 'http://lidarr:8686', 'key', 'rel-spotify');
 
             expect(putMock).not.toHaveBeenCalled();
+            expect(outcome.message).toBe("Album already monitored, Lidarr had not loaded the album's releases yet, so none was selected, search triggered");
         });
 
         it("says so when Spotify's release is not in Lidarr's list, and still searches", async () => {

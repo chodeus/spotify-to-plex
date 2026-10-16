@@ -130,7 +130,30 @@ describe('addOrMonitorAlbum', () => {
 
             expect(putMock).not.toHaveBeenCalled();
             expect(searches()).toHaveLength(1);
-            expect(outcome.message).toContain('Lidarr had not loaded its releases yet, so none was selected');
+            expect(outcome.message).toContain("Lidarr had not loaded the album's releases yet, so none was selected");
+        });
+
+        // The wait gives up at 90 s; the read after it decides the pin, so the message follows that read
+        it('that load just after the wait gives up are still pinned, and the message says so', async () => {
+            const loaded = await getMock();
+            const start = Date.now();
+            let readsAtDeadline = 0;
+            getMock.mockReset();
+            getMock.mockImplementation(async () => {
+                if (Date.now() - start < 90_000)
+                    return notLoaded;
+
+                readsAtDeadline++;
+
+                return readsAtDeadline === 1 ? notLoaded : loaded;
+            });
+
+            const pending = addOrMonitorAlbum(lookup, 'rel-spotify', settings, 'key');
+            await vi.advanceTimersByTimeAsync(120_000);
+            const outcome = await pending;
+
+            expect(putMock.mock.calls[0]?.[1]).toMatchObject({ anyReleaseOk: false });
+            expect(outcome.message).toBe("Album already monitored, Spotify's release selected, search triggered");
         });
     });
 
