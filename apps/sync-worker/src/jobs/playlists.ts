@@ -24,8 +24,10 @@ import { putPlexPlaylist } from "../utils/putPlexTracks";
 import { getSettings } from "@spotify-to-plex/plex-config/functions/getSettings";
 import { findMissingTracks } from "../utils/findMissingTracks";
 import { readMissingSpotifyTrackIds } from "../utils/readMissingSpotifyTrackIds";
-import { mergeMissingLists, missingListsFor, writeMissingLists } from "../utils/missingLists";
-import { notDueUntil, PlaylistSyncState, readPlaylistSyncState, savePlaylistSyncState } from "../utils/playlistSyncState";
+import { emptyMissingLists, missingListsFor, writeMissingLists } from "../utils/missingLists";
+import { clearSyncState, openSyncState } from "../utils/syncState";
+
+const STATE_FILE = 'playlists_sync_state.json';
 
 
 /** Syncs every enrolled playlist that is due; force syncs them all, whatever their interval. */
@@ -41,8 +43,8 @@ export async function syncPlaylists(force = process.argv.slice(2).includes("forc
             // Same reason as the albums job: stale missing-track files would
             // keep feeding the Lidarr and slskd queues after the last playlist
             // was removed
-            writeMissingLists(mergeMissingLists([]))
-            savePlaylistSyncState({})
+            writeMissingLists('track', emptyMissingLists())
+            clearSyncState(STATE_FILE)
 
             return;
         }
@@ -57,8 +59,7 @@ export async function syncPlaylists(force = process.argv.slice(2).includes("forc
 
         // Read before this run rewrites them
         const lastMissing = readMissingSpotifyTrackIds()
-        const state = readPlaylistSyncState()
-        const synced = new Map<string, PlaylistSyncState>()
+        const syncState = openSyncState(STATE_FILE)
 
         for (let i = 0; i < toSyncPlaylists.length; i++) {
             const item = toSyncPlaylists[i];
@@ -74,7 +75,7 @@ export async function syncPlaylists(force = process.argv.slice(2).includes("forc
                 days = 0;
 
             // The run's logs are cleared above, so the last sync time comes from the stored state
-            const nextSync = force ? undefined : notDueUntil(state[id], days)
+            const nextSync = force ? undefined : syncState.notDueUntil(id, days)
             if (nextSync) {
                 console.log(`Next sync on: ${nextSync.toString()}`)
                 continue;
@@ -169,7 +170,7 @@ export async function syncPlaylists(force = process.argv.slice(2).includes("forc
                 if (missingTracks.length > 0)
                     console.log(`Missing ${missingTracks.length} tracks`)
 
-                synced.set(id, { synced_at: Date.now(), missing: await missingListsFor(missingTracks) })
+                syncState.record(id, await missingListsFor(missingTracks))
 
                 /////////////////////////////
                 // Store logs
@@ -185,15 +186,9 @@ export async function syncPlaylists(force = process.argv.slice(2).includes("forc
 
         // Built from every enrolled playlist's last sync, so one skipped or failed this run keeps its
         // missing tracks; until any playlist has synced, the last lists stand
-        const kept = toSyncPlaylists.flatMap(({ id }) => {
-            const entry = synced.get(id) ?? state[id];
-
-            return entry ? [{ id, entry }] : [];
-        })
-        if (kept.length > 0) {
-            savePlaylistSyncState(Object.fromEntries(kept.map(({ id, entry }) => [id, entry])))
-            writeMissingLists(mergeMissingLists(kept.map(({ entry }) => entry.missing)))
-        }
+        const lists = syncState.settle(toSyncPlaylists)
+        if (lists)
+            writeMissingLists('track', lists)
 
         // Mark sync as complete
         completeSyncType('playlists');

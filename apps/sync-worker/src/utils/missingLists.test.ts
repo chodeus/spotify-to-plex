@@ -1,8 +1,12 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 vi.mock('./findMissingTidalTracks', () => ({ findMissingTidalTracks: async (tracks: { id: string }[]) => tracks.map(track => ({ id: track.id, tidal_id: `tidal-${track.id}` })) }));
+vi.mock('./findMissingTidalAlbums', () => ({ findMissingTidalAlbums: async () => ['tidal-album'] }));
 
-const { mergeMissingLists, missingListsFor } = await import('./missingLists');
+const { mergeMissingLists, missingAlbumListsFor, missingListsFor, writeMissingLists } = await import('./missingLists');
 
 const track = (id: string, extra: object = {}) => ({ id, title: 'Song', album: 'Album', album_id: 'al1', artists: ['Artist'], ...extra });
 const lists = (extra: object = {}) => ({ spotify: [], tidal: [], lidarr: [], slskd: [], ...extra });
@@ -27,6 +31,47 @@ describe('missingListsFor', () => {
         expect(result.spotify).toEqual(['b']);
         expect(result.lidarr).toEqual([album('Album')]);
         expect(result.slskd).toEqual([slskd('b')]);
+    });
+});
+
+describe('missingAlbumListsFor', () => {
+    it('lists the album itself, and its missing tracks for slskd under the album id', async () => {
+        expect(await missingAlbumListsFor('al7', [track('spotify:track:a'), track('b', { album_id: 'al9' })])).toEqual({
+            spotify: ['al7'],
+            tidal: ['tidal-album'],
+            lidarr: [album('Album', 'al7'), album('Album', 'al7')],
+            slskd: [slskd('a'), slskd('b')]
+        });
+    });
+});
+
+describe('writeMissingLists', () => {
+    let dir: string;
+    const read = (file: string) => readFileSync(join(dir, file), 'utf8');
+
+    beforeEach(() => {
+        dir = mkdtempSync(join(tmpdir(), 'missing-lists-'));
+        process.env.STORAGE_DIR = dir;
+    });
+
+    afterEach(() => { rmSync(dir, { recursive: true, force: true }) });
+
+    it('writes the playlists job its track files', () => {
+        writeMissingLists('track', lists({ spotify: ['a', 'b'], tidal: ['t1'], lidarr: [album('One')], slskd: [slskd('a')] }));
+
+        expect(read('missing_tracks_spotify.txt')).toBe('https://open.spotify.com/track/a\nhttps://open.spotify.com/track/b');
+        expect(read('missing_tracks_tidal.txt')).toBe('https://tidal.com/browse/track/t1');
+        expect(JSON.parse(read('missing_tracks_lidarr.json'))).toEqual([album('One')]);
+        expect(JSON.parse(read('missing_tracks_slskd.json'))).toEqual([slskd('a')]);
+    });
+
+    it('writes the albums job its album files', () => {
+        writeMissingLists('album', lists({ spotify: ['al7'], tidal: ['t9'], lidarr: [album('One')], slskd: [slskd('a')] }));
+
+        expect(read('missing_albums_spotify.txt')).toBe('https://open.spotify.com/album/al7');
+        expect(read('missing_albums_tidal.txt')).toBe('https://tidal.com/browse/album/t9');
+        expect(JSON.parse(read('missing_albums_lidarr.json'))).toEqual([album('One')]);
+        expect(JSON.parse(read('missing_albums_slskd.json'))).toEqual([slskd('a')]);
     });
 });
 

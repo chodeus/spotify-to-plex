@@ -22,7 +22,7 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
             if (type === 'all') {
                 // Run all syncs in sequence but don't await
                 syncUsers()
-                    .then(() => syncAlbums())
+                    .then(() => syncAlbums(true))
                     .then(() => syncPlaylists(true))
                     .then(() => syncLidarr())
                     .then(() => syncMQTT())
@@ -33,7 +33,8 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
             } else {
                 switch (type) {
                     case "albums":
-                        syncAlbums().catch((error: unknown) => {
+                        // A sync started by hand is not held back by an album's interval
+                        syncAlbums(true).catch((error: unknown) => {
                             console.error(`Sync albums failed: ${describeHttpError(error)}`);
                         });
                         break;
