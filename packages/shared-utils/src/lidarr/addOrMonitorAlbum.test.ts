@@ -4,7 +4,7 @@ import type { LidarrLookupResult } from '@spotify-to-plex/shared-types/musicbrai
 import { addOrMonitorAlbum } from './addOrMonitorAlbum';
 
 vi.mock('axios', () => ({
-    default: { get: vi.fn(), put: vi.fn(), post: vi.fn(), isAxiosError: () => false }
+    default: { get: vi.fn(), put: vi.fn(), post: vi.fn(), isAxiosError: (error: { isAxiosError?: boolean }) => error?.isAxiosError === true }
 }));
 
 const getMock = axios.get as unknown as Mock;
@@ -55,6 +55,38 @@ describe('addOrMonitorAlbum', () => {
         expect(putMock.mock.calls[0]?.[1]).toMatchObject({ anyReleaseOk: false });
         expect(searches()).toHaveLength(1);
         expect(outcome).toMatchObject({ result: 'existing', ok: true });
+    });
+
+    // With Lidarr's own search off, an add that timed out but went through must still end in a search
+    it('retries an add that timed out, and takes the album when the retry meets a 409', async () => {
+        let attempts = 0;
+        postMock.mockImplementation(async (url: string) => {
+            if (!url.endsWith('/api/v1/album'))
+                return { data: {} };
+
+            attempts++;
+            if (attempts === 1)
+                throw Object.assign(new Error('timeout of 30000ms exceeded'), { isAxiosError: true, code: 'ECONNABORTED' });
+
+            throw Object.assign(new Error('Request failed with status code 409'), { response: { status: 409, data: [{ errorCode: 'AlbumExistsValidator' }] } });
+        });
+
+        vi.useFakeTimers();
+        const outcome = await (async () => {
+            try {
+                const pending = addOrMonitorAlbum(lookup, 'rel-spotify', settings, 'key');
+                await vi.advanceTimersByTimeAsync(5000);
+
+                return await pending;
+            } finally {
+                vi.useRealTimers();
+            }
+        })();
+
+        expect(attempts).toBe(2);
+        expect(outcome).toMatchObject({ result: 'existing', ok: true });
+        expect(putMock.mock.calls[0]?.[1]).toMatchObject({ anyReleaseOk: false });
+        expect(searches()).toHaveLength(1);
     });
 
     it('searches without pinning, or waiting, when no release is known', async () => {

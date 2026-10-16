@@ -2,6 +2,7 @@ import axios from 'axios';
 import type { LidarrAddAlbumRequest } from '@spotify-to-plex/shared-types/lidarr/LidarrAddAlbumRequest';
 import type { LidarrLookupResult } from '@spotify-to-plex/shared-types/musicbrainz/LidarrLookupResult';
 import { LIDARR_TIMEOUT_MS } from './utils/lidarrTimeout';
+import { withRetry } from './utils/withRetry';
 import { getLidarrAlbum } from './getLidarrAlbum';
 import { monitorAndSearchAlbum } from './monitorAndSearchAlbum';
 
@@ -31,10 +32,11 @@ export async function addOrMonitorAlbum(lidarrAlbum: LidarrLookupResult, release
     let result: 'added' | 'existing' = 'added';
 
     try {
-        await axios.post(`${baseUrl}/api/v1/album`, addRequest(lidarrAlbum, settings), {
+        // A retry after an add that timed out but went through meets the 409 below
+        await withRetry(() => axios.post(`${baseUrl}/api/v1/album`, addRequest(lidarrAlbum, settings), {
             headers: { 'X-Api-Key': apiKey, 'Content-Type': 'application/json' },
             timeout: LIDARR_TIMEOUT_MS
-        });
+        }));
     } catch (error: any) {
         const albumExists = error.response?.status === 409 || error.response?.data?.[0]?.errorCode === 'AlbumExistsValidator';
         if (!albumExists)
