@@ -1,6 +1,6 @@
-import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { getStorageDir } from "@spotify-to-plex/shared-utils/utils/getStorageDir";
+import { writeFileAtomic } from "@spotify-to-plex/shared-utils/utils/writeFileAtomic";
 import { writeJsonFileAtomic } from "@spotify-to-plex/shared-utils/utils/writeJsonFileAtomic";
 import { isLocalTrack } from "@spotify-to-plex/shared-utils/spotify/isLocalTrack";
 import { LidarrAlbumData } from "@spotify-to-plex/shared-types/lidarr/LidarrAlbumData";
@@ -51,8 +51,8 @@ export function mergeMissingLists(lists: MissingLists[]): MissingLists {
 export function writeMissingLists(kind: 'track' | 'album', lists: MissingLists) {
     const path = (list: string) => join(getStorageDir(), `missing_${kind}s_${list}`);
 
-    writeFileSync(path('spotify.txt'), lists.spotify.map(id => `https://open.spotify.com/${kind}/${id}`).join('\n'))
-    writeFileSync(path('tidal.txt'), lists.tidal.map(id => `https://tidal.com/browse/${kind}/${id}`).join('\n'))
+    writeFileAtomic(path('spotify.txt'), lists.spotify.map(id => `https://open.spotify.com/${kind}/${id}`).join('\n'))
+    writeFileAtomic(path('tidal.txt'), lists.tidal.map(id => `https://tidal.com/browse/${kind}/${id}`).join('\n'))
     writeJsonFileAtomic(path('lidarr.json'), lists.lidarr, 2)
     writeJsonFileAtomic(path('slskd.json'), lists.slskd, 2)
 }

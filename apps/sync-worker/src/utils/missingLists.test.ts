@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { linkSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -63,6 +63,18 @@ describe('writeMissingLists', () => {
         expect(read('missing_tracks_tidal.txt')).toBe('https://tidal.com/browse/track/t1');
         expect(JSON.parse(read('missing_tracks_lidarr.json'))).toEqual([album('One')]);
         expect(JSON.parse(read('missing_tracks_slskd.json'))).toEqual([slskd('a')]);
+    });
+
+    it('replaces the text lists instead of writing into them, so a reader never sees half a list', () => {
+        for (const file of ['missing_tracks_spotify.txt', 'missing_tracks_tidal.txt']) {
+            writeFileSync(join(dir, file), 'old');
+            linkSync(join(dir, file), join(dir, `${file}.old-inode`));
+        }
+
+        writeMissingLists('track', lists({ spotify: ['a'], tidal: ['t1'] }));
+
+        expect(read('missing_tracks_spotify.txt.old-inode')).toBe('old');
+        expect(read('missing_tracks_tidal.txt.old-inode')).toBe('old');
     });
 
     it('writes the albums job its album files', () => {
