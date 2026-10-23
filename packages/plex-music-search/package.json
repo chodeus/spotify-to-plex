@@ -30,7 +30,7 @@
         "lint:fix": "eslint src --fix"
     },
     "engines": {
-        "node": ">=18.0.0"
+        "node": ">=24.22.1"
     },
     "dependencies": {
         "@spotify-to-plex/http-client": "workspace:*",
@@ -39,7 +39,7 @@
         "@spotify-to-plex/shared-utils": "workspace:*"
     },
     "devDependencies": {
-        "@types/node": "^22.20.2",
+        "@types/node": "^24.19.2",
         "typescript": "^5.9.3"
     }
 }
