@@ -36,17 +36,17 @@
         "@spotify-to-plex/shared-types": "workspace:*",
         "@spotify/web-api-ts-sdk": "^1.2.0",
         "axios": "^1.20.0",
-        "fs-extra": "^11.4.0",
+        "fs-extra": "^11.4.1",
         "string-similarity-js": "^2.1.4"
     },
     "devDependencies": {
         "@types/fs-extra": "^11.0.4",
-        "@types/node": "^22.20.2",
+        "@types/node": "^22.20.5",
         "typescript": "^5.9.3",
-        "vite": "^7.3.6",
-        "vitest": "^5.0.0"
+        "vite": "^7.3.7",
+        "vitest": "^5.0.5"
     },
     "peerDependencies": {
-        "typescript": ">=5.0.0"
+        "typescript": ">=5.0.4"
     }
 }
