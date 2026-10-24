@@ -28,14 +28,14 @@
   },
   "dependencies": {
     "@spotify-to-plex/shared-utils": "workspace:*",
-    "fs-extra": "^11.4.0"
+    "fs-extra": "^11.4.1"
   },
   "devDependencies": {
     "@types/fs-extra": "^11.0.4",
-    "@types/node": "^22.20.2",
+    "@types/node": "^22.20.5",
     "typescript": "^5.9.3"
   },
   "peerDependencies": {
-    "typescript": ">=4.5.0"
+    "typescript": ">=4.5.5"
   }
 }
