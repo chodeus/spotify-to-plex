@@ -14,7 +14,7 @@ spotifyscraper==3.9.2
 requests==2.34.2
 
 # Environment and configuration
-python-dotenv==1.2.3
+python-dotenv==1.2.4
 
 # Production server
 gunicorn==26.2.0
