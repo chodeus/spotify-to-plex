@@ -30,7 +30,7 @@
         "lint:fix": "eslint src --fix"
     },
     "engines": {
-        "node": ">=18.0.0"
+        "node": ">=18.20.8"
     },
     "dependencies": {
         "@spotify-to-plex/music-search": "workspace:*",

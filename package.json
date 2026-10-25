@@ -47,7 +47,7 @@
         "lint:fix": "npm run lint:fix --workspaces --if-present"
     },
     "engines": {
-        "node": ">=18.0.0",
+        "node": ">=18.20.8",
         "pnpm": ">=8.0.0",
         "npm": "please-use-pnpm"
     },

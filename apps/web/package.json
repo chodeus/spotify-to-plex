@@ -16,8 +16,8 @@
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@monaco-editor/react": "^4.7.0",
-    "@mui/icons-material": "^9.4.0",
-    "@mui/material": "^9.4.0",
+    "@mui/icons-material": "^9.5.0",
+    "@mui/material": "^9.5.0",
     "@spotify-to-plex/http-client": "workspace:*",
     "@spotify-to-plex/plex-config": "workspace:*",
     "@spotify-to-plex/plex-helpers": "workspace:*",
@@ -47,7 +47,7 @@
     "typescript": "^5.9.3"
   },
   "engines": {
-    "node": ">=18.0.0",
+    "node": ">=18.20.8",
     "pnpm": ">=8.0.0"
   }
 }
