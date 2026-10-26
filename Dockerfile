@@ -36,8 +36,7 @@ FROM node:22.23.4-trixie-slim@sha256:8eb619e402eaede1748a3c8173bffab391592812e85
 # Referenced by the apt layer so a refresh build re-runs the upgrade instead of reusing a cached one
 ARG BUILD_DATE
 
-LABEL org.opencontainers.image.base.name="node:22.23.3-trixie-slim" \
-      net.unraid.docker.icon="https://raw.githubusercontent.com/chodeus/spotify-to-plex/testing/apps/web/public/img/logo.png"
+LABEL net.unraid.docker.icon="https://raw.githubusercontent.com/chodeus/spotify-to-plex/testing/apps/web/public/img/logo.png"
 
 ENV TZ=UTC \
     LANG=C.UTF-8 \
