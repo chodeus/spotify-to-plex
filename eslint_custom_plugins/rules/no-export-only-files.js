@@ -13,7 +13,7 @@ module.exports = {
         return {
             Program(node) {
                 // Skip only src/index.ts files as they are legitimate entry points
-                const filename = context.getFilename();
+                const filename = context.filename;
                 if (filename.endsWith('/src/index.ts') || filename.endsWith('\\src\\index.ts')) {
                     return;
                 }

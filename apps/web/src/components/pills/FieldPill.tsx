@@ -37,7 +37,7 @@ const FieldPill: React.FC<FieldPillProps> = ({
                 mb: 0.5,
                 fontFamily: 'monospace',
                 fontSize: '0.75rem',
-                cursor: !!onClick && !disabled ? 'pointer' : 'default'
+                cursor: !onClick || disabled ? 'default' : 'pointer'
             }}
         />
     );

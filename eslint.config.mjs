@@ -16,6 +16,7 @@
  * See AI_CODING_RULES.md for detailed examples
  */
 
+import { fixupPluginRules } from '@eslint/compat';
 import typescriptPlugin from '@typescript-eslint/eslint-plugin';
 import typescriptParser from '@typescript-eslint/parser';
 import reactPlugin from 'eslint-plugin-react';
@@ -90,7 +91,8 @@ const config = [
             }
         },
         plugins: {
-            react: reactPlugin,
+            // eslint-plugin-react 7.37.5 still calls context methods ESLint 10 removed; drop the shim once it supports 10.
+            react: fixupPluginRules(reactPlugin),
             'react-hooks': reactHooksPlugin,
             '@typescript-eslint': typescriptPlugin,
             unicorn,

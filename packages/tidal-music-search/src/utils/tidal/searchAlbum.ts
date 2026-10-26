@@ -44,7 +44,6 @@ export async function searchAlbum(query: string, countryCode: string = 'NL') {
                         continue;
                     }
                     
-                    // eslint-disable-next-line max-depth
 
                     const artistResult = await tidalApiRequest<operations['getArtistAlbumsRelationship']>(
                         updatedState.accessToken, 

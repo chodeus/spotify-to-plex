@@ -32,7 +32,6 @@ function createFilterFunction(filterExpression: MusicSearchConfig['matchFilters'
     }
 
     // Invalid configuration - return never-matching filter
-    // eslint-disable-next-line no-console
     console.warn('Invalid match filter configuration: expected string expression', filterExpression);
 
     return () => false;

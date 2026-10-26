@@ -19,7 +19,7 @@ module.exports = {
          * @param {ASTNode} node The first IfStatement node of the chain.
          */
         function checkNewlineAfterIf(node) {
-            const sourceCode = context.getSourceCode();
+            const sourceCode = context.sourceCode;
             const testEndLine = node.test.loc.end.line;
             const consequentStartLine = node.consequent.loc.start.line;
 

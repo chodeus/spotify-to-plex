@@ -101,7 +101,6 @@ export async function syncPlaylists(force = process.argv.slice(2).includes("forc
                 //////////////////////////////////
                 // Load Plex Playlists if it exists
                 //////////////////////////////////
-                // eslint-disable-next-line unicorn/consistent-destructuring
                 const foundPlaylist = playlists.find(item => item.id == id)
                 let plexPlaylist: Playlist | undefined | null = null
                 if (foundPlaylist) {
@@ -112,7 +111,6 @@ export async function syncPlaylists(force = process.argv.slice(2).includes("forc
                     const url = getAPIUrl(settings.uri, `/playlists`);
                     const result = await handleOneRetryAttempt<GetPlaylistResponse>(() => AxiosRequest.get(url, settings.token));
                 
-                    // eslint-disable-next-line unicorn/consistent-destructuring
                     plexPlaylist = result.data.MediaContainer.Metadata.find((item: Playlist) => item.ratingKey == foundPlaylist.plex)
                 }
 
@@ -138,13 +136,11 @@ export async function syncPlaylists(force = process.argv.slice(2).includes("forc
                 // eslint-disable-next-line prefer-const
                 let { result, add, markChecked, recheck } = await getCachedPlexTracks(plexSearchConfig, data)
 
-                // eslint-disable-next-line unicorn/consistent-destructuring
                 const toSearchItems = data.tracks.filter(track => !result.some((item: SearchResponse) => item.id == track.id))
                 const searchItems = [...toSearchItems, ...recheck]
                 if (searchItems.length > 0) {
                     console.log(`Searching for ${toSearchItems.length} tracks, re-checking ${recheck.length} cached links`)
                     const searchResult = await matchByIsrc(plexSearchConfig, await plexMusicSearch(plexSearchConfig, searchItems), searchItems)
-                    // eslint-disable-next-line unicorn/consistent-destructuring
                     const { merged, found, confirmed } = mergeSearchResults(result, searchResult, recheck, data.tracks)
                     result = merged
 

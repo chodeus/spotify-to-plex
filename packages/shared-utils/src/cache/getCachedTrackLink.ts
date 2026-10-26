@@ -108,7 +108,6 @@ export function getCachedTrackLinks(
         writeJsonFileAtomic(path, current)
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const add = (searchResult: { id?: string, title: string, artist: string, result: any[], matched_by?: 'isrc' }[], type: "tidal" | "plex" | "slskd", album?: { id: string }) => {
 
         ////////////////////////////////

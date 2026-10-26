@@ -22,7 +22,7 @@ module.exports = {
     },
 
     create: function(context) {
-        const sourceCode = context.getSourceCode();
+        const sourceCode = context.sourceCode;
         const options = context.options[0] || {};
         const maxLineLength = options.maxLineLength || 80;
 

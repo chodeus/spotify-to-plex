@@ -1,4 +1,3 @@
-/* eslint-disable unicorn/prefer-string-replace-all */
 
 
 export function createSearchString(input: string) {

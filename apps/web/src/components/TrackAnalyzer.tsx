@@ -1,4 +1,3 @@
-/* eslint-disable unicorn/consistent-destructuring */
 /* eslint-disable react/display-name */
 import { errorBoundary } from "@/helpers/errors/errorBoundary";
 import { GetSpotifyTrackByIdResponse } from "@/pages/api/spotify/tracks/[id]";

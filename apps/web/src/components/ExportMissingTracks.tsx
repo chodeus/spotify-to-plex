@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-loop-func */
-/* eslint-disable max-lines */
 import { errorBoundary } from "@/helpers/errors/errorBoundary";
 import { GetTidalTracksResponse } from "@/pages/api/tidal";
 import { Track } from "@spotify-to-plex/shared-types/spotify/Track";
@@ -365,7 +363,7 @@ export default function ExportMissingTracks(props: Props) {
                                                 variant="h6"
                                                 color="warning"
                                                 sx={{
-                                                    mb: .5
+                                                    mb: 0.5
                                                 }}>{missingTidalTracks.length} Tidal tracks not found</Typography>
                                             <Typography
                                                 variant="body2"
