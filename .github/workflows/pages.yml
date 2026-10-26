@@ -4,20 +4,24 @@
     push:
       branches: ["main"]
       paths: ["docs/**"]
+    # Builds (never deploys) a change to the docs or this workflow, so Ruby and action bumps are checked before merge.
+    pull_request:
+      paths: ["docs/**", ".github/workflows/pages.yml"]
     workflow_dispatch:
 
   permissions:
     contents: read
-    pages: write
-    id-token: write
 
   concurrency:
-    group: "pages"
+    group: ${{ github.event_name == 'pull_request' && format('pages-pr-{0}', github.ref) || 'pages' }}
     cancel-in-progress: false
 
   jobs:
     build:
       runs-on: ubuntu-latest
+      permissions:
+        contents: read
+        pages: read
       steps:
         - name: Checkout
           uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -47,6 +51,10 @@
             path: docs/_site
 
     deploy:
+      if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+      permissions:
+        pages: write
+        id-token: write
       environment:
         name: github-pages
         url: ${{ steps.deployment.outputs.page_url }}
