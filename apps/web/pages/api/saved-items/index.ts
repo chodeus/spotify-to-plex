@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-redundant-type-constituents */
 import { generateError } from '@/helpers/errors/generateError';
 import { getSpotifyData } from '@spotify-to-plex/shared-utils/spotify/getSpotifyData';
 import { getStorageDir } from '@spotify-to-plex/shared-utils/utils/getStorageDir';

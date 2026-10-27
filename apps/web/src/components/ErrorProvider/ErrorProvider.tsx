@@ -39,7 +39,7 @@ const ErrorProviderComponent = ({ children }: ErrorProviderProps) => {
             </ErrorContext.Provider>
             {!!error &&
                 <Dialog open maxWidth="sm" fullWidth>
-                    <DialogTitle sx={{ paddingTop: 3, paddingBottom: .5 }}>
+                    <DialogTitle sx={{ paddingTop: 3, paddingBottom: 0.5 }}>
                         <IconButton size="small" onClick={handleClose} sx={{ position: 'absolute', right: 8, top: 8 }}>
                             <CloseOutlined fontSize="small" />
                         </IconButton>
@@ -49,7 +49,7 @@ const ErrorProviderComponent = ({ children }: ErrorProviderProps) => {
                         <Typography>
                             {error}
                         </Typography>
-                        {!!stack && stack !== error ? <Box
+                        {!stack || stack === error ? null : <Box
                             sx={{
                                 mt: 2
                             }}>
@@ -78,7 +78,7 @@ const ErrorProviderComponent = ({ children }: ErrorProviderProps) => {
                                     </Paper>
                                 </AccordionDetails>
                             </Accordion>
-                        </Box> : null
+                        </Box>
                         }
                     </DialogContent>
                 </Dialog>

@@ -614,7 +614,7 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
                     sx={{
                         textAlign: "center"
                     }}>
-                    <Box sx={{ display: 'flex', gap: .5, transform: 'translateX(20px)', justifyContent: 'center', alignItems: 'center' }}>
+                    <Box sx={{ display: 'flex', gap: 0.5, transform: 'translateX(20px)', justifyContent: 'center', alignItems: 'center' }}>
                         <Typography variant="h6" sx={{ m: 0, p: 0 }}>{playlistName}</Typography>
                         <IconButton onClick={onEditPlaylistNameClick} sx={{ '&:hover': { background: 'none' } }} size="small"><Edit /></IconButton>
                     </Box>

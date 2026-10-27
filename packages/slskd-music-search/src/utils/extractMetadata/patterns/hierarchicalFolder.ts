@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/prefer-destructuring */
 /**
  * Pattern: Hierarchical Folder Structure
  *

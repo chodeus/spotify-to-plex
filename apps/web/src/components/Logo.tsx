@@ -11,7 +11,7 @@ export default function Logo() {
                 <Box
                     sx={{
                         display: "flex",
-                        gap: .2,
+                        gap: 0.2,
                         pb: 1,
                         alignItems: "center",
                         justifyContent: "center",

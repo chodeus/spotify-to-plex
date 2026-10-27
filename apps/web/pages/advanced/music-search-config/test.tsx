@@ -128,7 +128,7 @@ const TestConfigPage: NextPage = () => {
                         </Box>
                         {!loading && (!canUseTidal || !canUseSlskd) ? (
                             <Alert severity="info" sx={{ mt: 2 }}>
-                                {!canUseTidal && !canUseSlskd ? 'You have not configured Tidal or SLSKD credentials.' : null}
+                                {canUseTidal || canUseSlskd ? null : 'You have not configured Tidal or SLSKD credentials.'}
                                 {!canUseTidal && canUseSlskd ? 'Tidal credentials not configured.' : null}
                                 {canUseTidal && !canUseSlskd ? 'SLSKD credentials not configured.' : null}
                                 {' '}Visit the project documentation for configuration instructions.

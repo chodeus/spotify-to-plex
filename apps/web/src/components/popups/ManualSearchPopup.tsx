@@ -1,4 +1,3 @@
-/* eslint-disable custom/jsx-single-line-props */
 import { errorBoundary } from "@/helpers/errors/errorBoundary";
 import type { PlexTrack } from "@spotify-to-plex/plex-music-search/types/PlexTrack";
 import CloseIcon from '@mui/icons-material/Close';

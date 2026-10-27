@@ -1,7 +1,7 @@
-const EDITION = String.raw`edition|deluxe|expanded|extended|explicit|clean|remaster(?:ed)?|bonus tracks?|anniversary|radio edit|soundtrack|motion picture|original score`;
+const EDITION = 'edition|deluxe|expanded|extended|explicit|clean|remaster(?:ed)?|bonus tracks?|anniversary|radio edit|soundtrack|motion picture|original score';
 // A word that makes a bracket or a dash suffix an edition label rather than part of the title
 const EDITION_WORD = new RegExp(String.raw`\b(?:${EDITION})\b`, 'i');
-const LABEL_WORDS = String.raw`${EDITION}|live|super|special|limited|collector'?s|version`;
+const LABEL_WORDS = `${EDITION}|live|super|special|limited|collector'?s|version`;
 const LABEL_WORD = new RegExp(String.raw`\b(?:${LABEL_WORDS})\b`, 'i');
 // What else a label may hold: "Super Deluxe", "20th Anniversary", "Live / Deluxe Edition"; never other letters, in any script
 const LABEL_FILLER = new RegExp(String.raw`\b(?:${LABEL_WORDS}|\d+(?:st|nd|rd|th)?)\b|[\s\p{P}\p{S}]+`, 'giu');
@@ -11,6 +11,8 @@ const OTHER_RELEASE = /\b(?:re)?mix\b/i;
 const LIVE = /\blive\b/i;
 // A bracket with no bracket inside, so "(Deluxe Edition [Remastered])" goes from the inside out
 const INNER_BRACKET = /(\s*)([([])([^()[\]]*)([)\]])/g;
+// Non-global twin for the existence check: test() on a /g regex carries lastIndex between calls.
+const HAS_INNER_BRACKET = new RegExp(INNER_BRACKET.source);
 const SUFFIX = /^(.*\S)(?:\s[–—-]\s|:\s)(.+)$/;
 const TRAILING_LABEL = /\s+(?:(?:super|special|limited|expanded|\d+(?:st|nd|rd|th))\s+)*(?:deluxe(?:\s+edition)?|edition)$/i;
 // Stand-ins for a bracket that stays, so the loop moves on to its parent
@@ -45,7 +47,7 @@ export function albumEdition(title: string) {
         return label;
     };
 
-    while (base.search(INNER_BRACKET) > -1) {
+    while (HAS_INNER_BRACKET.test(base)) {
         base = base.replace(INNER_BRACKET, (_whole, space: string, open: string, inner: string, close: string) =>
             (dropped(inner) ? '' : `${space}${HIDDEN[open]}${inner}${HIDDEN[close]}`));
     }

@@ -142,7 +142,7 @@ export default function ManagePlaylists() {
                             <Typography
                                 variant="body2"
                                 sx={{
-                                    mb: .5
+                                    mb: 0.5
                                 }}>
                                 Add any existing Spotify Playlist or Album. Once added you can sync it with Plex or change settings for the automated synchronisation.
                             </Typography>

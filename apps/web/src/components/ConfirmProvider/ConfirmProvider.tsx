@@ -22,7 +22,7 @@ const DEFAULT_OPTIONS: ConfirmOptions = {
     },
     titleProps: {
         variant: "h2",
-        sx: { pt: 3, pb: .5, borderTop: (theme) => `solid 3px ${theme.palette.error.main}` }
+        sx: { pt: 3, pb: 0.5, borderTop: (theme) => `solid 3px ${theme.palette.error.main}` }
     },
     allowClose: true,
     hideCancelButton: false,

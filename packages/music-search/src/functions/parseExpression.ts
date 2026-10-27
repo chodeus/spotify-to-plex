@@ -33,7 +33,6 @@ export function parseExpression(expression: string): (item: Track) => boolean {
         return (item: Track) => evaluateExpression(item, parsed);
     } catch (error) {
         // Return a filter that never matches on parse error
-        // eslint-disable-next-line no-console
         console.warn(`Failed to parse expression: ${expression}`, String(error));
 
         return () => false;
@@ -335,7 +334,6 @@ export function migrateLegacyFilter(filterString: string) {
         // If no pattern matches, return null to indicate migration failed
         return null;
     } catch (error) {
-        // eslint-disable-next-line no-console
         console.warn(`Failed to migrate legacy filter: ${filterString}`, String(error));
 
         return null;

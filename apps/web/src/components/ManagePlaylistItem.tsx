@@ -127,8 +127,8 @@ export default function ManagePlaylistItem(props: Props) {
                             height: 40
                         }} />
                     <Box sx={{ minWidth: 0 }}>
-                        <Typography variant="body1" sx={{ mb: .5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.title}</Typography>
-                        <Box sx={{ display: 'flex', gap: .5, alignItems: 'center' }}>
+                        <Typography variant="body1" sx={{ mb: 0.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.title}</Typography>
+                        <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                                 {item.type !== 'plex-media' && (
                                     <Tooltip title={item.sync ? `Automatically synced every ${item.sync_interval ?? "1"} days` : "Not automatically synced"}>

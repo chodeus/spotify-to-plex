@@ -140,7 +140,7 @@ export default function PlaylistItemSettings(props: Props) {
                             <Chip
                                 variant="outlined"
                                 size="small"
-                                sx={{ mr: .5, mb: .5 }}
+                                sx={{ mr: 0.5, mb: 0.5 }}
                                 key={label}
                                 data-label={label}
                                 onClick={onEditLabelChipClick}

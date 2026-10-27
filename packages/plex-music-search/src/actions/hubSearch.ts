@@ -87,7 +87,6 @@ export default function hubSearch(uri: string, token: string, query: string, lim
             })
             .catch((error: unknown) => {
 
-                // eslint-disable-next-line no-console
                 console.error(`Plex API Request failed:\n${url}`)
                 // A status means Plex answered (a bad token answers 401), so it was reachable
                 const status = httpStatusOf(error);

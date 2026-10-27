@@ -1,4 +1,3 @@
-/* eslint-disable max-depth */
 import { getSlskdSettings } from "@spotify-to-plex/plex-config/functions/getSlskdSettings";
 import { getStorageDir } from "@spotify-to-plex/shared-utils/utils/getStorageDir";
 import { SlskdSyncLog } from "@spotify-to-plex/shared-types/slskd/SlskdSyncLog";

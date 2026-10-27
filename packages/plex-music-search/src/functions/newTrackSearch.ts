@@ -1,4 +1,3 @@
-/* eslint-disable max-depth */
 import { search as musicSearch } from "@spotify-to-plex/music-search/functions/search";
 import { filterOutWords } from "@spotify-to-plex/music-search/utils/filterOutWords";
 import { Track } from "@spotify-to-plex/music-search/types/Track";
