@@ -30,7 +30,7 @@
         "test": "vitest run"
     },
     "engines": {
-        "node": ">=18.20.8"
+        "node": ">=22.13.0"
     },
     "dependencies": {
         "@spotify-to-plex/shared-types": "workspace:*",

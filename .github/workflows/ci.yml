@@ -1,6 +1,6 @@
 name: CI
 
-# Type-check, lint and unit tests; docker-publish.yml only builds and scans the image.
+# Type-check, lint and unit tests; docker-publish.yml builds, scans and smoke-tests the image.
 on:
   pull_request:
     branches: [testing]
