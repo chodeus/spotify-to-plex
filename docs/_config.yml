@@ -1,7 +1,7 @@
 title: Spotify to Plex
 description: Sync your Spotify playlists with Plex
 theme: just-the-docs
-url: https://jjdenhertog.github.io
+url: https://chodeus.github.io
 baseurl: /spotify-to-plex
 
 # Logo in the header
@@ -9,7 +9,7 @@ logo: /assets/images/logo.png
 
 # Aux links in header
 aux_links:
-  GitHub: https://github.com/jjdenhertog/spotify-to-plex
+  GitHub: https://github.com/chodeus/spotify-to-plex
 
 # Footer
 footer_content: "Made with ❤️ - <a href=\"https://www.buymeacoffee.com/jjdenhertog\">Support this project</a>"

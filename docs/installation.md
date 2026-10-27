@@ -49,14 +49,14 @@ docker run -d \
     -e PORT=9030 \
     -e SPOTIFY_API_CLIENT_ID=YOUR_CLIENT_ID \
     -e SPOTIFY_API_CLIENT_SECRET=YOUR_CLIENT_SECRET \
-    -e SPOTIFY_API_REDIRECT_URI=https://jjdenhertog.github.io/spotify-to-plex/callback.html \
+    -e SPOTIFY_API_REDIRECT_URI=https://chodeus.github.io/spotify-to-plex/callback.html \
     -e ENCRYPTION_KEY=YOUR_ENCRYPTION_KEY \
     -e PLEX_APP_ID=eXf+f9ktw3CZ8i45OY468WxriOCtoFxuNPzVeDcAwfw= \
     -v /local/directory/:/app/config:rw \
     --name=spotify-to-plex \
     --network=host \
     --restart on-failure:4 \
-    jjdenhertog/spotify-to-plex
+    ghcr.io/chodeus/spotify-to-plex:testing
 ```
 
 {: .note }
@@ -88,11 +88,11 @@ services:
             - PORT=9030
             - SPOTIFY_API_CLIENT_ID=YOUR_CLIENT_ID
             - SPOTIFY_API_CLIENT_SECRET=YOUR_CLIENT_SECRET
-            - SPOTIFY_API_REDIRECT_URI=https://jjdenhertog.github.io/spotify-to-plex/callback.html
+            - SPOTIFY_API_REDIRECT_URI=https://chodeus.github.io/spotify-to-plex/callback.html
             - ENCRYPTION_KEY=YOUR_ENCRYPTION_KEY
             - PLEX_APP_ID=eXf+f9ktw3CZ8i45OY468WxriOCtoFxuNPzVeDcAwfw=
         network_mode: "host"
-        image: 'jjdenhertog/spotify-to-plex:latest'
+        image: 'ghcr.io/chodeus/spotify-to-plex:testing'
 ```
 
 Add optional integrations as needed:

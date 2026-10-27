@@ -29,7 +29,7 @@
 ---
 
 > [!IMPORTANT]
-> The Spotify account you create your Spotify app with needs an active **Premium** subscription. This is a [limitation Spotify added in 2026](https://developer.spotify.com/blog/2026-02-06-update-on-developer-access-and-platform-security), together with a limit of one app per account and a maximum of 5 connected users. See the [Spotify setup](https://jjdenhertog.github.io/spotify-to-plex/spotify/app-setup) docs.
+> The Spotify account you create your Spotify app with needs an active **Premium** subscription. This is a [limitation Spotify added in 2026](https://developer.spotify.com/blog/2026-02-06-update-on-developer-access-and-platform-security), together with a limit of one app per account and a maximum of 5 connected users. See the [Spotify setup](https://chodeus.github.io/spotify-to-plex/spotify/app-setup) docs.
 
 ---
 
@@ -42,7 +42,7 @@
 docker run -d \
     -e SPOTIFY_API_CLIENT_ID=YOUR_CLIENT_ID \
     -e SPOTIFY_API_CLIENT_SECRET=YOUR_CLIENT_SECRET \
-    -e SPOTIFY_API_REDIRECT_URI=https://jjdenhertog.github.io/spotify-to-plex/callback.html \
+    -e SPOTIFY_API_REDIRECT_URI=https://chodeus.github.io/spotify-to-plex/callback.html \
     -e ENCRYPTION_KEY=YOUR_ENCRYPTION_KEY \
     -v /your/config/path:/app/config:rw \
     --network=host \
@@ -50,6 +50,8 @@ docker run -d \
 ```
 
 Access the web interface at `http://[your-ip]:9030`. This runs this fork's image; see [Running it](#running-it) for the tag and `PLEX_APP_ID`.
+
+The redirect URI is this fork's sign-in page. It shows what Spotify sends back as plain text, and it asks before passing the code to an address outside your network. If you set up with `https://jjdenhertog.github.io/spotify-to-plex/callback.html`, change the redirect URI in your Spotify app and in `SPOTIFY_API_REDIRECT_URI` to the one above: Spotify only accepts an exact match.
 
 ---
 
@@ -109,7 +111,7 @@ The container starts as root and runs the app as `PUID`:`PGID` (default `99:100`
 
 Set it before your first login and keep it — changing it later invalidates the stored Plex token and you will have to sign in again.
 
-Everything else — setup, Spotify app creation, Lidarr and slskd integration — follows the [upstream documentation](https://jjdenhertog.github.io/spotify-to-plex/) unchanged.
+Everything else — setup, Spotify app creation, Lidarr and slskd integration — is in the [documentation](https://chodeus.github.io/spotify-to-plex/).
 
 ---
 
@@ -159,7 +161,7 @@ Text Processing and Search Approaches are left at their defaults.
 
 For detailed setup instructions, configuration options, and integration guides:
 
-**[Read the full documentation](https://jjdenhertog.github.io/spotify-to-plex/)**
+**[Read the full documentation](https://chodeus.github.io/spotify-to-plex/)**
 
 ---
 

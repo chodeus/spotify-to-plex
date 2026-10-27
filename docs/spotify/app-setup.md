@@ -25,7 +25,7 @@ The Spotify account you create the app with needs an active **Premium** subscrip
 4. Fill in the required fields:
    - **App Name**: Choose any name (e.g., "Spotify to Plex")
    - **App Description**: A brief description (can be anything)
-   - **Redirect URI**: `https://jjdenhertog.github.io/spotify-to-plex/callback.html`
+   - **Redirect URI**: `https://chodeus.github.io/spotify-to-plex/callback.html`
 
 {: .note }
 For alternative redirect URI options (e.g., direct localhost), see [Authentication](authentication).
@@ -40,14 +40,14 @@ Once you have created your Spotify app, note these values:
 |---------|-------------|
 | Client ID | Your app's unique identifier |
 | Client Secret | Your app's secret key (keep this private!) |
-| Redirect URI | `https://jjdenhertog.github.io/spotify-to-plex/callback.html` |
+| Redirect URI | `https://chodeus.github.io/spotify-to-plex/callback.html` |
 
 Add these to your Docker environment:
 
 ```sh
 -e SPOTIFY_API_CLIENT_ID=your_client_id_here
 -e SPOTIFY_API_CLIENT_SECRET=your_client_secret_here
--e SPOTIFY_API_REDIRECT_URI=https://jjdenhertog.github.io/spotify-to-plex/callback.html
+-e SPOTIFY_API_REDIRECT_URI=https://chodeus.github.io/spotify-to-plex/callback.html
 ```
 
 {: .important }

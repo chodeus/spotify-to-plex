@@ -71,7 +71,7 @@ function getAuthErrorMessage(error: unknown): { title: string; message: string; 
     if (errorMessage.includes('Invalid key length')) {
         return {
             title: 'Invalid Encryption Key',
-            message: 'The ENCRYPTION_KEY environment variable must be exactly 32 bytes (64 hex characters). Please check your configuration. See installation instructions: https://jjdenhertog.github.io/spotify-to-plex/installation.html',
+            message: 'The ENCRYPTION_KEY environment variable must be exactly 32 bytes (64 hex characters). Please check your configuration. See installation instructions: https://chodeus.github.io/spotify-to-plex/installation.html',
             details: { error: 'invalid_key_length', error_description: errorMessage }
         };
     }
