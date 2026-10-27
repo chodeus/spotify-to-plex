@@ -2,7 +2,7 @@
 
   on:
     push:
-      branches: ["main"]
+      branches: ["testing"]
       paths: ["docs/**"]
     # Builds (never deploys) a change to the docs or this workflow, so Ruby and action bumps are checked before merge.
     pull_request:

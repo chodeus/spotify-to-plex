@@ -16,17 +16,17 @@ Spotify requires HTTPS for redirect URIs, with one exception: loopback addresses
 
 ### The Solution: Public Redirect Page
 
-I have provided a public redirect page that solves this problem:
+A public redirect page solves this problem:
 
 ```
-https://jjdenhertog.github.io/spotify-to-plex/callback.html
+https://chodeus.github.io/spotify-to-plex/callback.html
 ```
 
 **How it works:**
 
 1. Your local app redirects to Spotify for authorization
 2. Spotify redirects to the public HTTPS page with the auth code
-3. The public page redirects back to your local instance with the code
+3. The public page redirects back to your local instance with the code. If that instance is not on your local network or loopback, the page asks you first, because whoever runs it can redeem the code
 4. Your local app completes the authentication
 
 ---
@@ -36,7 +36,7 @@ https://jjdenhertog.github.io/spotify-to-plex/callback.html
 ### Step 1: Set Environment Variable
 
 ```sh
-SPOTIFY_API_REDIRECT_URI=https://jjdenhertog.github.io/spotify-to-plex/callback.html
+SPOTIFY_API_REDIRECT_URI=https://chodeus.github.io/spotify-to-plex/callback.html
 ```
 
 ### Step 2: Configure Spotify Developer App
@@ -46,7 +46,7 @@ In your [Spotify Developer Dashboard](https://developer.spotify.com/dashboard):
 1. Open your app settings
 2. Add the redirect URI:
    ```
-   https://jjdenhertog.github.io/spotify-to-plex/callback.html
+   https://chodeus.github.io/spotify-to-plex/callback.html
    ```
 3. Save changes
 
