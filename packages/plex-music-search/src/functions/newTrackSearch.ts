@@ -123,8 +123,14 @@ async function performApproachSearch(approach: PlexMusicSearchApproach, searchPa
     const searchAlbum = filterOutWords(album.toLowerCase(), config.musicSearchConfig!.textProcessing, filtered, trim, removeQuotes);
     const searchTrack = filterOutWords(title.toLowerCase(), config.musicSearchConfig!.textProcessing, filtered, trim, removeQuotes);
 
-    const searchPlex = async (artist: string, title: string, album: string, cacheId: string) => {
-        const searchResults = await searchForTrack(config.uri, config.token, artist, title, album);
+    const searchPlex = async (artist: string, title: string, album: string) => {
+        // Cache what Plex answered, never the ranking: that belongs to the track asking
+        const cacheId = `${artist}-${title}-${album}`;
+        const cached = getFromCache(cacheId);
+        const searchResults = cached ?? await searchForTrack(config.uri, config.token, artist, title, album);
+        if (!cached)
+            addToCache(cacheId, searchResults);
+
         const musicSearchResult = musicSearch({ id, artist, title, album, duration_ms, artists, originalTitle }, searchResultToTracks(searchResults), analyze);
 
         const plexTracks = musicSearchResult
@@ -141,15 +147,12 @@ async function performApproachSearch(approach: PlexMusicSearchApproach, searchPa
             .filter((item) => !!item)
             .map((item) => ({ ...hubSearchToPlexTrack(item), matching: item.matching }));
 
-        addToCache(cacheId, plexTracks);
-
         return plexTracks;
     };
 
     // Perform search function
     const performSearch = async (approach: string, artist: string, title: string, album: string) => {
-        const cacheId = `${artist}-${title}-${album}`;
-        const plexTracks = getFromCache(cacheId) ?? await searchPlex(artist, title, album, cacheId);
+        const plexTracks = await searchPlex(artist, title, album);
 
         // Cached or not, the analyze view lists every query an approach made
         const query: SearchQuery = { approach, artist, title, album };

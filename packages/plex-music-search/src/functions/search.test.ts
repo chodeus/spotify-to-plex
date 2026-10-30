@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import type { HubSearchResult } from '../types/actions/HubSearchResult';
 import type { PlexMusicSearchApproach } from '../types/PlexMusicSearchApproach';
 import type { PlexMusicSearchConfig } from '../types/PlexMusicSearchConfig';
+import type { SearchResponse } from '../types/SearchResponse';
 
 vi.mock('../utils/searching/searchForTrack', () => ({ searchForTrack: vi.fn() }));
 
@@ -54,10 +55,12 @@ const wanted = (title: string, seconds?: number) => ({
     id: 'spotify-1', title, artists: ['Artist'], album: 'Paper Lanterns', duration_ms: seconds && seconds * 1000
 });
 
+const keysOf = (response?: SearchResponse) => response?.result.map(item => item.ratingKey ?? item.id.split('/').pop());
+
 const resultKeys = async (config: PlexMusicSearchConfig, track: ReturnType<typeof wanted>) => {
     const [response] = await search(config, [track]);
 
-    return response?.result.map(item => item.ratingKey ?? item.id.split('/').pop());
+    return keysOf(response);
 };
 
 describe('search', () => {
@@ -83,6 +86,17 @@ describe('search', () => {
         plexAnswers({ 'paper lanterns - radio edit': [ALBUM_MIX], 'paper lanterns': [ALBUM_MIX, RADIO_EDIT] });
 
         expect(await resultKeys(configWith(GUARDED), wanted('Paper Lanterns - Radio Edit', 210))).toEqual(['2', '1']);
+    });
+
+    it('ranks a query another track already ran for the track now asking', async () => {
+        // The radio edit's trimmed query is the album mix's own query, so the second track reads it from the cache
+        plexAnswers({ 'paper lanterns - radio edit': [ALBUM_MIX], 'paper lanterns': [ALBUM_MIX, RADIO_EDIT] });
+
+        const [radioEdit, albumMix] = await search(configWith(GUARDED), [wanted('Paper Lanterns - Radio Edit', 210), wanted('Paper Lanterns', 300)]);
+
+        expect(keysOf(radioEdit)).toEqual(['2', '1']);
+        expect(keysOf(albumMix)).toEqual(['1']);
+        expect(searchForTrackMock).toHaveBeenCalledTimes(2);
     });
 
     it('keeps the first result when no approach finds the wanted edit', async () => {
