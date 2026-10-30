@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { versionsMatch } from './compareVersions';
+import { sharesAnAct, titleName, versionsMatch } from './compareVersions';
 
 // The noise words configured on the instance these cases were measured against
 const FILTER_OUT_WORDS = [
@@ -47,6 +47,7 @@ describe('versionsMatch', () => {
             expect(match('Song – Live 1986', 'Song - Live 1986')).toBe(true);
             expect(match('Song — Live 1986', 'Song - Live 1986')).toBe(true);
             expect(match('Song: Live 1986', 'Song - Live 1986')).toBe(true);
+            expect(match('Song – Live 1986', 'Song - Live')).toBe(true);
             expect(match('Here Comes the Sun 2019 Mix', 'Here Comes the Sun - 2019 Mix')).toBe(true);
         });
 
@@ -120,7 +121,87 @@ describe('versionsMatch', () => {
         });
     });
 
+    it('reads a version set apart by an en or em dash, as Plex tags write it', () => {
+        expect(match('Paper Lanterns – Other Remix', 'Paper Lanterns')).toBe(false);
+        expect(match('Paper Lanterns – Other Remix', 'Paper Lanterns - Other Remix')).toBe(true);
+    });
+
     it('treats a missing title as no answer rather than a match', () => {
         expect(versionsMatch('', 'Cinema (Skrillex Remix)', FILTER_OUT_WORDS).match).toBe(false);
+    });
+});
+
+describe('titleName', () => {
+
+    it('reads a bracketed and a dashed qualifier off the same name', () => {
+        expect(titleName('Paper Lanterns (Radio Edit)')).toBe('paper lanterns');
+        expect(titleName('Paper Lanterns - Radio Edit')).toBe('paper lanterns');
+        expect(titleName('Paper Lanterns (feat. Someone) - Radio Edit')).toBe('paper lanterns');
+        expect(titleName('Paper Lanterns – Radio Edit')).toBe('paper lanterns');
+        expect(titleName('Paper Lanterns — Radio Edit')).toBe('paper lanterns');
+    });
+
+    it('keeps words that are part of the name', () => {
+        expect(titleName('Paper Lanterns Forever')).toBe('paper lanterns forever');
+    });
+
+    it('keeps a qualifier too short to name a version, so numbered parts stay apart', () => {
+        expect(titleName('Paper Lanterns - I')).toBe('paper lanterns i');
+        expect(titleName('Paper Lanterns - II')).toBe('paper lanterns ii');
+        expect(titleName('Paper Lanterns (2)')).toBe('paper lanterns 2');
+        expect(titleName('Paper Lanterns - I - Radio Edit')).toBe('paper lanterns i');
+        expect(titleName('Paper Lanterns - II - Radio Edit')).toBe('paper lanterns ii');
+    });
+
+    it('drops every dash qualifier long enough to name a version', () => {
+        expect(titleName('Paper Lanterns - Live - Radio Edit')).toBe('paper lanterns');
+    });
+
+    it('reads "&" as "and" and drops accents, as Plex and Spotify spell one name both ways', () => {
+        expect(titleName('Salt & Pepper')).toBe(titleName('Salt and Pepper'));
+        expect(titleName('Café Nights')).toBe(titleName('Cafe Nights'));
+    });
+
+    it('keeps letters of any script, so a non-Latin qualifier stays apart', () => {
+        expect(titleName('東京')).toBe('東京');
+        expect(titleName('Paper Lanterns (ライブ)')).not.toBe(titleName('Paper Lanterns'));
+    });
+
+    it('drops accents only off Latin letters, so marks that change a letter elsewhere stay', () => {
+        expect(titleName('Paper Lanterns (ライブ)')).toBe('paper lanterns ライブ');
+        expect(titleName('Paper Lanterns (ライブ)')).not.toBe(titleName('Paper Lanterns (ライフ)'));
+        expect(titleName('किताब')).not.toBe(titleName('कुताब'));
+    });
+
+    it('reduces a title of nothing but punctuation to nothing', () => {
+        expect(titleName('???')).toBe('');
+    });
+});
+
+describe('sharesAnAct', () => {
+
+    it('accepts the same act however the tag spells it', () => {
+        expect(sharesAnAct('ARTIST', ['Artist'])).toBe(true);
+        expect(sharesAnAct('Band‐99', ['Band-99'])).toBe(true);
+    });
+
+    it('accepts a tag that adds acts to a credited one', () => {
+        expect(sharesAnAct('First Act & Second Act & Third Act', ['First Act & Second Act', 'Other Act'])).toBe(true);
+        expect(sharesAnAct('Artist & Guest', ['Artist'])).toBe(true);
+    });
+
+    it('reads "and" and "feat." as joining acts', () => {
+        expect(sharesAnAct('Artist and Guest', ['Artist', 'Guest'])).toBe(true);
+        expect(sharesAnAct('Artist feat. Guest', ['Artist'])).toBe(true);
+    });
+
+    it('accepts an act named in any script, or with accents only one side spells', () => {
+        expect(sharesAnAct('紙灯籠', ['紙灯籠'])).toBe(true);
+        expect(sharesAnAct('Café Band', ['Cafe Band'])).toBe(true);
+    });
+
+    it('rejects a name that only contains a credited act', () => {
+        expect(sharesAnAct('Artist Tribute Band', ['Artist'])).toBe(false);
+        expect(sharesAnAct('紙灯籠Artist', ['Artist'])).toBe(false);
     });
 });

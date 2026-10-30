@@ -3,6 +3,7 @@ import { compareTitles } from '@spotify-to-plex/shared-utils/music/compareTitles
 import { removeFeaturing } from '@spotify-to-plex/shared-utils/music/removeFeaturing';
 import { durationSimilarity } from '@spotify-to-plex/shared-utils/music/durationSimilarity';
 import { compareVersions } from "../utils/compareVersions";
+import { isWantedEdit } from "../utils/isWantedEdit";
 import { getRuntimeFilters } from "./getRuntimeFilters";
 
 export function search(find: Track, options: Track[], analyze: boolean = false) {
@@ -62,6 +63,10 @@ export function search(find: Track, options: Track[], analyze: boolean = false) 
             .slice(0, 10);
     }
 
+    // "Song" passes title:match while "Song (Radio Edit)" only passes a later title:contains,
+    // so the first filter with a match is kept only until one finds the wanted edit
+    let fallback: Track[] = [];
+
     for (let i = 0; i < matchFilters.length; i++) {
         const matchFilter = matchFilters[i];
         if (!matchFilter)
@@ -69,21 +74,26 @@ export function search(find: Track, options: Track[], analyze: boolean = false) 
 
         const { reason, filter } = matchFilter;
         const result = results.filter(filter)
+        if (result.length == 0)
+            continue;
 
-        if (result.length > 0) {
-            const tracks: Track[] = result.map(item => ({
-                id: item.id,
-                title: item.title,
-                artist: item.artist,
-                album: item.album,
-                duration_ms: item.duration_ms,
-                matching: analyze ? item.matching : undefined,
-                reason: analyze ? reason : undefined
-            }))
+        const wanted = result.filter(item => isWantedEdit(find, item));
+        const tracks: Track[] = [...wanted, ...result.filter(item => !wanted.includes(item))].map(item => ({
+            id: item.id,
+            title: item.title,
+            artist: item.artist,
+            album: item.album,
+            duration_ms: item.duration_ms,
+            matching: analyze ? item.matching : undefined,
+            reason: analyze ? reason : undefined
+        }))
 
+        if (wanted.length > 0)
             return tracks;
-        }
+
+        if (fallback.length == 0)
+            fallback = tracks;
     }
 
-    return []
+    return fallback
 }

@@ -1,8 +1,9 @@
 import { getState } from "../functions/state/getState";
 
-// "(radio edit)", "[live]", "{dub}" and the trailing " - Radio Edit" form Spotify uses
+// "(radio edit)", "[live]", "{dub}" and the trailing " - Radio Edit" form Spotify uses; Plex tags also use "–" and "—"
 const BRACKETED = /\(([^)]*)\)|\[([^\]]*)]|{([^}]*)}/g;
-const TRAILING_DASH = /\s-\s(.+)$/;
+const DASH = /\s[–—-]\s/;
+const TRAILING_DASH = new RegExp(`${DASH.source}(.+)$`);
 
 // "(feat. X)", "(with X)", "(& X)" - a credit, not a version of the recording
 const CREDIT = /^(?:feat|feats|featuring|ft|with|w)\b|^[&+]/;
@@ -11,7 +12,7 @@ const PROVENANCE = /^from\b/;
 const YEAR = /\b(?:19|20)\d{2}\b/g;
 const YEAR_ONLY = /^\s*(?:19|20)\d{2}\s*$/;
 // Tags set a qualifier apart with an en or em dash or a colon as often as with " - "
-const QUALIFIER_TAIL = /\s[–—-]\s(.+)$|:\s(.+)$/;
+const QUALIFIER_TAIL = new RegExp(String.raw`${DASH.source}(.+)$|:\s(.+)$`);
 // "03 - Stronger" is a track number in a tag, not "Stronger" as a version
 const TRACK_NUMBER = /^\s*\d+\s*$/;
 // Acts get joined many ways - "A & B", "A x B", "A Vs. B" - and each side is a
@@ -48,6 +49,17 @@ function plainWords(text: string) {
         .trim();
 }
 
+/** Words of any script, accents dropped off Latin letters only: "Café" reads "cafe", "ライブ" stays apart from "ライフ". */
+function foldedWords(text: string) {
+    return text
+        .normalize('NFKD')
+        .replace(/(\p{Script=Latin})\p{M}+/gu, '$1')
+        .normalize('NFC')
+        .toLowerCase()
+        .replace(/[^\p{L}\p{M}\p{N}]+/gu, ' ')
+        .trim();
+}
+
 /**
  * The individual acts named in a credit string, so that
  * "Dimitri Vegas & Like Mike Vs.W&W" and its two credited artists reduce to the
@@ -57,7 +69,7 @@ function actNames(text: string) {
     return text
         .toLowerCase()
         .split(ACT_SEPARATOR)
-        .map(part => plainWords(part))
+        .map(part => foldedWords(part))
         .filter(part => part.length > 0);
 }
 
@@ -73,6 +85,12 @@ function isCredit(segment: string, credits: string[]) {
     if (parts.length == 0)
         return false;
 
+    const credited = creditedActs(credits);
+
+    return credited.size > 0 && parts.every(part => credited.has(part));
+}
+
+function creditedActs(credits: string[]) {
     const credited = new Set<string>();
 
     for (const credit of credits) {
@@ -80,12 +98,21 @@ function isCredit(segment: string, credits: string[]) {
             credited.add(name);
 
         // The unsplit name too, so "Chase & Status" matches as the one act it is
-        const whole = plainWords(credit);
+        const whole = foldedWords(credit);
         if (whole)
             credited.add(whole);
     }
 
-    return credited.size > 0 && parts.every(part => credited.has(part));
+    return credited;
+}
+
+/** Whether an artist tag names a credited act whole: "Artist Tribute Band" does not name "Artist". */
+export function sharesAnAct(artist: string, credits: string[]) {
+    // Tags join acts with "and" or "feat." as often as "&": "Artist and Guest", "Artist feat. Guest"
+    const joined = (name: string) => name.replace(/\s+(?:and|feat\.?|ft\.?|featuring)\s+/gi, ' & ');
+    const credited = creditedActs(credits.map(joined));
+
+    return [...creditedActs([joined(artist)])].some(name => credited.has(name));
 }
 
 /** The years in a text, less any beside a noise word: "2009 Remaster" dates the master, not the song. */
@@ -131,6 +158,22 @@ function titleStatesVersion(title: string, version: string) {
     const words = new Set(plainWords(title.replace(BRACKETED, ' ').replace(TRAILING_DASH, ' ')).split(' '));
 
     return version.split(' ').every(word => words.has(word));
+}
+
+/** A title without its qualifiers: "Song (Radio Edit)" and "Song - Radio Edit" are both "song". */
+export function titleName(title: string) {
+    // A qualifier too short to name a version stays, or "Suite - I" and "Suite - II" become one name
+    const isShort = (qualifier = '') => plainWords(qualifier).length < MIN_QUALIFIER_LENGTH;
+    const parts = title
+        .replace(BRACKETED, (whole: string, round?: string, square?: string, curly?: string) => (isShort(round ?? square ?? curly) ? whole : ' '))
+        .split(DASH);
+
+    // From the end, so "Suite - I - Radio Edit" keeps its "I"
+    while (parts.length > 1 && !isShort(parts.at(-1)))
+        parts.pop();
+
+    // Letters of any script count, so "(ライブ)" keeps its edit apart from the plain title
+    return foldedWords(parts.join(' ').replace(/&/g, ' and '));
 }
 
 /**

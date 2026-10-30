@@ -1,11 +1,11 @@
 import { PlexMusicSearchConfig } from "../types/PlexMusicSearchConfig";
-import { PlexTrack } from "../types/PlexTrack";
+import { HubSearchResult } from "../types/actions/HubSearchResult";
 import { setMusicSearchConfig as setGlobalMusicSearchConfig } from "@spotify-to-plex/music-search/functions/setMusicSearchConfig";
 import { setConfig as setGlobalConfig } from "@spotify-to-plex/music-search/functions/setConfig";
 
 type PlexMusicSearchState = {
     config?: PlexMusicSearchConfig;
-    cache: { id: string, result: PlexTrack[] }[];
+    cache: { id: string, result: HubSearchResult[] }[];
 }
 
 const state: PlexMusicSearchState = {
@@ -40,7 +40,7 @@ export function getConfig(): PlexMusicSearchConfig | undefined {
     return state.config;
 }
 
-export function addToCache(id: string, result: PlexTrack[]) {
+export function addToCache(id: string, result: HubSearchResult[]) {
     state.cache.push({ id, result });
 }
 
