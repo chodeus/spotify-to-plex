@@ -22,3 +22,10 @@ export function durationsContradict(a?: number, b?: number) {
 export function durationsAgree(a?: number, b?: number) {
     return durationSimilarity(a, b) >= SAME_EDIT_FROM;
 }
+
+/** Both durations are known and too far apart to be the same edit. */
+export function durationsDiffer(a?: number, b?: number) {
+    const similarity = durationSimilarity(a, b);
+
+    return similarity > 0 && similarity < SAME_EDIT_FROM;
+}

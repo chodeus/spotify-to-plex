@@ -4,6 +4,7 @@ import { removeFeaturing } from '@spotify-to-plex/shared-utils/music/removeFeatu
 import { durationSimilarity } from '@spotify-to-plex/shared-utils/music/durationSimilarity';
 import { compareVersions } from "../utils/compareVersions";
 import { isWantedEdit } from "../utils/isWantedEdit";
+import { namesAnotherSong } from "../utils/namesAnotherSong";
 import { getRuntimeFilters } from "./getRuntimeFilters";
 
 export function search(find: Track, options: Track[], analyze: boolean = false) {
@@ -47,7 +48,7 @@ export function search(find: Track, options: Track[], analyze: boolean = false) 
         return results
             .map(item => {
 
-                const isMatchingApproach = matchFilters.some(filter => filter.filter(item));
+                const isMatchingApproach = matchFilters.some(filter => filter.filter(item)) && !namesAnotherSong(find, item);
                 if (!item.matching)
                     return null;
 
@@ -66,6 +67,8 @@ export function search(find: Track, options: Track[], analyze: boolean = false) 
     // "Song" passes title:match while "Song (Radio Edit)" only passes a later title:contains,
     // so the first filter with a match is kept only until one finds the wanted edit
     let fallback: Track[] = [];
+    // title:contains reads "Paper Lanterns" in "Other Paper Lanterns", which would otherwise pass another song
+    const candidates = results.filter(item => !namesAnotherSong(find, item));
 
     for (let i = 0; i < matchFilters.length; i++) {
         const matchFilter = matchFilters[i];
@@ -73,7 +76,7 @@ export function search(find: Track, options: Track[], analyze: boolean = false) 
             continue;
 
         const { reason, filter } = matchFilter;
-        const result = results.filter(filter)
+        const result = candidates.filter(filter)
         if (result.length == 0)
             continue;
 
