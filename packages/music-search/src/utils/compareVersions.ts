@@ -73,6 +73,12 @@ function isCredit(segment: string, credits: string[]) {
     if (parts.length == 0)
         return false;
 
+    const credited = creditedActs(credits);
+
+    return credited.size > 0 && parts.every(part => credited.has(part));
+}
+
+function creditedActs(credits: string[]) {
     const credited = new Set<string>();
 
     for (const credit of credits) {
@@ -85,7 +91,16 @@ function isCredit(segment: string, credits: string[]) {
             credited.add(whole);
     }
 
-    return credited.size > 0 && parts.every(part => credited.has(part));
+    return credited;
+}
+
+/** Whether an artist tag names a credited act whole: "Artist Tribute Band" does not name "Artist". */
+export function sharesAnAct(artist: string, credits: string[]) {
+    // Tags join acts with "and" or "feat." as often as "&": "Artist and Guest", "Artist feat. Guest"
+    const joined = (name: string) => name.replace(/\s+(?:and|feat\.?|ft\.?|featuring)\s+/gi, ' & ');
+    const credited = creditedActs(credits.map(joined));
+
+    return [...creditedActs([joined(artist)])].some(name => credited.has(name));
 }
 
 /** The years in a text, less any beside a noise word: "2009 Remaster" dates the master, not the song. */
@@ -144,7 +159,11 @@ export function titleName(title: string) {
         .replace(/\p{M}/gu, '')
         .replace(/&/g, ' and ');
 
-    return plainWords(name);
+    // Letters of any script count, so "(ライブ)" keeps its edit apart from the plain title
+    return name
+        .toLowerCase()
+        .replace(/[^\p{L}\p{N}]+/gu, ' ')
+        .trim();
 }
 
 /**

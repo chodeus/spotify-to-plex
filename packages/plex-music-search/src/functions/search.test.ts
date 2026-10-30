@@ -28,7 +28,7 @@ const configWith = (matchFilters: string[], searchApproaches = NORMAL_THEN_TRIMM
     }
 });
 
-const copy = (key: string, title: string, seconds: number, album = 'Paper Lanterns', artist = 'Artist'): HubSearchResult => ({
+const copy = (key: string, title: string, seconds: number | undefined, album = 'Paper Lanterns', artist = 'Artist'): HubSearchResult => ({
     type: 'track',
     id: `/library/metadata/${key}`,
     ratingKey: key,
@@ -36,7 +36,7 @@ const copy = (key: string, title: string, seconds: number, album = 'Paper Lanter
     score: 1,
     image: '',
     title,
-    duration_ms: seconds * 1000,
+    duration_ms: seconds === undefined ? undefined : seconds * 1000,
     album: { guid: '', id: '', title: album, year: 2020, image: '' },
     artist: { guid: '', id: '', title: artist, image: '' }
 });
@@ -119,11 +119,32 @@ describe('search', () => {
         expect(await resultKeys(config, wanted('Paper Lanterns - Radio Edit', 210))).toEqual(['1']);
     });
 
-    it('never reads two titles with no Latin letters as one name', async () => {
-        // Both reduce to '', so only the guard keeps the same-length other song from going first
-        plexAnswers({ '東京': [copy('7', '東京', 300), copy('8', '大阪', 210, 'Other')] });
+    it('never trades the found copy for one by an act that merely contains the credited name', async () => {
+        plexAnswers({ 'paper lanterns': [ALBUM_MIX, copy('14', 'Paper Lanterns (Radio Edit)', 210, 'Paper Lanterns', 'Artist Tribute Band')] });
+        const config = configWith(['artist:match AND title:match', 'title:contains'], [{ id: 'trimmed', trim: true }]);
 
-        expect(await resultKeys(configWith(GUARDED), wanted('東京', 210))).toEqual(['7', '8']);
+        expect(await resultKeys(config, wanted('Paper Lanterns - Radio Edit', 210))).toEqual(['1']);
+    });
+
+    it('never promotes a copy whose length is unknown', async () => {
+        plexAnswers({ 'paper lanterns': [ALBUM_MIX, copy('15', 'Paper Lanterns (Radio Edit)', undefined)] });
+        const config = configWith(['artist:match AND title:match', 'artist:match AND title:contains'], [{ id: 'trimmed', trim: true }]);
+
+        expect(await resultKeys(config, wanted('Paper Lanterns - Radio Edit', 210))).toEqual(['1']);
+    });
+
+    it('never reads a non-Latin edit qualifier as no qualifier', async () => {
+        // Both titles pass title:match once the qualifier is stripped to ASCII, and the plain copy has the wanted length
+        plexAnswers({ 'paper lanterns (ライブ)': [copy('12', 'Paper Lanterns (ライブ)', 300), copy('13', 'Paper Lanterns', 210, 'Other')] });
+
+        expect(await resultKeys(configWith(GUARDED, [{ id: 'normal' }]), wanted('Paper Lanterns (ライブ)', 210))).toEqual(['12', '13']);
+    });
+
+    it('never reads two titles of nothing but punctuation as one name', async () => {
+        // Both reduce to '', so only the guard keeps the same-length other song from going first
+        plexAnswers({ '???': [copy('7', '???', 300), copy('8', '!!!', 210, 'Other')] });
+
+        expect(await resultKeys(configWith(GUARDED), wanted('???', 210))).toEqual(['7', '8']);
     });
 
     it('stops at the first approach when Spotify gives no duration', async () => {

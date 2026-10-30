@@ -52,8 +52,10 @@ export async function newTrackSearch(approaches: PlexMusicSearchApproach[], sear
                 if (firstResult.length == 0)
                     firstResult = searchResult.result;
 
-                // A looser approach can still turn up the radio edit when a stricter one found only the extended mix
-                if (finalResult.length > 0 || !isWantedEdit(wanted, { title: best.title, artist: best.artist.title, duration_ms: best.duration_ms }))
+                // A looser approach can still turn up the radio edit when a stricter one found only the extended mix.
+                // Without Spotify's length there is no edit to wait for, so the first result stands
+                const settled = !duration_ms || isWantedEdit(wanted, { title: best.title, artist: best.artist.title, duration_ms: best.duration_ms });
+                if (finalResult.length > 0 || !settled)
                     continue;
 
                 finalResult = searchResult.result;

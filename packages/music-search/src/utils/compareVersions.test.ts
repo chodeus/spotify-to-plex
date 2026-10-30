@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { titleName, versionsMatch } from './compareVersions';
+import { sharesAnAct, titleName, versionsMatch } from './compareVersions';
 
 // The noise words configured on the instance these cases were measured against
 const FILTER_OUT_WORDS = [
@@ -148,7 +148,34 @@ describe('titleName', () => {
         expect(titleName('Café Nights')).toBe(titleName('Cafe Nights'));
     });
 
-    it('reduces a title with no Latin letters or digits to nothing', () => {
-        expect(titleName('東京')).toBe('');
+    it('keeps letters of any script, so a non-Latin qualifier stays apart', () => {
+        expect(titleName('東京')).toBe('東京');
+        expect(titleName('Paper Lanterns (ライブ)')).not.toBe(titleName('Paper Lanterns'));
+    });
+
+    it('reduces a title of nothing but punctuation to nothing', () => {
+        expect(titleName('???')).toBe('');
+    });
+});
+
+describe('sharesAnAct', () => {
+
+    it('accepts the same act however the tag spells it', () => {
+        expect(sharesAnAct('ARTIST', ['Artist'])).toBe(true);
+        expect(sharesAnAct('Band‐99', ['Band-99'])).toBe(true);
+    });
+
+    it('accepts a tag that adds acts to a credited one', () => {
+        expect(sharesAnAct('First Act & Second Act & Third Act', ['First Act & Second Act', 'Other Act'])).toBe(true);
+        expect(sharesAnAct('Artist & Guest', ['Artist'])).toBe(true);
+    });
+
+    it('reads "and" and "feat." as joining acts', () => {
+        expect(sharesAnAct('Artist and Guest', ['Artist', 'Guest'])).toBe(true);
+        expect(sharesAnAct('Artist feat. Guest', ['Artist'])).toBe(true);
+    });
+
+    it('rejects a name that only contains a credited act', () => {
+        expect(sharesAnAct('Artist Tribute Band', ['Artist'])).toBe(false);
     });
 });
