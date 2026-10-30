@@ -48,6 +48,17 @@ function plainWords(text: string) {
         .trim();
 }
 
+/** Words of any script, accents dropped off Latin letters only: "Café" reads "cafe", "ライブ" stays apart from "ライフ". */
+function foldedWords(text: string) {
+    return text
+        .normalize('NFKD')
+        .replace(/(\p{Script=Latin})\p{M}+/gu, '$1')
+        .normalize('NFC')
+        .toLowerCase()
+        .replace(/[^\p{L}\p{M}\p{N}]+/gu, ' ')
+        .trim();
+}
+
 /**
  * The individual acts named in a credit string, so that
  * "Dimitri Vegas & Like Mike Vs.W&W" and its two credited artists reduce to the
@@ -57,7 +68,7 @@ function actNames(text: string) {
     return text
         .toLowerCase()
         .split(ACT_SEPARATOR)
-        .map(part => plainWords(part))
+        .map(part => foldedWords(part))
         .filter(part => part.length > 0);
 }
 
@@ -86,7 +97,7 @@ function creditedActs(credits: string[]) {
             credited.add(name);
 
         // The unsplit name too, so "Chase & Status" matches as the one act it is
-        const whole = plainWords(credit);
+        const whole = foldedWords(credit);
         if (whole)
             credited.add(whole);
     }
@@ -155,15 +166,10 @@ export function titleName(title: string) {
     const name = title
         .replace(BRACKETED, (whole: string, round?: string, square?: string, curly?: string) => unlessShort(whole, round ?? square ?? curly))
         .replace(TRAILING_DASH, (whole: string, dashed?: string) => unlessShort(whole, dashed))
-        .normalize('NFKD')
-        .replace(/\p{M}/gu, '')
         .replace(/&/g, ' and ');
 
     // Letters of any script count, so "(ライブ)" keeps its edit apart from the plain title
-    return name
-        .toLowerCase()
-        .replace(/[^\p{L}\p{N}]+/gu, ' ')
-        .trim();
+    return foldedWords(name);
 }
 
 /**

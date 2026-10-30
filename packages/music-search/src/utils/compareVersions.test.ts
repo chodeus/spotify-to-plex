@@ -160,6 +160,12 @@ describe('titleName', () => {
         expect(titleName('Paper Lanterns (ライブ)')).not.toBe(titleName('Paper Lanterns'));
     });
 
+    it('drops accents only off Latin letters, so marks that change a letter elsewhere stay', () => {
+        expect(titleName('Paper Lanterns (ライブ)')).toBe('paper lanterns ライブ');
+        expect(titleName('Paper Lanterns (ライブ)')).not.toBe(titleName('Paper Lanterns (ライフ)'));
+        expect(titleName('किताब')).not.toBe(titleName('कुताब'));
+    });
+
     it('reduces a title of nothing but punctuation to nothing', () => {
         expect(titleName('???')).toBe('');
     });
@@ -182,7 +188,13 @@ describe('sharesAnAct', () => {
         expect(sharesAnAct('Artist feat. Guest', ['Artist'])).toBe(true);
     });
 
+    it('accepts an act named in any script, or with accents only one side spells', () => {
+        expect(sharesAnAct('紙灯籠', ['紙灯籠'])).toBe(true);
+        expect(sharesAnAct('Café Band', ['Cafe Band'])).toBe(true);
+    });
+
     it('rejects a name that only contains a credited act', () => {
         expect(sharesAnAct('Artist Tribute Band', ['Artist'])).toBe(false);
+        expect(sharesAnAct('紙灯籠Artist', ['Artist'])).toBe(false);
     });
 });
