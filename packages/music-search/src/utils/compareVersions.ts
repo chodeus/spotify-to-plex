@@ -1,8 +1,8 @@
 import { getState } from "../functions/state/getState";
 
-// "(radio edit)", "[live]", "{dub}" and the trailing " - Radio Edit" form Spotify uses
+// "(radio edit)", "[live]", "{dub}" and the trailing " - Radio Edit" form Spotify uses; Plex tags also use "–" and "—"
 const BRACKETED = /\(([^)]*)\)|\[([^\]]*)]|{([^}]*)}/g;
-const TRAILING_DASH = /\s-\s(.+)$/;
+const TRAILING_DASH = /\s[–—-]\s(.+)$/;
 
 // "(feat. X)", "(with X)", "(& X)" - a credit, not a version of the recording
 const CREDIT = /^(?:feat|feats|featuring|ft|with|w)\b|^[&+]/;

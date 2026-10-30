@@ -120,6 +120,11 @@ describe('versionsMatch', () => {
         });
     });
 
+    it('reads a version set apart by an en or em dash, as Plex tags write it', () => {
+        expect(match('Paper Lanterns – Other Remix', 'Paper Lanterns')).toBe(false);
+        expect(match('Paper Lanterns – Other Remix', 'Paper Lanterns - Other Remix')).toBe(true);
+    });
+
     it('treats a missing title as no answer rather than a match', () => {
         expect(versionsMatch('', 'Cinema (Skrillex Remix)', FILTER_OUT_WORDS).match).toBe(false);
     });
@@ -131,6 +136,8 @@ describe('titleName', () => {
         expect(titleName('Paper Lanterns (Radio Edit)')).toBe('paper lanterns');
         expect(titleName('Paper Lanterns - Radio Edit')).toBe('paper lanterns');
         expect(titleName('Paper Lanterns (feat. Someone) - Radio Edit')).toBe('paper lanterns');
+        expect(titleName('Paper Lanterns – Radio Edit')).toBe('paper lanterns');
+        expect(titleName('Paper Lanterns — Radio Edit')).toBe('paper lanterns');
     });
 
     it('keeps words that are part of the name', () => {
