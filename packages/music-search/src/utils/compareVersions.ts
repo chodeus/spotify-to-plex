@@ -41,6 +41,11 @@ function removeWord(text: string, word: string) {
     return text.replace(pattern, ' ');
 }
 
+/** A text without the given noise words, each removed only where it stands whole. */
+export function withoutWords(text: string, words: string[]) {
+    return words.reduce((result, word) => removeWord(result, word), text.toLowerCase());
+}
+
 function plainWords(text: string) {
     return text
         .toLowerCase()

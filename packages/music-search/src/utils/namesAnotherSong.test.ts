@@ -20,6 +20,15 @@ describe('namesAnotherSong', () => {
         expect(namesAnotherSong(wanted('Paper Lanterns - Radio Edit', 210), candidate('Other Paper Lanterns (Radio Edit)', 256))).toBe(true);
     });
 
+    it('reads both names without the noise words a filtered query drops', () => {
+        expect(namesAnotherSong(wanted('Paper Lanterns Radio Edit', 330), candidate('Other Paper Lanterns', 256), ['radio edit'])).toBe(true);
+        expect(namesAnotherSong(wanted('Paper Lanterns', 330), candidate('Other Paper Lanterns Radio Edit', 256), ['radio edit'])).toBe(true);
+    });
+
+    it('never reads a noise word in front of the name as a title of its own', () => {
+        expect(namesAnotherSong(wanted('Paper Lanterns', 330), candidate('Remastered Paper Lanterns', 256), ['remastered'])).toBe(false);
+    });
+
     it('keeps a longer name at the wanted length', () => {
         expect(namesAnotherSong(wanted('Paper Lanterns', 330), candidate('Other Paper Lanterns', 325))).toBe(false);
     });

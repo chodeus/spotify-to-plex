@@ -206,6 +206,13 @@ describe('search', () => {
         expect(response?.failed).toBeUndefined();
     });
 
+    it('reads the wanted name without the noise words the filtered query drops', async () => {
+        // The filtered approach queries "paper lanterns"; Spotify's title keeps its unbracketed "Radio Edit"
+        plexAnswers({ 'paper lanterns': [copy('21', 'Other Paper Lanterns', 256)] });
+
+        expect(await resultKeys(configWith(GUARDED, [{ id: 'filtered', filtered: true }]), wanted('Paper Lanterns Radio Edit', 330))).toEqual([]);
+    });
+
     it('still takes an edit whose tag carries no brackets', async () => {
         plexAnswers({ 'paper lanterns': [copy('20', 'Paper Lanterns Radio Edit', 210)] });
 

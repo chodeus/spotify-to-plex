@@ -6,11 +6,15 @@ import { compareVersions } from "../utils/compareVersions";
 import { isWantedEdit } from "../utils/isWantedEdit";
 import { namesAnotherSong } from "../utils/namesAnotherSong";
 import { getRuntimeFilters } from "./getRuntimeFilters";
+import { getState } from "./state/getState";
 
 export function search(find: Track, options: Track[], analyze: boolean = false) {
     const matchFilters = getRuntimeFilters();
     if (matchFilters.length == 0)
         throw new Error("No match filters found");
+
+    const noiseWords = getState().musicSearchConfig?.textProcessing?.filterOutWords ?? [];
+    const isAnotherSong = (item: Track) => namesAnotherSong(find, item, noiseWords);
 
     const results: Track[] = options
         .map(item => {
@@ -48,7 +52,7 @@ export function search(find: Track, options: Track[], analyze: boolean = false) 
         return results
             .map(item => {
 
-                const isMatchingApproach = matchFilters.some(filter => filter.filter(item)) && !namesAnotherSong(find, item);
+                const isMatchingApproach = matchFilters.some(filter => filter.filter(item)) && !isAnotherSong(item);
                 if (!item.matching)
                     return null;
 
@@ -68,7 +72,7 @@ export function search(find: Track, options: Track[], analyze: boolean = false) 
     // so the first filter with a match is kept only until one finds the wanted edit
     let fallback: Track[] = [];
     // title:contains reads "Paper Lanterns" in "Other Paper Lanterns", which would otherwise pass another song
-    const candidates = results.filter(item => !namesAnotherSong(find, item));
+    const candidates = results.filter(item => !isAnotherSong(item));
 
     for (let i = 0; i < matchFilters.length; i++) {
         const matchFilter = matchFilters[i];
