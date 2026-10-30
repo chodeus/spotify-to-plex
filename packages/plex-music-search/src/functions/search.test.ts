@@ -8,6 +8,7 @@ vi.mock('../utils/searching/searchForTrack', () => ({ searchForTrack: vi.fn() })
 
 const { searchForTrack } = await import('../utils/searching/searchForTrack');
 const { search } = await import('./search');
+const { analyze } = await import('./analyze');
 
 const searchForTrackMock = searchForTrack as unknown as Mock;
 
@@ -193,6 +194,38 @@ describe('search', () => {
 
         expect(response?.result).toEqual([]);
         expect(response?.failed).toBe(true);
+    });
+
+    it('leaves the track missing rather than take another song whose name holds its own', async () => {
+        // "Other Paper Lanterns" passes title:contains, and its length clears the 0.65 guard
+        plexAnswers({ 'paper lanterns': [copy('18', 'Other Paper Lanterns', 256)] });
+
+        const [response] = await search(configWith(GUARDED, [{ id: 'normal' }]), [wanted('Paper Lanterns', 330)]);
+
+        expect(response?.result).toEqual([]);
+        expect(response?.failed).toBeUndefined();
+    });
+
+    it('reads the wanted name without the noise words the filtered query drops', async () => {
+        // The filtered approach queries "paper lanterns"; Spotify's title keeps its unbracketed "Radio Edit"
+        plexAnswers({ 'paper lanterns': [copy('21', 'Other Paper Lanterns', 256)] });
+
+        expect(await resultKeys(configWith(GUARDED, [{ id: 'filtered', filtered: true }]), wanted('Paper Lanterns Radio Edit', 330))).toEqual([]);
+    });
+
+    it('still takes an edit whose tag carries no brackets', async () => {
+        plexAnswers({ 'paper lanterns': [copy('20', 'Paper Lanterns Radio Edit', 210)] });
+
+        expect(await resultKeys(configWith(GUARDED, [{ id: 'normal' }]), wanted('Paper Lanterns', 300))).toEqual(['20']);
+    });
+
+    it('shows that other song as no match in the analyzer', async () => {
+        plexAnswers({ 'paper lanterns': [copy('18', 'Other Paper Lanterns', 256), copy('19', 'Paper Lanterns', 325)] });
+
+        const response = await analyze(configWith(GUARDED, [{ id: 'normal' }]), wanted('Paper Lanterns', 330));
+        const passes = Object.fromEntries((response.queries[0]?.result ?? []).map(item => [item.id.split('/').pop(), item.matching?.isMatchingApproach]));
+
+        expect(passes).toEqual({ 18: false, 19: true });
     });
 
 });

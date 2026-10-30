@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { durationSimilarity, durationsAgree, durationsContradict } from './durationSimilarity';
+import { durationSimilarity, durationsAgree, durationsContradict, durationsDiffer } from './durationSimilarity';
 
 describe('durationSimilarity', () => {
 
@@ -75,6 +75,28 @@ describe('durationsAgree', () => {
     it('never agrees without both durations', () => {
         expect(durationsAgree(undefined, 300_000)).toBe(false);
         expect(durationsAgree(210_000, 0)).toBe(false);
+    });
+
+});
+
+describe('durationsDiffer', () => {
+
+    it('tells a radio edit from its extended mix', () => {
+        expect(durationsDiffer(210_000, 300_000)).toBe(true);
+    });
+
+    it('accepts a remaster or fade a few seconds off', () => {
+        expect(durationsDiffer(300_000, 292_000)).toBe(false);
+    });
+
+    it('draws the line at 0.97', () => {
+        expect(durationsDiffer(100_000, 104_000)).toBe(true);
+        expect(durationsDiffer(100_000, 103_000)).toBe(false);
+    });
+
+    it('never differs without both durations', () => {
+        expect(durationsDiffer(undefined, 300_000)).toBe(false);
+        expect(durationsDiffer(210_000, 0)).toBe(false);
     });
 
 });

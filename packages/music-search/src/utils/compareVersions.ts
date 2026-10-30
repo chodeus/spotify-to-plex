@@ -36,9 +36,15 @@ function escapeForRegex(word: string) {
  * "Germaine", "clean" out of "cleaner" - and silently invent a version match
  */
 function removeWord(text: string, word: string) {
-    const pattern = new RegExp(String.raw`\b${escapeForRegex(word.toLowerCase())}\b`, 'g');
+    // Edges of any script: \b knows only ASCII, so it never finds a word like "リマスター"
+    const pattern = new RegExp(String.raw`(?<![\p{L}\p{M}\p{N}_])${escapeForRegex(word.toLowerCase())}(?![\p{L}\p{M}\p{N}_])`, 'gu');
 
     return text.replace(pattern, ' ');
+}
+
+/** A text without the given noise words, each removed only where it stands whole. */
+export function withoutWords(text: string, words: string[]) {
+    return words.reduce((result, word) => removeWord(result, word), text.toLowerCase());
 }
 
 function plainWords(text: string) {

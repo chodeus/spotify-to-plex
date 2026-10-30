@@ -73,6 +73,10 @@ describe('versionsMatch', () => {
             expect(match('Decode', 'Decode - Twilight Soundtrack Version', ['Paramore'])).toBe(false);
         });
 
+        it('never reads a noise word inside a longer word as that word', () => {
+            expect(match('Paper Lanterns (Cleaner)', 'Paper Lanterns')).toBe(false);
+        });
+
         it('rejects the original offered for a remix', () => {
             expect(match('Swimming Pools (Drank) (Black Hippy remix)', 'Swimming Pools (Drank)', ['Kendrick Lamar'])).toBe(false);
             expect(match('Tipsy (clean)', 'Tipsy - Club Mix', ['J-Kwon'])).toBe(false);
