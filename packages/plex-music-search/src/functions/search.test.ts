@@ -28,7 +28,7 @@ const configWith = (matchFilters: string[], searchApproaches = NORMAL_THEN_TRIMM
     }
 });
 
-const copy = (key: string, title: string, seconds: number, album = 'Paper Lanterns'): HubSearchResult => ({
+const copy = (key: string, title: string, seconds: number, album = 'Paper Lanterns', artist = 'Artist'): HubSearchResult => ({
     type: 'track',
     id: `/library/metadata/${key}`,
     ratingKey: key,
@@ -38,7 +38,7 @@ const copy = (key: string, title: string, seconds: number, album = 'Paper Lanter
     title,
     duration_ms: seconds * 1000,
     album: { guid: '', id: '', title: album, year: 2020, image: '' },
-    artist: { guid: '', id: '', title: 'Artist', image: '' }
+    artist: { guid: '', id: '', title: artist, image: '' }
 });
 
 const ALBUM_MIX = copy('1', 'Paper Lanterns', 300);
@@ -102,6 +102,21 @@ describe('search', () => {
         plexAnswers({ 'paper lanterns - radio edit': [ALBUM_MIX], 'paper lanterns': [copy('4', 'Paper Lanterns (Other Remix)', 210)] });
 
         expect(await resultKeys(configWith(['artist:match AND title:contains']), wanted('Paper Lanterns - Radio Edit', 210))).toEqual(['1']);
+    });
+
+    it('never trades the found part of a suite for another part that is merely the same length', async () => {
+        // "- II" passes title:contains against "- I", and both qualifiers are too short to be versions
+        plexAnswers({ 'paper lanterns - i': [copy('9', 'Paper Lanterns - I', 300), copy('10', 'Paper Lanterns - II', 210)] });
+
+        expect(await resultKeys(configWith(GUARDED, [{ id: 'normal' }]), wanted('Paper Lanterns - I', 210))).toEqual(['9']);
+    });
+
+    it('never trades the found copy for another act\'s copy that is merely the same length', async () => {
+        // The second filter does not ask for the artist
+        plexAnswers({ 'paper lanterns': [ALBUM_MIX, copy('11', 'Paper Lanterns (Radio Edit)', 210, 'Paper Lanterns', 'Someone Else')] });
+        const config = configWith(['artist:match AND title:match', 'title:contains'], [{ id: 'trimmed', trim: true }]);
+
+        expect(await resultKeys(config, wanted('Paper Lanterns - Radio Edit', 210))).toEqual(['1']);
     });
 
     it('never reads two titles with no Latin letters as one name', async () => {

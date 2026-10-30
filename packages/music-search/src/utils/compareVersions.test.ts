@@ -137,6 +137,12 @@ describe('titleName', () => {
         expect(titleName('Paper Lanterns Forever')).toBe('paper lanterns forever');
     });
 
+    it('keeps a qualifier too short to name a version, so numbered parts stay apart', () => {
+        expect(titleName('Paper Lanterns - I')).toBe('paper lanterns i');
+        expect(titleName('Paper Lanterns - II')).toBe('paper lanterns ii');
+        expect(titleName('Paper Lanterns (2)')).toBe('paper lanterns 2');
+    });
+
     it('reads "&" as "and" and drops accents, as Plex and Spotify spell one name both ways', () => {
         expect(titleName('Salt & Pepper')).toBe(titleName('Salt and Pepper'));
         expect(titleName('Café Nights')).toBe(titleName('Cafe Nights'));

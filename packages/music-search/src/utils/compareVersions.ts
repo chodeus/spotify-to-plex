@@ -135,9 +135,11 @@ function titleStatesVersion(title: string, version: string) {
 
 /** A title without its qualifiers: "Song (Radio Edit)" and "Song - Radio Edit" are both "song". */
 export function titleName(title: string) {
+    // A qualifier too short to name a version stays, or "Suite - I" and "Suite - II" become one name
+    const unlessShort = (whole: string, inner = '') => (plainWords(inner).length < MIN_QUALIFIER_LENGTH ? whole : ' ');
     const name = title
-        .replace(BRACKETED, ' ')
-        .replace(TRAILING_DASH, ' ')
+        .replace(BRACKETED, (whole: string, round?: string, square?: string, curly?: string) => unlessShort(whole, round ?? square ?? curly))
+        .replace(TRAILING_DASH, (whole: string, dashed?: string) => unlessShort(whole, dashed))
         .normalize('NFKD')
         .replace(/\p{M}/gu, '')
         .replace(/&/g, ' and ');

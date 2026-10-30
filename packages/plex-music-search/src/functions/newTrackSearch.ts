@@ -53,7 +53,7 @@ export async function newTrackSearch(approaches: PlexMusicSearchApproach[], sear
                     firstResult = searchResult.result;
 
                 // A looser approach can still turn up the radio edit when a stricter one found only the extended mix
-                if (finalResult.length > 0 || !isWantedEdit(wanted, best))
+                if (finalResult.length > 0 || !isWantedEdit(wanted, { title: best.title, artist: best.artist.title, duration_ms: best.duration_ms }))
                     continue;
 
                 finalResult = searchResult.result;
