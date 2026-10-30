@@ -206,6 +206,12 @@ describe('search', () => {
         expect(response?.failed).toBeUndefined();
     });
 
+    it('still takes an edit whose tag carries no brackets', async () => {
+        plexAnswers({ 'paper lanterns': [copy('20', 'Paper Lanterns Radio Edit', 210)] });
+
+        expect(await resultKeys(configWith(GUARDED, [{ id: 'normal' }]), wanted('Paper Lanterns', 300))).toEqual(['20']);
+    });
+
     it('shows that other song as no match in the analyzer', async () => {
         plexAnswers({ 'paper lanterns': [copy('18', 'Other Paper Lanterns', 256), copy('19', 'Paper Lanterns', 325)] });
 

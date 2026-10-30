@@ -6,9 +6,14 @@ const candidate = (title: string, seconds?: number) => ({ title, duration_ms: se
 
 describe('namesAnotherSong', () => {
 
-    it('reads a name that adds words to the wanted one, at another length, as another song', () => {
+    it('reads a name that puts words in front of the wanted one, at another length, as another song', () => {
         expect(namesAnotherSong(wanted('Paper Lanterns', 330), candidate('Other Paper Lanterns', 256))).toBe(true);
-        expect(namesAnotherSong(wanted('Paper Lanterns', 330), candidate('Paper Lanterns Forever', 256))).toBe(true);
+        expect(namesAnotherSong(wanted('Paper Lanterns', 330), candidate('Other Paper Lanterns Forever', 256))).toBe(true);
+    });
+
+    it('leaves words after the wanted name to the filters, as tags write an edit without brackets', () => {
+        expect(namesAnotherSong(wanted('Paper Lanterns', 300), candidate('Paper Lanterns Radio Edit', 210))).toBe(false);
+        expect(namesAnotherSong(wanted('Paper Lanterns', 330), candidate('Paper Lanterns Forever', 256))).toBe(false);
     });
 
     it('reads both names without their qualifiers', () => {
@@ -24,13 +29,13 @@ describe('namesAnotherSong', () => {
     });
 
     it('matches the wanted name as whole words only', () => {
-        expect(namesAnotherSong(wanted('Paper Lantern', 330), candidate('Paper Lanterns', 256))).toBe(false);
+        expect(namesAnotherSong(wanted('Lanterns', 330), candidate('Paperlanterns', 256))).toBe(false);
     });
 
     it('reads the title Spotify gave, not the query an approach cut from it', () => {
-        const filtered = { title: 'paper lanterns', originalTitle: 'Paper Lanterns Radio Edit', duration_ms: 330_000 };
+        const cut = { title: 'paper lanterns', originalTitle: 'Other Paper Lanterns', duration_ms: 330_000 };
 
-        expect(namesAnotherSong(filtered, candidate('Paper Lanterns Radio Edit', 256))).toBe(false);
+        expect(namesAnotherSong(cut, candidate('Other Paper Lanterns', 256))).toBe(false);
     });
 
     it('never judges without both lengths', () => {

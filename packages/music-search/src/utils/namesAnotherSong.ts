@@ -2,12 +2,12 @@ import { durationsDiffer } from '@spotify-to-plex/shared-utils/music/durationSim
 import { Track } from '../types/Track';
 import { titleName } from './compareVersions';
 
-/** The candidate's name is the wanted name with words added, at another length: "Other Paper Lanterns" is not "Paper Lanterns". */
+/** The candidate's name puts words in front of the wanted name, at another length: "Other Paper Lanterns" is not "Paper Lanterns". */
 export function namesAnotherSong(wanted: Pick<Track, 'title' | 'originalTitle' | 'duration_ms'>, candidate: Pick<Track, 'title' | 'duration_ms'>) {
     const name = titleName(wanted.originalTitle ?? wanted.title);
     const candidateName = titleName(candidate.title);
 
-    return candidateName !== name
-        && ` ${candidateName} `.includes(` ${name} `)
+    // From index 1: words after the name may be an edit a tag writes without brackets ("Paper Lanterns Radio Edit")
+    return ` ${candidateName} `.includes(` ${name} `, 1)
         && durationsDiffer(wanted.duration_ms, candidate.duration_ms);
 }
