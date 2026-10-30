@@ -29,6 +29,10 @@ describe('namesAnotherSong', () => {
         expect(namesAnotherSong(wanted('Paper Lanterns', 330), candidate('Remastered Paper Lanterns', 256), ['remastered'])).toBe(false);
     });
 
+    it('drops a noise word written in any script', () => {
+        expect(namesAnotherSong(wanted('Paper Lanterns', 330), candidate('リマスター Paper Lanterns', 256), ['リマスター'])).toBe(false);
+    });
+
     it('keeps a longer name at the wanted length', () => {
         expect(namesAnotherSong(wanted('Paper Lanterns', 330), candidate('Other Paper Lanterns', 325))).toBe(false);
     });
