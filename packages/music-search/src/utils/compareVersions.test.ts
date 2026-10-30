@@ -47,6 +47,7 @@ describe('versionsMatch', () => {
             expect(match('Song – Live 1986', 'Song - Live 1986')).toBe(true);
             expect(match('Song — Live 1986', 'Song - Live 1986')).toBe(true);
             expect(match('Song: Live 1986', 'Song - Live 1986')).toBe(true);
+            expect(match('Song – Live 1986', 'Song - Live')).toBe(true);
             expect(match('Here Comes the Sun 2019 Mix', 'Here Comes the Sun - 2019 Mix')).toBe(true);
         });
 
@@ -148,6 +149,12 @@ describe('titleName', () => {
         expect(titleName('Paper Lanterns - I')).toBe('paper lanterns i');
         expect(titleName('Paper Lanterns - II')).toBe('paper lanterns ii');
         expect(titleName('Paper Lanterns (2)')).toBe('paper lanterns 2');
+        expect(titleName('Paper Lanterns - I - Radio Edit')).toBe('paper lanterns i');
+        expect(titleName('Paper Lanterns - II - Radio Edit')).toBe('paper lanterns ii');
+    });
+
+    it('drops every dash qualifier long enough to name a version', () => {
+        expect(titleName('Paper Lanterns - Live - Radio Edit')).toBe('paper lanterns');
     });
 
     it('reads "&" as "and" and drops accents, as Plex and Spotify spell one name both ways', () => {

@@ -2,7 +2,8 @@ import { getState } from "../functions/state/getState";
 
 // "(radio edit)", "[live]", "{dub}" and the trailing " - Radio Edit" form Spotify uses; Plex tags also use "–" and "—"
 const BRACKETED = /\(([^)]*)\)|\[([^\]]*)]|{([^}]*)}/g;
-const TRAILING_DASH = /\s[–—-]\s(.+)$/;
+const DASH = /\s[–—-]\s/;
+const TRAILING_DASH = new RegExp(`${DASH.source}(.+)$`);
 
 // "(feat. X)", "(with X)", "(& X)" - a credit, not a version of the recording
 const CREDIT = /^(?:feat|feats|featuring|ft|with|w)\b|^[&+]/;
@@ -11,7 +12,7 @@ const PROVENANCE = /^from\b/;
 const YEAR = /\b(?:19|20)\d{2}\b/g;
 const YEAR_ONLY = /^\s*(?:19|20)\d{2}\s*$/;
 // Tags set a qualifier apart with an en or em dash or a colon as often as with " - "
-const QUALIFIER_TAIL = /\s[–—-]\s(.+)$|:\s(.+)$/;
+const QUALIFIER_TAIL = new RegExp(String.raw`${DASH.source}(.+)$|:\s(.+)$`);
 // "03 - Stronger" is a track number in a tag, not "Stronger" as a version
 const TRACK_NUMBER = /^\s*\d+\s*$/;
 // Acts get joined many ways - "A & B", "A x B", "A Vs. B" - and each side is a
@@ -162,14 +163,17 @@ function titleStatesVersion(title: string, version: string) {
 /** A title without its qualifiers: "Song (Radio Edit)" and "Song - Radio Edit" are both "song". */
 export function titleName(title: string) {
     // A qualifier too short to name a version stays, or "Suite - I" and "Suite - II" become one name
-    const unlessShort = (whole: string, inner = '') => (plainWords(inner).length < MIN_QUALIFIER_LENGTH ? whole : ' ');
-    const name = title
-        .replace(BRACKETED, (whole: string, round?: string, square?: string, curly?: string) => unlessShort(whole, round ?? square ?? curly))
-        .replace(TRAILING_DASH, (whole: string, dashed?: string) => unlessShort(whole, dashed))
-        .replace(/&/g, ' and ');
+    const isShort = (qualifier = '') => plainWords(qualifier).length < MIN_QUALIFIER_LENGTH;
+    const parts = title
+        .replace(BRACKETED, (whole: string, round?: string, square?: string, curly?: string) => (isShort(round ?? square ?? curly) ? whole : ' '))
+        .split(DASH);
+
+    // From the end, so "Suite - I - Radio Edit" keeps its "I"
+    while (parts.length > 1 && !isShort(parts.at(-1)))
+        parts.pop();
 
     // Letters of any script count, so "(ライブ)" keeps its edit apart from the plain title
-    return foldedWords(name);
+    return foldedWords(parts.join(' ').replace(/&/g, ' and '));
 }
 
 /**

@@ -125,6 +125,13 @@ describe('search', () => {
         expect(await resultKeys(configWith(GUARDED, [{ id: 'normal' }]), wanted('Paper Lanterns - I', 210))).toEqual(['9']);
     });
 
+    it('never trades the found part of a suite for another part when an edit follows the part', async () => {
+        // Trimmed to "paper lanterns - i": part I passes title:match, part II only the later title:contains
+        plexAnswers({ 'paper lanterns - i': [copy('16', 'Paper Lanterns - I', 300), copy('17', 'Paper Lanterns - II - Radio Edit', 210)] });
+
+        expect(await resultKeys(configWith(GUARDED, [{ id: 'trimmed', trim: true }]), wanted('Paper Lanterns - I - Radio Edit', 210))).toEqual(['16']);
+    });
+
     it('never trades the found copy for another act\'s copy that is merely the same length', async () => {
         // The second filter does not ask for the artist
         plexAnswers({ 'paper lanterns': [ALBUM_MIX, copy('11', 'Paper Lanterns (Radio Edit)', 210, 'Paper Lanterns', 'Someone Else')] });
