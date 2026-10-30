@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { versionsMatch } from './compareVersions';
+import { titleName, versionsMatch } from './compareVersions';
 
 // The noise words configured on the instance these cases were measured against
 const FILTER_OUT_WORDS = [
@@ -122,5 +122,27 @@ describe('versionsMatch', () => {
 
     it('treats a missing title as no answer rather than a match', () => {
         expect(versionsMatch('', 'Cinema (Skrillex Remix)', FILTER_OUT_WORDS).match).toBe(false);
+    });
+});
+
+describe('titleName', () => {
+
+    it('reads a bracketed and a dashed qualifier off the same name', () => {
+        expect(titleName('Paper Lanterns (Radio Edit)')).toBe('paper lanterns');
+        expect(titleName('Paper Lanterns - Radio Edit')).toBe('paper lanterns');
+        expect(titleName('Paper Lanterns (feat. Someone) - Radio Edit')).toBe('paper lanterns');
+    });
+
+    it('keeps words that are part of the name', () => {
+        expect(titleName('Paper Lanterns Forever')).toBe('paper lanterns forever');
+    });
+
+    it('reads "&" as "and" and drops accents, as Plex and Spotify spell one name both ways', () => {
+        expect(titleName('Salt & Pepper')).toBe(titleName('Salt and Pepper'));
+        expect(titleName('Café Nights')).toBe(titleName('Cafe Nights'));
+    });
+
+    it('reduces a title with no Latin letters or digits to nothing', () => {
+        expect(titleName('東京')).toBe('');
     });
 });

@@ -133,6 +133,18 @@ function titleStatesVersion(title: string, version: string) {
     return version.split(' ').every(word => words.has(word));
 }
 
+/** A title without its qualifiers: "Song (Radio Edit)" and "Song - Radio Edit" are both "song". */
+export function titleName(title: string) {
+    const name = title
+        .replace(BRACKETED, ' ')
+        .replace(TRAILING_DASH, ' ')
+        .normalize('NFKD')
+        .replace(/\p{M}/gu, '')
+        .replace(/&/g, ' and ');
+
+    return plainWords(name);
+}
+
 /**
  * The version qualifier of a title - "acoustic", "jauz remix", "uk edit" - or ''
  * when the title names no particular version. Credits, provenance and words the

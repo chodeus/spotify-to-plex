@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { durationSimilarity, durationsContradict } from './durationSimilarity';
+import { durationSimilarity, durationsContradict, durationsDiffer } from './durationSimilarity';
 
 describe('durationSimilarity', () => {
 
@@ -51,6 +51,30 @@ describe('durationsContradict', () => {
     it('never flags a pair with a duration missing', () => {
         expect(durationsContradict(undefined, 522_000)).toBe(false);
         expect(durationsContradict(183_000, 0)).toBe(false);
+    });
+
+});
+
+describe('durationsDiffer', () => {
+
+    it('flags a radio edit against its extended mix', () => {
+        // 3:30 radio edit against a 5:00 album mix: close enough to clear durationsContradict
+        expect(durationsContradict(210_000, 300_000)).toBe(false);
+        expect(durationsDiffer(210_000, 300_000)).toBe(true);
+    });
+
+    it('accepts a remaster or fade a few seconds off', () => {
+        expect(durationsDiffer(300_000, 292_000)).toBe(false);
+    });
+
+    it('draws the line at 0.97', () => {
+        expect(durationsDiffer(100_000, 104_000)).toBe(true);
+        expect(durationsDiffer(100_000, 103_000)).toBe(false);
+    });
+
+    it('never flags a pair with a duration missing', () => {
+        expect(durationsDiffer(undefined, 300_000)).toBe(false);
+        expect(durationsDiffer(210_000, 0)).toBe(false);
     });
 
 });

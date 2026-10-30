@@ -1,5 +1,6 @@
 import { search as musicSearch } from "@spotify-to-plex/music-search/functions/search";
 import { filterOutWords } from "@spotify-to-plex/music-search/utils/filterOutWords";
+import { isWantedEdit } from "@spotify-to-plex/music-search/utils/isWantedEdit";
 import { Track } from "@spotify-to-plex/music-search/types/Track";
 import { PlexMusicSearchApproach } from "../types/PlexMusicSearchApproach";
 import { PlexMusicSearchTrack } from "../types/PlexMusicSearchTrack";
@@ -21,15 +22,15 @@ export async function newTrackSearch(approaches: PlexMusicSearchApproach[], sear
 
     const allQueries: SearchQuery[] = [];
     let finalResult: PlexTrack[] = [];
+    // Used only when no approach finds the wanted edit
+    let firstResult: PlexTrack[] = [];
     // A query Plex did not answer might have found the track, so an empty result then says nothing
     let errored = false;
+    const wanted = { title, artist: artists[0] || '', artists, duration_ms };
 
     try {
         // NEW: Loop through approaches first, then artists
         for (const approach of approaches) {
-            if (finalResult.length > 0 && !analyze)
-                break; // Early exit if we found results and not analyzing
-
             // For each approach, try all artist variations
             for (const artist of artistVariations) {
 
@@ -44,7 +45,15 @@ export async function newTrackSearch(approaches: PlexMusicSearchApproach[], sear
 
                 allQueries.push(...searchResult.queries);
 
-                if (searchResult.result.length == 0)
+                const [best] = searchResult.result;
+                if (!best)
+                    continue;
+
+                if (firstResult.length == 0)
+                    firstResult = searchResult.result;
+
+                // A looser approach can still turn up the radio edit when a stricter one found only the extended mix
+                if (finalResult.length > 0 || !isWantedEdit(wanted, best))
                     continue;
 
                 finalResult = searchResult.result;
@@ -63,6 +72,8 @@ export async function newTrackSearch(approaches: PlexMusicSearchApproach[], sear
             }
         }
 
+        const result = finalResult.length > 0 ? finalResult : firstResult;
+
         return {
             id,
             artist: artists[0] || '',
@@ -70,8 +81,8 @@ export async function newTrackSearch(approaches: PlexMusicSearchApproach[], sear
             album: album || "",
             duration_ms,
             queries: allQueries,
-            result: finalResult,
-            ...(errored && finalResult.length == 0 ? { failed: true } : {})
+            result,
+            ...(errored && result.length == 0 ? { failed: true } : {})
         };
 
     } catch (_e) {
