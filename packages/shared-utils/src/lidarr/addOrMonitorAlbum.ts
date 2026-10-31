@@ -90,6 +90,8 @@ function addRequest(lidarrAlbum: LidarrLookupResult, settings: LidarrAddSettings
             metadataProfileId: settings.metadata_profile_id,
             rootFolderPath: settings.root_folder_path,
             monitored: true,
+            // Unset means All: every album a later refresh finds would come in monitored
+            monitorNewItems: "none",
             addOptions: {
                 monitor: "none",
                 monitored: true,
