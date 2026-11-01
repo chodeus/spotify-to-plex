@@ -31,9 +31,9 @@
         "access": "restricted"
     },
     "devDependencies": {
-        "typescript": "^5.9.3"
+        "typescript": "^7.0.2"
     },
     "peerDependencies": {
-        "typescript": ">=5.9.3"
+        "typescript": ">=7.0.2"
     }
 }
