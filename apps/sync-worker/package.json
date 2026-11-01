@@ -38,15 +38,15 @@
         "@spotify-to-plex/slskd-music-search": "workspace:*",
         "@spotify-to-plex/tidal-music-search": "workspace:*",
         "@spotify/web-api-ts-sdk": "^1.2.0",
-        "axios": "^1.20.0",
+        "axios": "^1.21.0",
         "mqtt": "^5.16.1",
         "node-cron": "^4.6.0",
         "tsx": "^4.23.15"
     },
     "devDependencies": {
         "@types/node": "^24.19.2",
-        "dotenv-cli": "^11.0.0",
-        "eslint": "^10.13.0",
+        "dotenv-cli": "^11.1.0",
+        "eslint": "^10.14.0",
         "typescript": "^5.9.3",
         "vite": "^7.3.7",
         "vitest": "^5.0.5"

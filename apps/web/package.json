@@ -27,7 +27,7 @@
     "@spotify-to-plex/slskd-music-search": "workspace:*",
     "@spotify-to-plex/tidal-music-search": "workspace:*",
     "@spotify/web-api-ts-sdk": "^1.2.0",
-    "axios": "^1.20.0",
+    "axios": "^1.21.0",
     "moment": "^2.31.0",
     "next": "^15.5.28",
     "next-connect": "^1.0.0",
@@ -36,14 +36,14 @@
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-selection-manager": "^0.0.6",
-    "sass": "^1.106.1"
+    "sass": "^1.107.1"
   },
   "devDependencies": {
     "@types/node": "^24.19.2",
     "@types/qs": "^6.15.1",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
-    "eslint": "^10.13.0",
+    "eslint": "^10.14.0",
     "typescript": "^5.9.3"
   },
   "engines": {
