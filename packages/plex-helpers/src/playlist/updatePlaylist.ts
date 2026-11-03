@@ -14,7 +14,7 @@ export async function updatePlaylist(settings: PlexSettings, playlistId: string,
     validatePlexSettings(settings);
 
     const url = getAPIUrl(settings.uri, `/playlists/${playlistId}`);
-    const query = new URLSearchParams(data as any);
+    const query = new URLSearchParams(data);
 
     await handleOneRetryAttempt(
         () => AxiosRequest.put<GetPlaylistResponse>(`${url}?${query.toString()}`, settings.token),
