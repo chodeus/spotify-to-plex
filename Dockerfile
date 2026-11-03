@@ -1,13 +1,13 @@
 # Both stages share one base, so the builder installs native packages for the runtime's libc
 FROM node:26.13.0-trixie-slim@sha256:e4db4c914bf8ad241bd24804fc25d272d89bad97e68cdc8a1414862790a02c39 AS node-builder
 
-ENV NEXT_DOCKER=1 \
-    COREPACK_ENABLE_DOWNLOAD_PROMPT=0
-
-# pnpm's version comes from packageManager in package.json
-RUN corepack enable
+ENV NEXT_DOCKER=1
 
 WORKDIR /build
+
+# Node 25+ ships no Corepack: install the exact pnpm that packageManager in package.json names
+COPY package.json ./
+RUN npm install -g "$(node -p "require('./package.json').packageManager.split('+')[0]")"
 
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml* ./
 COPY tsconfig*.json ./
