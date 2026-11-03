@@ -25,8 +25,8 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1(eslint@10.14.0)
       '@types/node':
-        specifier: ^24.19.2
-        version: 24.19.2
+        specifier: ^26.6.6
+        version: 26.6.6
       '@types/qs':
         specifier: ^6.15.1
         version: 6.15.1
@@ -104,8 +104,8 @@ importers:
         version: 4.23.15
     devDependencies:
       '@types/node':
-        specifier: ^24.19.2
-        version: 24.19.2
+        specifier: ^26.6.6
+        version: 26.6.6
       dotenv-cli:
         specifier: ^11.1.0
         version: 11.1.0
@@ -117,10 +117,10 @@ importers:
         version: 5.9.3
       vite:
         specifier: ^7.3.7
-        version: 7.3.7(@types/node@24.19.2)(sass@1.107.1)(tsx@4.23.15)(yaml@2.9.1)
+        version: 7.3.7(@types/node@26.6.6)(sass@1.107.1)(tsx@4.23.15)(yaml@2.9.1)
       vitest:
         specifier: ^5.0.5
-        version: 5.0.5(@types/node@24.19.2)(vite@7.3.7(@types/node@24.19.2)(sass@1.107.1)(tsx@4.23.15)(yaml@2.9.1))
+        version: 5.0.5(@types/node@26.6.6)(vite@7.3.7(@types/node@26.6.6)(sass@1.107.1)(tsx@4.23.15)(yaml@2.9.1))
 
   apps/web:
     dependencies:
@@ -177,7 +177,7 @@ importers:
         version: 2.31.0
       next:
         specifier: ^15.5.28
-        version: 15.5.28(@babel/core@7.29.7)(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(sass@1.107.1)
+        version: 15.5.28(@babel/core@7.29.7)(@types/node@26.6.6)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(sass@1.107.1)
       next-connect:
         specifier: ^1.0.0
         version: 1.0.0
@@ -195,14 +195,14 @@ importers:
         version: 19.3.1(react@19.3.1)
       react-selection-manager:
         specifier: ^0.0.6
-        version: 0.0.6(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(sass@1.107.1)
+        version: 0.0.6(@types/node@26.6.6)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(sass@1.107.1)
       sass:
         specifier: ^1.107.1
         version: 1.107.1
     devDependencies:
       '@types/node':
-        specifier: ^24.19.2
-        version: 24.19.2
+        specifier: ^26.6.6
+        version: 26.6.6
       '@types/qs':
         specifier: ^6.15.1
         version: 6.15.1
@@ -226,8 +226,8 @@ importers:
         version: 1.21.0
     devDependencies:
       '@types/node':
-        specifier: ^24.19.2
-        version: 24.19.2
+        specifier: ^26.6.6
+        version: 26.6.6
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
@@ -251,17 +251,17 @@ importers:
         specifier: ^11.0.4
         version: 11.0.4
       '@types/node':
-        specifier: ^24.19.2
-        version: 24.19.2
+        specifier: ^26.6.6
+        version: 26.6.6
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
       vite:
         specifier: ^7.3.7
-        version: 7.3.7(@types/node@24.19.2)(sass@1.107.1)(tsx@4.23.15)(yaml@2.9.1)
+        version: 7.3.7(@types/node@26.6.6)(sass@1.107.1)(tsx@4.23.15)(yaml@2.9.1)
       vitest:
         specifier: ^5.0.5
-        version: 5.0.5(@types/node@24.19.2)(vite@7.3.7(@types/node@24.19.2)(sass@1.107.1)(tsx@4.23.15)(yaml@2.9.1))
+        version: 5.0.5(@types/node@26.6.6)(vite@7.3.7(@types/node@26.6.6)(sass@1.107.1)(tsx@4.23.15)(yaml@2.9.1))
 
   packages/plex-config:
     dependencies:
@@ -276,8 +276,8 @@ importers:
         specifier: ^11.0.4
         version: 11.0.4
       '@types/node':
-        specifier: ^24.19.2
-        version: 24.19.2
+        specifier: ^26.6.6
+        version: 26.6.6
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
@@ -320,17 +320,17 @@ importers:
         version: link:../shared-utils
     devDependencies:
       '@types/node':
-        specifier: ^24.19.2
-        version: 24.19.2
+        specifier: ^26.6.6
+        version: 26.6.6
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
       vite:
         specifier: ^7.3.7
-        version: 7.3.7(@types/node@24.19.2)(sass@1.107.1)(tsx@4.23.15)(yaml@2.9.1)
+        version: 7.3.7(@types/node@26.6.6)(sass@1.107.1)(tsx@4.23.15)(yaml@2.9.1)
       vitest:
         specifier: ^5.0.5
-        version: 5.0.5(@types/node@24.19.2)(vite@7.3.7(@types/node@24.19.2)(sass@1.107.1)(tsx@4.23.15)(yaml@2.9.1))
+        version: 5.0.5(@types/node@26.6.6)(vite@7.3.7(@types/node@26.6.6)(sass@1.107.1)(tsx@4.23.15)(yaml@2.9.1))
 
   packages/shared-types:
     devDependencies:
@@ -363,17 +363,17 @@ importers:
         specifier: ^11.0.4
         version: 11.0.4
       '@types/node':
-        specifier: ^24.19.2
-        version: 24.19.2
+        specifier: ^26.6.6
+        version: 26.6.6
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
       vite:
         specifier: ^7.3.7
-        version: 7.3.7(@types/node@24.19.2)(sass@1.107.1)(tsx@4.23.15)(yaml@2.9.1)
+        version: 7.3.7(@types/node@26.6.6)(sass@1.107.1)(tsx@4.23.15)(yaml@2.9.1)
       vitest:
         specifier: ^5.0.5
-        version: 5.0.5(@types/node@24.19.2)(vite@7.3.7(@types/node@24.19.2)(sass@1.107.1)(tsx@4.23.15)(yaml@2.9.1))
+        version: 5.0.5(@types/node@26.6.6)(vite@7.3.7(@types/node@26.6.6)(sass@1.107.1)(tsx@4.23.15)(yaml@2.9.1))
 
   packages/slskd-music-search:
     dependencies:
@@ -391,8 +391,8 @@ importers:
         version: 6.17.1
     devDependencies:
       '@types/node':
-        specifier: ^24.19.2
-        version: 24.19.2
+        specifier: ^26.6.6
+        version: 26.6.6
       '@types/qs':
         specifier: ^6.15.1
         version: 6.15.1
@@ -401,10 +401,10 @@ importers:
         version: 5.9.3
       vite:
         specifier: ^7.3.7
-        version: 7.3.7(@types/node@24.19.2)(sass@1.107.1)(tsx@4.23.15)(yaml@2.9.1)
+        version: 7.3.7(@types/node@26.6.6)(sass@1.107.1)(tsx@4.23.15)(yaml@2.9.1)
       vitest:
         specifier: ^5.0.5
-        version: 5.0.5(@types/node@24.19.2)(vite@7.3.7(@types/node@24.19.2)(sass@1.107.1)(tsx@4.23.15)(yaml@2.9.1))
+        version: 5.0.5(@types/node@26.6.6)(vite@7.3.7(@types/node@26.6.6)(sass@1.107.1)(tsx@4.23.15)(yaml@2.9.1))
 
   packages/tidal-music-search:
     dependencies:
@@ -422,8 +422,8 @@ importers:
         version: 6.17.1
     devDependencies:
       '@types/node':
-        specifier: ^24.19.2
-        version: 24.19.2
+        specifier: ^26.6.6
+        version: 26.6.6
       '@types/qs':
         specifier: ^6.15.1
         version: 6.15.1
@@ -1688,8 +1688,8 @@ packages:
   '@types/ms@2.1.0':
     resolution: {integrity: sha512-GsCCIZDE/p3i96vtEqx+7dBUGXrc7zeSK3wwPHIaRThS+9OhWIXRqzs4d6k1SVU8g91DrNRWxWUGhp5KXQb2VA==}
 
-  '@types/node@24.19.2':
-    resolution: {integrity: sha512-93d49wCWJkCyN87MxLpNN6KXPCwFw7bVUg79mGUV1OS40JGWwVCr8n61DXCSqz7CV6/VfPkb7xec7uP2M+QHWQ==}
+  '@types/node@26.6.6':
+    resolution: {integrity: sha512-MzQj+8Kx3XI40OmUAE6Qoh58ZMNstNNMwn2nfd3qWsfe7nDNSqJNzes4njhz6AHwrSHOffSLwXU6yb474Q4aog==}
 
   '@types/parse-json@4.0.2':
     resolution: {integrity: sha512-dISoDXWWQwUquiKsyZ4Ng+HX2KsPL7LyHKHQwgGFEA3IaKac4Obd+h2a/a6waisAoepJlBcx9paWqjA8/HVjCw==}
@@ -4068,8 +4068,8 @@ packages:
     resolution: {integrity: sha512-nWJ91DjeOkej/TA8pXQ3myruKpKEYgqvpw9lz4OPHj/NWFNluYrjbz9j01CJ8yKQd2g4jFoOkINCTW2I5LEEyw==}
     engines: {node: '>= 0.4'}
 
-  undici-types@7.24.6:
-    resolution: {integrity: sha512-WRNW+sJgj5OBN4/0JpHFqtqzhpbnV0GuB+OozA9gCL7a993SmU+1JBZCzLNxYsbMfIeDL+lTsphD5jN5N+n0zg==}
+  undici-types@8.9.0:
+    resolution: {integrity: sha512-KTDyRTYX8sWmKXAikPHHSyc63CRPETMctyjKFupcC6OBLXT3xsN0e9aF7m+mIXutFWpUXuedtowG7iLOzp0kQg==}
 
   unified@10.1.2:
     resolution: {integrity: sha512-pUSWAi/RAnVy1Pif2kAoeWNBa3JVrx0MId2LASj8G+7AiHWoKZNTomq6LG326T68U7/e263X6fTdcXIy7XnF7Q==}
@@ -4920,7 +4920,7 @@ snapshots:
       react: 19.3.1
       react-dom: 19.3.1(react@19.3.1)
 
-  '@ladle/react@2.17.2(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(sass@1.107.1)':
+  '@ladle/react@2.17.2(@types/node@26.6.6)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(sass@1.107.1)':
     dependencies:
       '@babel/code-frame': 7.29.7
       '@babel/core': 7.29.7
@@ -4932,8 +4932,8 @@ snapshots:
       '@ladle/react-context': 1.0.1(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       '@mdx-js/mdx': 2.3.0
       '@mdx-js/react': 2.3.0(react@19.3.1)
-      '@vitejs/plugin-react': 3.1.0(vite@4.5.14(@types/node@24.19.2)(sass@1.107.1))
-      '@vitejs/plugin-react-swc': 3.1.0(vite@4.5.14(@types/node@24.19.2)(sass@1.107.1))
+      '@vitejs/plugin-react': 3.1.0(vite@4.5.14(@types/node@26.6.6)(sass@1.107.1))
+      '@vitejs/plugin-react-swc': 3.1.0(vite@4.5.14(@types/node@26.6.6)(sass@1.107.1))
       axe-core: 4.13.0
       boxen: 7.1.1
       chokidar: 3.6.0
@@ -4960,8 +4960,8 @@ snapshots:
       remark-gfm: 3.0.1
       source-map: 0.7.6
       vfile: 6.0.3
-      vite: 4.5.14(@types/node@24.19.2)(sass@1.107.1)
-      vite-tsconfig-paths: 3.6.0(vite@4.5.14(@types/node@24.19.2)(sass@1.107.1))
+      vite: 4.5.14(@types/node@26.6.6)(sass@1.107.1)
+      vite-tsconfig-paths: 3.6.0(vite@4.5.14(@types/node@26.6.6)(sass@1.107.1))
     transitivePeerDependencies:
       - '@swc/helpers'
       - '@types/node'
@@ -5368,7 +5368,7 @@ snapshots:
   '@types/fs-extra@11.0.4':
     dependencies:
       '@types/jsonfile': 6.1.4
-      '@types/node': 24.19.2
+      '@types/node': 26.6.6
 
   '@types/hast@2.3.10':
     dependencies:
@@ -5378,7 +5378,7 @@ snapshots:
 
   '@types/jsonfile@6.1.4':
     dependencies:
-      '@types/node': 24.19.2
+      '@types/node': 26.6.6
 
   '@types/mdast@3.0.15':
     dependencies:
@@ -5388,9 +5388,9 @@ snapshots:
 
   '@types/ms@2.1.0': {}
 
-  '@types/node@24.19.2':
+  '@types/node@26.6.6':
     dependencies:
-      undici-types: 7.24.6
+      undici-types: 8.9.0
 
   '@types/parse-json@4.0.2': {}
 
@@ -5416,7 +5416,7 @@ snapshots:
 
   '@types/readable-stream@4.0.24':
     dependencies:
-      '@types/node': 24.19.2
+      '@types/node': 26.6.6
 
   '@types/unist@2.0.11': {}
 
@@ -5424,7 +5424,7 @@ snapshots:
 
   '@types/ws@8.18.1':
     dependencies:
-      '@types/node': 24.19.2
+      '@types/node': 26.6.6
 
   '@typescript-eslint/eslint-plugin@8.72.1(@typescript-eslint/parser@8.72.1(eslint@10.14.0)(typescript@5.9.3))(eslint@10.14.0)(typescript@5.9.3)':
     dependencies:
@@ -5517,32 +5517,32 @@ snapshots:
       '@typescript-eslint/types': 8.72.1
       eslint-visitor-keys: 5.0.1
 
-  '@vitejs/plugin-react-swc@3.1.0(vite@4.5.14(@types/node@24.19.2)(sass@1.107.1))':
+  '@vitejs/plugin-react-swc@3.1.0(vite@4.5.14(@types/node@26.6.6)(sass@1.107.1))':
     dependencies:
       '@swc/core': 1.16.2
-      vite: 4.5.14(@types/node@24.19.2)(sass@1.107.1)
+      vite: 4.5.14(@types/node@26.6.6)(sass@1.107.1)
     transitivePeerDependencies:
       - '@swc/helpers'
 
-  '@vitejs/plugin-react@3.1.0(vite@4.5.14(@types/node@24.19.2)(sass@1.107.1))':
+  '@vitejs/plugin-react@3.1.0(vite@4.5.14(@types/node@26.6.6)(sass@1.107.1))':
     dependencies:
       '@babel/core': 7.29.7
       '@babel/plugin-transform-react-jsx-self': 7.29.7(@babel/core@7.29.7)
       '@babel/plugin-transform-react-jsx-source': 7.29.7(@babel/core@7.29.7)
       magic-string: 0.27.0
       react-refresh: 0.14.2
-      vite: 4.5.14(@types/node@24.19.2)(sass@1.107.1)
+      vite: 4.5.14(@types/node@26.6.6)(sass@1.107.1)
     transitivePeerDependencies:
       - supports-color
 
-  '@vitest/mocker@5.0.5(vite@7.3.7(@types/node@24.19.2)(sass@1.107.1)(tsx@4.23.15)(yaml@2.9.1))':
+  '@vitest/mocker@5.0.5(vite@7.3.7(@types/node@26.6.6)(sass@1.107.1)(tsx@4.23.15)(yaml@2.9.1))':
     dependencies:
       '@jridgewell/trace-mapping': 0.3.31
       '@vitest/spy': 5.0.5
       estree-walker: 3.0.3
       magic-string: 1.4.3
     optionalDependencies:
-      vite: 7.3.7(@types/node@24.19.2)(sass@1.107.1)(tsx@4.23.15)(yaml@2.9.1)
+      vite: 7.3.7(@types/node@26.6.6)(sass@1.107.1)(tsx@4.23.15)(yaml@2.9.1)
 
   '@vitest/spy@5.0.5': {}
 
@@ -7650,7 +7650,7 @@ snapshots:
       '@tsconfig/node16': 1.0.4
       regexparam: 2.0.2
 
-  next@15.5.28(@babel/core@7.29.7)(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(sass@1.107.1):
+  next@15.5.28(@babel/core@7.29.7)(@types/node@26.6.6)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(sass@1.107.1):
     dependencies:
       '@next/env': 15.5.28
       '@swc/helpers': 0.5.15
@@ -7669,7 +7669,7 @@ snapshots:
       '@next/swc-win32-arm64-msvc': 15.5.28
       '@next/swc-win32-x64-msvc': 15.5.28
       sass: 1.107.1
-      sharp: 0.35.5(@types/node@24.19.2)
+      sharp: 0.35.5(@types/node@26.6.6)
     transitivePeerDependencies:
       - '@babel/core'
       - '@types/node'
@@ -7925,9 +7925,9 @@ snapshots:
 
   react-refresh@0.14.2: {}
 
-  react-selection-manager@0.0.6(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(sass@1.107.1):
+  react-selection-manager@0.0.6(@types/node@26.6.6)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(sass@1.107.1):
     dependencies:
-      '@ladle/react': 2.17.2(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(sass@1.107.1)
+      '@ladle/react': 2.17.2(@types/node@26.6.6)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(sass@1.107.1)
       react: 19.3.1
       react-dom: 19.3.1(react@19.3.1)
     transitivePeerDependencies:
@@ -8174,7 +8174,7 @@ snapshots:
 
   setprototypeof@1.2.0: {}
 
-  sharp@0.35.5(@types/node@24.19.2):
+  sharp@0.35.5(@types/node@26.6.6):
     dependencies:
       '@img/colour': 1.1.0
       detect-libc: 2.1.2
@@ -8205,7 +8205,7 @@ snapshots:
       '@img/sharp-win32-arm64': 0.35.5
       '@img/sharp-win32-ia32': 0.35.5
       '@img/sharp-win32-x64': 0.35.5
-      '@types/node': 24.19.2
+      '@types/node': 26.6.6
     optional: true
 
   shebang-command@2.0.0:
@@ -8495,7 +8495,7 @@ snapshots:
       has-symbols: 1.1.0
       which-boxed-primitive: 1.1.1
 
-  undici-types@7.24.6: {}
+  undici-types@8.9.0: {}
 
   unified@10.1.2:
     dependencies:
@@ -8603,27 +8603,27 @@ snapshots:
       '@types/unist': 3.0.3
       vfile-message: 4.0.3
 
-  vite-tsconfig-paths@3.6.0(vite@4.5.14(@types/node@24.19.2)(sass@1.107.1)):
+  vite-tsconfig-paths@3.6.0(vite@4.5.14(@types/node@26.6.6)(sass@1.107.1)):
     dependencies:
       debug: 4.4.3
       globrex: 0.1.2
       recrawl-sync: 2.2.3
       tsconfig-paths: 4.2.0
-      vite: 4.5.14(@types/node@24.19.2)(sass@1.107.1)
+      vite: 4.5.14(@types/node@26.6.6)(sass@1.107.1)
     transitivePeerDependencies:
       - supports-color
 
-  vite@4.5.14(@types/node@24.19.2)(sass@1.107.1):
+  vite@4.5.14(@types/node@26.6.6)(sass@1.107.1):
     dependencies:
       esbuild: 0.18.20
       postcss: 8.5.32
       rollup: 3.30.0
     optionalDependencies:
-      '@types/node': 24.19.2
+      '@types/node': 26.6.6
       fsevents: 2.3.3
       sass: 1.107.1
 
-  vite@7.3.7(@types/node@24.19.2)(sass@1.107.1)(tsx@4.23.15)(yaml@2.9.1):
+  vite@7.3.7(@types/node@26.6.6)(sass@1.107.1)(tsx@4.23.15)(yaml@2.9.1):
     dependencies:
       esbuild: 0.28.2
       fdir: 6.5.0(picomatch@4.0.7)
@@ -8632,16 +8632,16 @@ snapshots:
       rollup: 4.65.0
       tinyglobby: 0.2.17
     optionalDependencies:
-      '@types/node': 24.19.2
+      '@types/node': 26.6.6
       fsevents: 2.3.3
       sass: 1.107.1
       tsx: 4.23.15
       yaml: 2.9.1
 
-  vitest@5.0.5(@types/node@24.19.2)(vite@7.3.7(@types/node@24.19.2)(sass@1.107.1)(tsx@4.23.15)(yaml@2.9.1)):
+  vitest@5.0.5(@types/node@26.6.6)(vite@7.3.7(@types/node@26.6.6)(sass@1.107.1)(tsx@4.23.15)(yaml@2.9.1)):
     dependencies:
       '@types/chai': 5.2.3
-      '@vitest/mocker': 5.0.5(vite@7.3.7(@types/node@24.19.2)(sass@1.107.1)(tsx@4.23.15)(yaml@2.9.1))
+      '@vitest/mocker': 5.0.5(vite@7.3.7(@types/node@26.6.6)(sass@1.107.1)(tsx@4.23.15)(yaml@2.9.1))
       chai: 6.3.0
       es-module-lexer: 2.3.2
       expect-type: 1.4.0
@@ -8652,10 +8652,10 @@ snapshots:
       tinybench: 6.2.2
       tinyexec: 1.3.1
       tinyglobby: 0.2.17
-      vite: 7.3.7(@types/node@24.19.2)(sass@1.107.1)(tsx@4.23.15)(yaml@2.9.1)
+      vite: 7.3.7(@types/node@26.6.6)(sass@1.107.1)(tsx@4.23.15)(yaml@2.9.1)
       why-is-node-running: 3.2.1
     optionalDependencies:
-      '@types/node': 24.19.2
+      '@types/node': 26.6.6
     transitivePeerDependencies:
       - msw
 
