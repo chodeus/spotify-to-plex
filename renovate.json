@@ -1,5 +1,12 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["github>chodeus/chodeus-ops"],
-  "forkProcessing": "enabled"
+  "forkProcessing": "enabled",
+  "packageRules": [
+    {
+      "description": "pnpm 12 refuses packages published less than a day ago (built-in minimumReleaseAge 1440), so a younger npm release fails the frozen-lockfile install. Hold npm updates until pnpm will accept them.",
+      "matchManagers": ["npm"],
+      "minimumReleaseAge": "1 day"
+    }
+  ]
 }
