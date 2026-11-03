@@ -4,8 +4,8 @@
   "private": true,
   "description": "Vibe Kanban Web Application - Main Next.js App",
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
+    "dev": "next dev --webpack",
+    "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint . --max-warnings 50",
     "lint:fix": "eslint . --fix",
