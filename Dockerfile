@@ -27,6 +27,8 @@ RUN pnpm --filter @spotify-to-plex/web run build
 RUN set -e; \
     rm -rf node_modules apps/*/node_modules packages/*/node_modules; \
     pnpm install --frozen-lockfile --prod --offline --filter "@spotify-to-plex/sync-worker..."; \
+    # pnpm 12 writes its install-state file owner-only; the runtime never runs pnpm
+    rm -f node_modules/.pnpm-workspace-state*.json; \
     # A context checked out under umask 002 is group-writable; normalise here, where the layer is thrown away
     chmod -R go-w /build
 
