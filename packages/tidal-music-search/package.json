@@ -41,6 +41,6 @@
     "devDependencies": {
         "@types/node": "^26.6.6",
         "@types/qs": "^6.15.1",
-        "typescript": "^5.9.3"
+        "typescript": "^7.0.2"
     }
 }
