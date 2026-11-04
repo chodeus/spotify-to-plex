@@ -35,7 +35,6 @@
     "qs": "^6.17.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
-    "react-selection-manager": "^0.0.6",
     "sass": "^1.107.1"
   },
   "devDependencies": {
@@ -44,7 +43,7 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "eslint": "^10.14.0",
-    "typescript": "^5.9.3"
+    "typescript": "^6.0.3"
   },
   "engines": {
     "node": ">=22.13.0",

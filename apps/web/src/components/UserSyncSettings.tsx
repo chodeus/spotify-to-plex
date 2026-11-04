@@ -16,7 +16,6 @@ export default function UserSyncSettings(props: Props) {
     const [recentContext, setRecentContext] = useState(false);
     const [autoSync, setAutoSync] = useState(false);
     const [label, setLabel] = useState('')
-    // eslint-disable-next-line react/hook-use-state
     const [loading] = useState(false);
 
     //////////////////////////////

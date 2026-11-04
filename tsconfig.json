@@ -43,7 +43,6 @@
     "declarationMap": true,
     "incremental": true,
     "skipLibCheck": true,
-    "baseUrl": ".",
     "paths": {
       "@spotify-to-plex/shared-types": ["./packages/shared-types/src"],
       "@spotify-to-plex/shared-types/*": ["./packages/shared-types/src/*"],

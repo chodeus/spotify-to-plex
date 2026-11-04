@@ -26,8 +26,8 @@ type Props = {
 
 export default function LidarrAlbumDialog(props: Props) {
     const { onClose, albums } = props;
-    const [sendingAlbums, setSendingAlbums] = useState<Set<string>>(new Set());
-    const [sentAlbums, setSentAlbums] = useState<Map<string, { success: boolean; message: string }>>(new Map());
+    const [sendingAlbums, setSendingAlbums] = useState<Set<string>>(() => new Set());
+    const [sentAlbums, setSentAlbums] = useState<Map<string, { success: boolean; message: string }>>(() => new Map());
 
     const getAlbumKey = (album: AlbumData) => `${album.artist_name}|${album.album_name}`;
 

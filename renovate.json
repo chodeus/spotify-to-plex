@@ -7,6 +7,11 @@
       "description": "pnpm 12 refuses packages published less than a day ago (built-in minimumReleaseAge 1440), so a younger npm release fails the frozen-lockfile install. Hold npm updates until pnpm will accept them.",
       "matchManagers": ["npm"],
       "minimumReleaseAge": "1 day"
+    },
+    {
+      "description": "typescript-eslint 8 supports TypeScript below 6.1.0. Hold TypeScript there until a typescript-eslint release widens its peer range.",
+      "matchPackageNames": ["typescript"],
+      "allowedVersions": "<6.1.0"
     }
   ]
 }

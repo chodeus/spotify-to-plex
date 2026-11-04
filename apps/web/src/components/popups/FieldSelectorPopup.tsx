@@ -1,4 +1,3 @@
-/* eslint-disable react/prop-types */
 import { MenuItem, Popover } from "@mui/material";
 import { useCallback } from "react";
 

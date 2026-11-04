@@ -1,13 +1,12 @@
 {
     "compilerOptions": {
-        "baseUrl": ".",
         "paths": {
-            "@spotify-to-plex/music-search": ["packages/music-search/src"],
-            "@spotify-to-plex/music-search/*": ["packages/music-search/src/*"],
-            "@spotify-to-plex/tidal-music-search": ["packages/tidal-music-search/src"],
-            "@spotify-to-plex/tidal-music-search/*": ["packages/tidal-music-search/src/*"],
-            "@spotify-to-plex/plex-music-search": ["packages/plex-music-search/src"],
-            "@spotify-to-plex/plex-music-search/*": ["packages/plex-music-search/src/*"]
+            "@spotify-to-plex/music-search": ["./packages/music-search/src"],
+            "@spotify-to-plex/music-search/*": ["./packages/music-search/src/*"],
+            "@spotify-to-plex/tidal-music-search": ["./packages/tidal-music-search/src"],
+            "@spotify-to-plex/tidal-music-search/*": ["./packages/tidal-music-search/src/*"],
+            "@spotify-to-plex/plex-music-search": ["./packages/plex-music-search/src"],
+            "@spotify-to-plex/plex-music-search/*": ["./packages/plex-music-search/src/*"]
         }
     }
 }
