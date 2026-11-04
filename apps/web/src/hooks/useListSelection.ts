@@ -1,7 +1,7 @@
 import { useCallback, useSyncExternalStore } from "react";
 import { emptySelection, nextSelection, SelectionEvent, SelectionState } from "./listSelection";
 
-// One selection for the whole page, as react-selection-manager kept; no provider needed.
+// One selection shared by every caller of this module; no provider needed.
 let state: SelectionState = emptySelection;
 const listeners = new Set<() => void>();
 

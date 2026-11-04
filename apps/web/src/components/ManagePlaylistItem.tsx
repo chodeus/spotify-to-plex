@@ -24,7 +24,7 @@ export default function ManagePlaylistItem(props: Props) {
         selectListItem({
             id: item.id,
             shiftKey: e.shiftKey,
-            metaKey: e.metaKey,
+            metaKey: e.metaKey || e.ctrlKey,
             orderedIds
         });
 
