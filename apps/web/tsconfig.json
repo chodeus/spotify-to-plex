@@ -1,7 +1,6 @@
 {
   "extends": "../../config/typescript/react.json",
   "compilerOptions": {
-    "baseUrl": ".",
     "noEmit": true,
     "declaration": false,
     "declarationMap": false,
@@ -9,34 +8,34 @@
     "composite": false,
     "paths": {
       "@/helpers/*": [
-        "src/helpers/*"
+        "./src/helpers/*"
       ],
       "@/components/*": [
-        "src/components/*"
+        "./src/components/*"
       ],
       "@/styles/*": [
-        "src/styles/*"
+        "./src/styles/*"
       ],
       "@/types/*": [
-        "src/types/*"
+        "./src/types/*"
       ],
       "@/pages/*": [
-        "pages/*"
+        "./pages/*"
       ],
       "@/layouts/*": [
-        "src/layouts/*"
+        "./src/layouts/*"
       ],
       "@/library/*": [
-        "src/library/*"
+        "./src/library/*"
       ],
       "@/utils/*": [
-        "src/utils/*"
+        "./src/utils/*"
       ],
       "@/hoc/*": [
-        "src/hoc/*"
+        "./src/hoc/*"
       ],
       "@/hooks/*": [
-        "src/hooks/*"
+        "./src/hooks/*"
       ],
       "cronjob/*": [
         "../sync-worker/src/jobs/*"

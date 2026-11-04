@@ -8,7 +8,7 @@ import { Box, Button, CircularProgress, Divider, Paper, TextField, Typography } 
 import Grid from '@mui/material/Grid';
 import axios from "axios";
 import { ChangeEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { useClearSelection, useSelection } from "react-selection-manager";
+import { clearListSelection, useListSelection } from "@/hooks/useListSelection";
 import ManagePlaylistItem from "./ManagePlaylistItem";
 import PlaylistItemSettings from "./PlaylistSyncSettings";
 
@@ -17,8 +17,7 @@ export default function ManagePlaylists() {
     const [searchInput, setSearchInput] = useState<string>('')
     const [items, setItems] = useState<SavedItem[]>([])
     const [generating, setGenerating] = useState<boolean>(false);
-    const selectedItems = useSelection()
-    const clearSelection = useClearSelection();
+    const selectedItems = useListSelection()
 
     ///////////////////////////////
     // Load data
@@ -118,11 +117,11 @@ export default function ManagePlaylists() {
     }, [items, selectedItems])
     const onCloseMultipleEditItem = useCallback((reload?: boolean) => {
         setEditMultipleItems([])
-        clearSelection()
+        clearListSelection()
 
         if (reload)
             reloadSavedItems()
-    }, [clearSelection, reloadSavedItems])
+    }, [reloadSavedItems])
 
     //////////////////////////////////
     // Show selection

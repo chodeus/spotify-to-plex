@@ -4,6 +4,7 @@
   "compilerOptions": {
     "target": "ES2020",
     "lib": ["ES2022"],
+    "types": ["node"],
     "module": "ESNext",
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
@@ -29,7 +30,6 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "allowSyntheticDefaultImports": true,
-    "downlevelIteration": true,
     
     "declaration": true,
     "declarationMap": true,

@@ -1,4 +1,3 @@
-/* eslint-disable react/no-multi-comp */
 import { errorBoundary } from "@/helpers/errors/errorBoundary";
 import { Alert, Box, Button, Chip, CircularProgress, Paper, Tab, Tabs, TextField, Tooltip, Typography } from "@mui/material";
 import axios from "axios";

@@ -1,4 +1,3 @@
-/* eslint-disable react/prop-types */
 import { MenuItem, Popover, Radio, RadioGroup, FormControlLabel, Divider, Typography } from "@mui/material";
 import { useCallback, useState, useEffect } from "react";
 import { Delete } from "@mui/icons-material";

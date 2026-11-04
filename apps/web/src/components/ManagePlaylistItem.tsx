@@ -6,7 +6,7 @@ import { Box, IconButton, Paper, Tooltip, Typography } from "@mui/material"
 import axios from "axios"
 import { enqueueSnackbar } from "notistack"
 import { useCallback, useMemo, useState } from "react"
-import { useIsSelected, useSelectionEvent } from "react-selection-manager"
+import { selectListItem, useIsListItemSelected } from "@/hooks/useListSelection"
 import { confirm } from "./ConfirmProvider/ConfirmProvider"
 import PlaylistItemSettings from "./PlaylistSyncSettings"
 
@@ -18,19 +18,17 @@ type Props = {
 }
 export default function ManagePlaylistItem(props: Props) {
     const { item, orderedIds, labels, reloadSavedItems } = props;
-    const layerSelected = useIsSelected(item.id)
-    const onSelect = useSelectionEvent();
+    const layerSelected = useIsListItemSelected(item.id)
 
     const onCheckboxChange = useCallback((e: React.MouseEvent<HTMLSpanElement>) => {
-        onSelect({
+        selectListItem({
             id: item.id,
-            type: "playlist",
             shiftKey: e.shiftKey,
-            metaKey: e.metaKey,
+            metaKey: e.metaKey || e.ctrlKey,
             orderedIds
         });
 
-    }, [item.id, onSelect, orderedIds])
+    }, [item.id, orderedIds])
 
     ///////////////////////////////
     // Settings Item

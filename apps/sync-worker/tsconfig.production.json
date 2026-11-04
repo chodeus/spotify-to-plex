@@ -29,7 +29,6 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "allowSyntheticDefaultImports": true,
-    "downlevelIteration": true,
 
     "declaration": true,
     "declarationMap": true,
@@ -43,7 +42,6 @@
     "preserveConstEnums": true,
 
     "outDir": "./dist",
-    "baseUrl": ".",
     "rootDir": "./src",
     "paths": {
       "@/*": ["./src/*"],

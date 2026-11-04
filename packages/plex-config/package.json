@@ -33,7 +33,7 @@
   "devDependencies": {
     "@types/fs-extra": "^11.0.4",
     "@types/node": "^26.6.6",
-    "typescript": "^5.9.3"
+    "typescript": "~6.0.3"
   },
   "peerDependencies": {
     "typescript": ">=4.9.5"

@@ -16,10 +16,10 @@
  * See AI_CODING_RULES.md for detailed examples
  */
 
-import { fixupPluginRules } from '@eslint/compat';
+import eslintReact from '@eslint-react/eslint-plugin';
+import stylistic from '@stylistic/eslint-plugin';
 import typescriptPlugin from '@typescript-eslint/eslint-plugin';
 import typescriptParser from '@typescript-eslint/parser';
-import reactPlugin from 'eslint-plugin-react';
 import reactHooksPlugin from 'eslint-plugin-react-hooks';
 import unicorn from "eslint-plugin-unicorn";
 
@@ -91,17 +91,12 @@ const config = [
             }
         },
         plugins: {
-            // eslint-plugin-react 7.37.5 still calls context methods ESLint 10 removed; drop the shim once it supports 10.
-            react: fixupPluginRules(reactPlugin),
+            '@eslint-react': eslintReact,
+            '@stylistic': stylistic,
             'react-hooks': reactHooksPlugin,
             '@typescript-eslint': typescriptPlugin,
             unicorn,
             custom: customPlugin
-        },
-        settings: {
-            react: {
-                version: 'detect'
-            }
         },
         rules: {
             'custom/one-line-if': 'error',
@@ -135,8 +130,8 @@ const config = [
                     'ClassBody.body > PropertyDefinition[decorators.length > 0] > .key'
                 ]
             }],
-            "react/jsx-indent": ["error", 4],
-            "react/jsx-indent-props": ["error", 4],
+            "@stylistic/jsx-indent": ["error", 4],
+            "@stylistic/jsx-indent-props": ["error", 4],
             "comma-dangle": [
                 "error",
                 {
@@ -149,7 +144,7 @@ const config = [
             ],
             'react-hooks/rules-of-hooks': 'error',
             'react-hooks/exhaustive-deps': 'error',
-            "react/jsx-pascal-case": [
+            "@stylistic/jsx-pascal-case": [
                 "error",
                 {
                     allowAllCaps: true,
@@ -158,7 +153,6 @@ const config = [
                     ignore: ["DV360_*"]
                 }
             ],
-            "react/jsx-max-depth": ["error", { max: 10 }],
             "newline-per-chained-call": ["error", { ignoreChainWithDepth: 2 }],
             "padding-line-between-statements": [
                 "error",
@@ -166,87 +160,40 @@ const config = [
                 { blankLine: "always", prev: "if", next: "*" },
                 { blankLine: "always", prev: "*", next: "for" }
             ],
-            "react/boolean-prop-naming": "error",
-            "react/button-has-type": "error",
-            "react/checked-requires-onchange-or-readonly": "error",
-            "react/default-props-match-prop-types": "error",
-            "react/destructuring-assignment": "error",
-            "react/display-name": "error",
-            "react/hook-use-state": "error",
-            "react/iframe-missing-sandbox": "error",
-            "react/jsx-boolean-value": "error",
-            "react/jsx-curly-brace-presence": "error",
-            "react/jsx-filename-extension": [
-                "error",
-                { extensions: [".jsx", ".tsx"] }
-            ],
-            "react/jsx-fragments": "error",
-            "react/jsx-handler-names": "error",
-            "react/jsx-key": "error",
-            "react/jsx-no-bind": ["error", {
+            "@eslint-react/dom-no-missing-button-type": "error",
+            "custom/destructuring-assignment": "error",
+            "@eslint-react/no-missing-component-display-name": "error",
+            "@eslint-react/use-state": "error",
+            "@eslint-react/dom-no-missing-iframe-sandbox": "error",
+            "@stylistic/jsx-curly-brace-presence": "error",
+            "@eslint-react/no-missing-key": "error",
+            "custom/jsx-no-bind": ["error", {
                 "ignoreDOMComponents": false,
                 "ignoreRefs": false,
                 "allowArrowFunctions": false,
                 "allowFunctions": false,
                 "allowBind": false
             }],
-            "react/jsx-no-comment-textnodes": "error",
-            "react/jsx-no-constructed-context-values": "error",
-            "react/jsx-no-duplicate-props": "error",
-            "react/jsx-no-leaked-render": ["error", { 
-                "validStrategies": ["ternary", "coerce"]
-            }],
-            "react/jsx-no-script-url": "error",
-            "react/jsx-no-target-blank": "error",
-            "react/jsx-no-undef": "error",
-            "react/jsx-no-useless-fragment": ["warn", { allowExpressions: true }],
-            "react/jsx-props-no-spread-multi": "error",
-            "react/jsx-uses-react": "error",
-            "react/jsx-uses-vars": "error",
-            "react/no-access-state-in-setstate": "error",
-            "react/no-adjacent-inline-elements": "off",
-            "react/no-array-index-key": "off",
-            "react/no-arrow-function-lifecycle": "error",
-            "react/no-children-prop": "error",
-            "react/no-danger-with-children": "error",
-            "react/no-deprecated": "error",
-            "react/no-did-mount-set-state": "error",
-            "react/no-did-update-set-state": "error",
-            "react/no-direct-mutation-state": "error",
-            "react/no-find-dom-node": "error",
-            "react/no-invalid-html-attribute": "error",
-            "react/no-is-mounted": "error",
-            "react/no-multi-comp": "error",
-            "react/no-namespace": "error",
-            "react/no-object-type-as-default-prop": "error",
-            "react/no-redundant-should-component-update": "error",
-            "react/no-render-return-value": "error",
-            "react/no-set-state": "error",
-            "react/no-string-refs": "error",
-            "react/no-this-in-sfc": "error",
-            "react/no-typos": "error",
-            "react/no-unescaped-entities": "error",
-            "react/no-unknown-property": ["error", { ignore: ["class"] }],
-            "react/no-unsafe": "error",
-            "react/no-unstable-nested-components": "error",
-            "react/no-unused-class-component-methods": "error",
-            "react/no-unused-state": "error",
-            "react/no-will-update-set-state": "error",
-            "react/prefer-es6-class": "error",
-            "react/prefer-exact-props": "error",
-            "react/prefer-read-only-props": "error",
-            "react/prefer-stateless-function": "error",
-            "react/prop-types": "error",
-            "react/require-optimization": "error",
-            "react/require-render-return": "error",
-            "react/self-closing-comp": "error",
-            "react/sort-comp": "error",
-            "react/sort-default-props": "error",
-            "react/sort-prop-types": "error",
-            "react/state-in-constructor": "error",
-            "react/static-property-placement": "error",
-            "react/style-prop-object": "error",
-            "react/void-dom-elements-no-children": "error",
+            "@eslint-react/jsx-no-comment-textnodes": "error",
+            "@eslint-react/no-unstable-context-value": "error",
+            "custom/jsx-no-leaked-render": "error",
+            "@eslint-react/dom-no-script-url": "error",
+            "@eslint-react/dom-no-unsafe-target-blank": "error",
+            "@eslint-react/jsx-no-useless-fragment": ["warn", { allowExpressions: true }],
+            "@eslint-react/jsx-no-children-prop": "error",
+            "@eslint-react/dom-no-dangerously-set-innerhtml-with-children": "error",
+            "@eslint-react/dom-no-render": "error",
+            "@eslint-react/dom-no-hydrate": "error",
+            "@eslint-react/dom-no-find-dom-node": "error",
+            "@eslint-react/jsx-no-namespace": "error",
+            "@eslint-react/no-unstable-default-props": "error",
+            "@eslint-react/dom-no-render-return-value": "error",
+            "@eslint-react/dom-no-unknown-property": ["error", { ignore: ["class"] }],
+            "@eslint-react/no-nested-component-definitions": "error",
+            "@eslint-react/no-class-component": "error",
+            "@stylistic/jsx-self-closing-comp": "error",
+            "@eslint-react/dom-no-string-style-prop": "error",
+            "@eslint-react/dom-no-void-elements-with-children": "error",
             "accessor-pairs": "error",
             "array-callback-return": "error",
             "block-scoped-var": "error",
@@ -673,10 +620,10 @@ const config = [
             "unicorn/throw-new-error": "error",
             
             // JSX Props formatting: 6 or fewer props = single line, more = multi-line
-            "react/jsx-max-props-per-line": ["error", { 
+            "@stylistic/jsx-max-props-per-line": ["error", { 
                 "maximum": { "single": 6, "multi": 1 } 
             }],
-            "react/jsx-first-prop-new-line": ["error", "multiline"]
+            "@stylistic/jsx-first-prop-new-line": ["error", "multiline"]
         }
     },
     {

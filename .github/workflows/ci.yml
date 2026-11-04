@@ -45,3 +45,7 @@ jobs:
 
       - name: Unit tests
         run: pnpm run test:packages
+
+      # Lint-rule ports and web-app logic, run by node's own test runner.
+      - name: Node tests
+        run: pnpm run test:node

@@ -1,4 +1,4 @@
-/* eslint-disable react/display-name */
+/* eslint-disable @eslint-react/no-missing-component-display-name */
 import { errorBoundary } from "@/helpers/errors/errorBoundary";
 import { GetSpotifyTrackByIdResponse } from "@/pages/api/spotify/tracks/[id]";
 import { CheckCircle, Close, Block } from "@mui/icons-material";
