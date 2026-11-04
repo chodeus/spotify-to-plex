@@ -13,7 +13,7 @@ module.exports = {
     meta: {
         type: 'problem',
         docs: {
-            description: 'Require the left side of a JSX `&&` to be a boolean (`!!x`, a comparison or a call) so 0 or "" never renders',
+            description: 'Require the left side of a JSX `&&` to be a unary, binary or call expression, or a boolean constant',
             recommended: false
         },
         messages: {
