@@ -176,7 +176,7 @@ const config = [
             }],
             "@eslint-react/jsx-no-comment-textnodes": "error",
             "@eslint-react/no-unstable-context-value": "error",
-            "@eslint-react/no-leaked-conditional-rendering": "error",
+            "custom/jsx-no-leaked-render": "error",
             "@eslint-react/dom-no-script-url": "error",
             "@eslint-react/dom-no-unsafe-target-blank": "error",
             "@eslint-react/jsx-no-useless-fragment": ["warn", { allowExpressions: true }],

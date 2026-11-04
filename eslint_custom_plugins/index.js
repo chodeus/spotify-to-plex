@@ -7,6 +7,7 @@ module.exports = {
         'forwardref-props-destructuring': require('./rules/forwardref-props-destructuring.js'),
         'no-export-only-files': require('./rules/no-export-only-files.js'),
         'jsx-no-bind': require('./rules/jsx-no-bind.js'),
-        'destructuring-assignment': require('./rules/destructuring-assignment.js')
+        'destructuring-assignment': require('./rules/destructuring-assignment.js'),
+        'jsx-no-leaked-render': require('./rules/jsx-no-leaked-render.js')
     }
 }

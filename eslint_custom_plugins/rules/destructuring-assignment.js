@@ -23,7 +23,21 @@ function isCapitalized(name) {
     return typeof name === 'string' && /^[A-Z]/.test(name);
 }
 
-function isJSXOrNull(node) {
+function isCreateElementCall(node) {
+    const { callee } = node;
+    if (callee.type === 'Identifier') {
+        return callee.name === 'createElement';
+    }
+
+    return callee.type === 'MemberExpression'
+        && callee.object.type === 'Identifier'
+        && callee.object.name === 'React'
+        && callee.property.type === 'Identifier'
+        && callee.property.name === 'createElement';
+}
+
+// initOf resolves a returned identifier to its initial value; it is only followed one level deep.
+function isJSXOrNull(node, initOf) {
     if (!node) {
         return false;
     }
@@ -34,16 +48,20 @@ function isJSXOrNull(node) {
             return true;
         case 'Literal':
             return node.value === null;
+        case 'CallExpression':
+            return isCreateElementCall(node);
+        case 'Identifier':
+            return Boolean(initOf) && isJSXOrNull(initOf(node), null);
         case 'ConditionalExpression':
-            return isJSXOrNull(node.consequent) || isJSXOrNull(node.alternate);
+            return isJSXOrNull(node.consequent, initOf) || isJSXOrNull(node.alternate, initOf);
         case 'LogicalExpression':
-            return isJSXOrNull(node.left) || isJSXOrNull(node.right);
+            return isJSXOrNull(node.left, initOf) || isJSXOrNull(node.right, initOf);
         case 'SequenceExpression':
-            return isJSXOrNull(node.expressions.at(-1));
+            return isJSXOrNull(node.expressions.at(-1), initOf);
         case 'TSAsExpression':
         case 'TSSatisfiesExpression':
         case 'TSNonNullExpression':
-            return isJSXOrNull(node.expression);
+            return isJSXOrNull(node.expression, initOf);
         default:
             return false;
     }
@@ -63,13 +81,30 @@ module.exports = {
     },
 
     create(context) {
-        const { visitorKeys } = context.sourceCode;
+        const { sourceCode } = context;
+        const { visitorKeys } = sourceCode;
         const propsNames = [];
+
+        function initOf(identifier) {
+            let scope = sourceCode.getScope(identifier);
+            while (scope) {
+                const variable = scope.set.get(identifier.name);
+                if (variable) {
+                    const def = variable.defs[0];
+
+                    return def && def.node.type === 'VariableDeclarator' ? def.node.init : null;
+                }
+
+                scope = scope.upper;
+            }
+
+            return null;
+        }
 
         // Returns of this function only: a nested callback's JSX does not make it a component.
         function returnsJSXOrNull(fn) {
             if (fn.body.type !== 'BlockStatement') {
-                return isJSXOrNull(fn.body);
+                return isJSXOrNull(fn.body, initOf);
             }
 
             let found = false;
@@ -79,7 +114,7 @@ module.exports = {
                 }
 
                 if (node.type === 'ReturnStatement') {
-                    found = isJSXOrNull(node.argument);
+                    found = isJSXOrNull(node.argument, initOf);
 
                     return;
                 }
@@ -169,8 +204,8 @@ module.exports = {
                     return;
                 }
 
-                if (context.sourceCode.getAncestors(node).some(ancestor => ancestor.type === 'TSTypeQuery')) {
-                    context.report({ node, messageId: 'useDestructAssignment', data: { type: 'props' } });
+                if (sourceCode.getAncestors(node).some(ancestor => ancestor.type === 'TSTypeQuery')) {
+                    context.report({ node, messageId: 'useDestructAssignment', data: { type: name } });
                 }
             }
         };

@@ -68,6 +68,29 @@ tester.run('destructuring-assignment', plugin.rules['destructuring-assignment'],
         { code: 'function C(props) { return props.a ? <div /> : null; }', errors: 1 },
         { code: 'function C(props) { return <div>{props["a"]}</div>; }', errors: 1 },
         { code: 'function C(p) { return <div>{p.a}</div>; }', errors: [{ messageId: 'useDestructAssignment', data: { type: 'p' } }] },
-        { code: 'function C(props: { a: number }) { type T = typeof props.a; const t: T = 1; return <div>{t}</div>; }', errors: 1 }
+        { code: 'function C(props: { a: number }) { type T = typeof props.a; const t: T = 1; return <div>{t}</div>; }', errors: 1 },
+        { code: 'function C(p: { a: number }) { type T = typeof p.a; const t: T = 1; return <div>{t}</div>; }', errors: [{ messageId: 'useDestructAssignment', data: { type: 'p' } }] },
+        { code: 'function C(props) { const el = <div>{props.a}</div>; return el; }', errors: 1 },
+        { code: 'function C(props) { return React.createElement("div", null, props.a); }', errors: 1 },
+        { code: 'function C(props) { return createElement("div", null, props.a); }', errors: 1 }
+    ]
+});
+
+tester.run('jsx-no-leaked-render', plugin.rules['jsx-no-leaked-render'], {
+    valid: [
+        'const C = ({ a }) => <div>{!!a && <i />}</div>;',
+        'const C = ({ a }) => <div>{Boolean(a) && <i />}</div>;',
+        'const C = ({ a }) => <div>{a > 0 && <i />}</div>;',
+        'const C = ({ a, b }) => <div>{!!a && b > 1 && <i />}</div>;',
+        'const C = ({ a }) => <div>{a ? <i /> : null}</div>;',
+        'const C = ({ a }) => <div>{a || <i />}</div>;',
+        'const t = true; const C = () => <div>{t && <i />}</div>;'
+    ],
+    invalid: [
+        { code: 'const C = ({ a }) => <div>{a && <i />}</div>;', errors: [{ messageId: 'noPotentialLeakedRender' }] },
+        { code: 'const C = ({ a }) => <div>{a.length && <i />}</div>;', errors: 1 },
+        { code: 'const C = ({ a, b }) => <div>{!!a && b && <i />}</div>;', errors: 1 },
+        { code: 'const C = ({ a, b }) => <div>{a && b && <i />}</div>;', errors: 1 },
+        { code: 'const t = 1; const C = () => <div>{t && <i />}</div>;', errors: 1 }
     ]
 });
