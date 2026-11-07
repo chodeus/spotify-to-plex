@@ -23,36 +23,53 @@ export type AddOrMonitorOutcome = {
     message?: string;
 };
 
+type AddResult = { result: 'added' | 'existing' } | { result: 'failed'; message: string };
+
 /**
- * Add the album to Lidarr, or take the one it already has (Lidarr answers 409),
- * then monitor it, pin Spotify's release when known, and search.
+ * Add the album to Lidarr, or take the one it already has, then monitor it,
+ * pin Spotify's release when known, and search.
  */
 export async function addOrMonitorAlbum(lidarrAlbum: LidarrLookupResult, releaseId: string | undefined, settings: LidarrAddSettings, apiKey: string): Promise<AddOrMonitorOutcome> {
-    const baseUrl = settings.url.endsWith('/') ? settings.url.slice(0, -1) : settings.url;
-    let result: 'added' | 'existing' = 'added';
-
-    try {
-        // A retry after an add that timed out but went through meets the 409 below
-        await withRetry(() => axios.post(`${baseUrl}/api/v1/album`, addRequest(lidarrAlbum, settings), {
-            headers: { 'X-Api-Key': apiKey, 'Content-Type': 'application/json' },
-            timeout: LIDARR_TIMEOUT_MS
-        }));
-    } catch (error: any) {
-        const albumExists = error.response?.status === 409 || error.response?.data?.[0]?.errorCode === 'AlbumExistsValidator';
-        if (!albumExists)
-            return { result: 'failed', ok: false, message: lidarrErrorMessage(error) };
-
-        result = 'existing';
-    }
+    // Lidarr answers the lookup of an album it has from its library, with that album's id
+    const added: AddResult = lidarrAlbum.id ? { result: 'existing' } : await addAlbum(lidarrAlbum, settings, apiKey);
+    if (added.result === 'failed')
+        return { result: 'failed', ok: false, message: added.message };
 
     // A fresh album has no releases until the refresh Lidarr queues after the add; the pin needs them
-    if (result === 'added' && releaseId)
+    if (added.result === 'added' && releaseId)
         await waitForReleases(lidarrAlbum.foreignAlbumId, settings.url, apiKey);
 
     // Its own read decides the pin and says what happened, even if the wait gave up just before Lidarr finished
     const outcome = await monitorAndSearchAlbum(lidarrAlbum.foreignAlbumId, settings.url, apiKey, releaseId);
 
-    return { result, ok: outcome.success, message: outcome.message };
+    return { result: added.result, ok: outcome.success, message: outcome.message };
+}
+
+async function addAlbum(lidarrAlbum: LidarrLookupResult, settings: LidarrAddSettings, apiKey: string): Promise<AddResult> {
+    // Lidarr would add it as an empty album that no search can fill
+    if (lidarrAlbum.releases.length === 0)
+        return { result: 'failed', message: "Lidarr's metadata has no releases for this album yet" };
+
+    const baseUrl = settings.url.endsWith('/') ? settings.url.slice(0, -1) : settings.url;
+
+    try {
+        // A retry after an add that timed out but went through meets the "already added" answer below
+        await withRetry(() => axios.post(`${baseUrl}/api/v1/album`, addRequest(lidarrAlbum, settings), {
+            headers: { 'X-Api-Key': apiKey, 'Content-Type': 'application/json' },
+            timeout: LIDARR_TIMEOUT_MS
+        }));
+
+        return { result: 'added' };
+    } catch (error: any) {
+        if (error.response?.data?.[0]?.errorCode === 'AlbumExistsValidator')
+            return { result: 'existing' };
+
+        // Lidarr answers any failed database constraint with 409, so only the album being there means another add won
+        if (error.response?.status === 409 && await getLidarrAlbum(lidarrAlbum.foreignAlbumId, settings.url, apiKey).catch(() => null))
+            return { result: 'existing' };
+
+        return { result: 'failed', message: lidarrErrorMessage(error) };
+    }
 }
 
 async function waitForReleases(foreignAlbumId: string, url: string, apiKey: string) {
@@ -79,6 +96,8 @@ function addRequest(lidarrAlbum: LidarrLookupResult, settings: LidarrAddSettings
         monitored: true,
         anyReleaseOk: true,
         rootFolderPath: settings.root_folder_path,
+        // Lidarr keeps the sent list when its metadata has no cover, and refuses a missing one
+        images: [],
         addOptions: {
             // monitorAndSearchAlbum searches once the release is pinned; Lidarr's own search would run before it
             searchForNewAlbum: false,

@@ -1,4 +1,6 @@
 export type LidarrLookupResult = {
+    // 0 unless Lidarr already has the album
+    id: number;
     title: string;
     disambiguation: string;
     foreignAlbumId: string;

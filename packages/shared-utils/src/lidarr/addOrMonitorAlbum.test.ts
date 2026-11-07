@@ -11,7 +11,8 @@ const getMock = axios.get as unknown as Mock;
 const postMock = axios.post as unknown as Mock;
 const putMock = axios.put as unknown as Mock;
 
-const lookup = { foreignAlbumId: 'rg-1', title: 'Hooked', artist: { foreignArtistId: 'ar-1', artistName: 'NOTION' } } as LidarrLookupResult;
+const lookup = { id: 0, foreignAlbumId: 'rg-1', title: 'Hooked', releases: [{ foreignReleaseId: 'rel-spotify' }], artist: { foreignArtistId: 'ar-1', artistName: 'NOTION' } } as LidarrLookupResult;
+const alreadyAdded = [{ errorCode: 'AlbumExistsValidator', errorMessage: 'This album has already been added.' }];
 const settings = { url: 'http://lidarr:8686/', root_folder_path: '/music', quality_profile_id: 4, metadata_profile_id: 1 };
 const releases = [{ id: 1, foreignReleaseId: 'rel-extended', monitored: true }, { id: 2, foreignReleaseId: 'rel-spotify', monitored: false }];
 
@@ -47,8 +48,8 @@ describe('addOrMonitorAlbum', () => {
         expect(outcome).toMatchObject({ result: 'added', ok: true });
     });
 
-    it('takes the album Lidarr already has when it answers 409, and pins and searches that', async () => {
-        rejectAdd(409, [{ errorCode: 'AlbumExistsValidator' }]);
+    it('takes the album Lidarr already has when it answers "already added", and pins and searches that', async () => {
+        rejectAdd(400, alreadyAdded);
 
         const outcome = await addOrMonitorAlbum(lookup, 'rel-spotify', settings, 'key');
 
@@ -57,8 +58,52 @@ describe('addOrMonitorAlbum', () => {
         expect(outcome).toMatchObject({ result: 'existing', ok: true });
     });
 
+    it('sends no add for an album the lookup found in Lidarr, and pins and searches that', async () => {
+        const outcome = await addOrMonitorAlbum({ ...lookup, id: 7 }, 'rel-spotify', settings, 'key');
+
+        expect(adds()).toHaveLength(0);
+        expect(putMock.mock.calls[0]?.[1]).toMatchObject({ anyReleaseOk: false });
+        expect(searches()).toHaveLength(1);
+        expect(outcome).toMatchObject({ result: 'existing', ok: true });
+    });
+
+    // Lidarr stores the sent list when its metadata has no cover; a missing one fails its NOT NULL Images column
+    it('sends an empty image list with the add', async () => {
+        await addOrMonitorAlbum(lookup, 'rel-spotify', settings, 'key');
+
+        expect(adds()[0]?.[1]).toMatchObject({ images: [] });
+    });
+
+    it("sends no add for an album Lidarr's metadata has no releases for", async () => {
+        const outcome = await addOrMonitorAlbum({ ...lookup, releases: [] }, 'rel-spotify', settings, 'key');
+
+        expect(adds()).toHaveLength(0);
+        expect(searches()).toHaveLength(0);
+        expect(outcome).toEqual({ result: 'failed', ok: false, message: "Lidarr's metadata has no releases for this album yet" });
+    });
+
+    // Lidarr answers any failed database constraint with 409, not only a second add of the same album
+    it("reports a 409 Lidarr's reason when the album is still not in Lidarr, and searches nothing", async () => {
+        rejectAdd(409, { message: 'constraint failed\nNOT NULL constraint failed: Albums.Images' });
+        getMock.mockResolvedValue({ data: [] });
+
+        const outcome = await addOrMonitorAlbum(lookup, 'rel-spotify', settings, 'key');
+
+        expect(outcome).toEqual({ result: 'failed', ok: false, message: 'constraint failed\nNOT NULL constraint failed: Albums.Images' });
+        expect(searches()).toHaveLength(0);
+    });
+
+    it('takes the album after a 409 when another add got it in first', async () => {
+        rejectAdd(409, { message: 'constraint failed\nUNIQUE constraint failed: Albums.ForeignAlbumId' });
+
+        const outcome = await addOrMonitorAlbum(lookup, 'rel-spotify', settings, 'key');
+
+        expect(searches()).toHaveLength(1);
+        expect(outcome).toMatchObject({ result: 'existing', ok: true });
+    });
+
     // With Lidarr's own search off, an add that timed out but went through must still end in a search
-    it('retries an add that timed out, and takes the album when the retry meets a 409', async () => {
+    it('retries an add that timed out, and takes the album when the retry meets "already added"', async () => {
         let attempts = 0;
         postMock.mockImplementation(async (url: string) => {
             if (!url.endsWith('/api/v1/album'))
@@ -68,7 +113,7 @@ describe('addOrMonitorAlbum', () => {
             if (attempts === 1)
                 throw Object.assign(new Error('timeout of 30000ms exceeded'), { isAxiosError: true, code: 'ECONNABORTED' });
 
-            throw Object.assign(new Error('Request failed with status code 409'), { response: { status: 409, data: [{ errorCode: 'AlbumExistsValidator' }] } });
+            throw Object.assign(new Error('Request failed with status code 400'), { response: { status: 400, data: alreadyAdded } });
         });
 
         vi.useFakeTimers();
