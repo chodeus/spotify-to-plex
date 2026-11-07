@@ -8,6 +8,7 @@ export type LidarrAddAlbumRequest = {
     monitored: boolean;
     anyReleaseOk: boolean;
     rootFolderPath: string;
+    images: [];
     addOptions: {
         searchForNewAlbum: boolean;
     };

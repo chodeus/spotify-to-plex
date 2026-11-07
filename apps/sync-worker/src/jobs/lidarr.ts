@@ -181,6 +181,15 @@ export async function syncLidarr() {
 
                 // STEP 3: Add to Lidarr, or monitor the album it has, then search
                 const outcome = await addOrMonitorAlbum(lidarrAlbum, releaseId, settings, apiKey);
+                if (outcome.result === 'not_found') {
+                    albumLog.status = 'not_found';
+                    albumLog.error = outcome.message;
+                    albumLog.end = Date.now();
+                    notFoundCount++;
+                    lidarrLogs[logId] = albumLog;
+                    continue;
+                }
+
                 albumLog.status = outcome.ok ? 'success' : 'error';
                 albumLog.error = outcome.message;
                 albumLog.end = Date.now();
