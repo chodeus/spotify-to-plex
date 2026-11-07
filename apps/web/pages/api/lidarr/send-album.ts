@@ -75,6 +75,13 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
             // Step 3: Add to Lidarr, or monitor the album it has, then search
             const outcome = await addOrMonitorAlbum(lidarrAlbum, releaseId, settings, apiKey);
 
+            if (outcome.result === 'not_found') {
+                return res.status(404).json({
+                    success: false,
+                    message: outcome.message,
+                });
+            }
+
             if (outcome.result === 'failed') {
                 console.error('Error sending album to Lidarr:', outcome.message);
 

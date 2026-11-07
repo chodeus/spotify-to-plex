@@ -17,13 +17,13 @@ export type LidarrAddSettings = {
 };
 
 export type AddOrMonitorOutcome = {
-    // failed: Lidarr refused the add; added and existing both go on to monitor and search
-    result: 'added' | 'existing' | 'failed';
+    // failed: Lidarr refused the add; not_found: its metadata has nothing to add; added and existing both go on to monitor and search
+    result: 'added' | 'existing' | 'failed' | 'not_found';
     ok: boolean;
     message?: string;
 };
 
-type AddResult = { result: 'added' | 'existing' } | { result: 'failed'; message: string };
+type AddResult = { result: 'added' | 'existing' } | { result: 'failed' | 'not_found'; message: string };
 
 /**
  * Add the album to Lidarr, or take the one it already has, then monitor it,
@@ -32,11 +32,12 @@ type AddResult = { result: 'added' | 'existing' } | { result: 'failed'; message:
 export async function addOrMonitorAlbum(lidarrAlbum: LidarrLookupResult, releaseId: string | undefined, settings: LidarrAddSettings, apiKey: string): Promise<AddOrMonitorOutcome> {
     // Lidarr answers the lookup of an album it has from its library, with that album's id
     const added: AddResult = lidarrAlbum.id ? { result: 'existing' } : await addAlbum(lidarrAlbum, settings, apiKey);
-    if (added.result === 'failed')
-        return { result: 'failed', ok: false, message: added.message };
+    if (added.result === 'failed' || added.result === 'not_found')
+        return { result: added.result, ok: false, message: added.message };
 
-    // A fresh album has no releases until the refresh Lidarr queues after the add; the pin needs them
-    if (added.result === 'added' && releaseId)
+    // A fresh album has no releases until the refresh Lidarr queues after the add; the pin needs them.
+    // "Already added" for an album the lookup did not find is fresh too: a retried add that timed out, or another sender
+    if (!lidarrAlbum.id && releaseId)
         await waitForReleases(lidarrAlbum.foreignAlbumId, settings.url, apiKey);
 
     // Its own read decides the pin and says what happened, even if the wait gave up just before Lidarr finished
@@ -48,7 +49,7 @@ export async function addOrMonitorAlbum(lidarrAlbum: LidarrLookupResult, release
 async function addAlbum(lidarrAlbum: LidarrLookupResult, settings: LidarrAddSettings, apiKey: string): Promise<AddResult> {
     // Lidarr would add it as an empty album that no search can fill
     if (lidarrAlbum.releases.length === 0)
-        return { result: 'failed', message: "Lidarr's metadata has no releases for this album yet" };
+        return { result: 'not_found', message: "Lidarr's metadata has no releases for this album yet" };
 
     const baseUrl = settings.url.endsWith('/') ? settings.url.slice(0, -1) : settings.url;
 

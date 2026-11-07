@@ -19,6 +19,48 @@ const releases = [{ id: 1, foreignReleaseId: 'rel-extended', monitored: true }, 
 const adds = () => postMock.mock.calls.filter(([url]) => String(url).endsWith('/api/v1/album'));
 const searches = () => postMock.mock.calls.filter(([, body]) => body?.name === 'AlbumSearch');
 
+type FakeAlbum = { id: number; foreignAlbumId: string; title: string; monitored: boolean; artistId: number; anyReleaseOk: boolean; releases: { id: number; foreignReleaseId: string; monitored: boolean }[]; statistics?: { trackFileCount: number; totalTrackCount: number } };
+
+/**
+ * A Lidarr whose add saves the album without releases, which the refresh it queues loads 6 s later.
+ * Each AlbumSearch records whether Spotify's release was pinned at that moment.
+ */
+function fakeLidarr(options: { firstAddTimesOutAfterSaving?: boolean } = {}) {
+    const state: { album: FakeAlbum | null; searches: { pinned: boolean }[]; addAttempts: number } = { album: null, searches: [], addAttempts: 0 };
+    const pinned = () => state.album?.anyReleaseOk === false && state.album.releases.find(r => r.foreignReleaseId === 'rel-spotify')?.monitored === true;
+
+    getMock.mockImplementation(async () => ({ data: state.album ? [structuredClone(state.album)] : [] }));
+    putMock.mockImplementation(async (_url: string, body: FakeAlbum) => {
+        state.album = { ...state.album!, ...structuredClone(body) };
+
+        return { data: state.album };
+    });
+    postMock.mockImplementation(async (_url: string, body: any) => {
+        if (body?.name === 'AlbumSearch') {
+            state.searches.push({ pinned: pinned() });
+
+            return { data: {} };
+        }
+
+        state.addAttempts++;
+        if (state.album)
+            throw Object.assign(new Error('Request failed with status code 400'), { response: { status: 400, data: alreadyAdded } });
+
+        state.album = { id: 7, foreignAlbumId: 'rg-1', title: 'Hooked', monitored: true, artistId: 1, anyReleaseOk: true, releases: [] };
+        setTimeout(() => {
+            state.album!.releases = releases.map(r => ({ ...r }));
+            state.album!.statistics = { trackFileCount: 0, totalTrackCount: 10 };
+        }, 6000);
+
+        if (options.firstAddTimesOutAfterSaving && state.addAttempts === 1)
+            throw Object.assign(new Error('timeout of 30000ms exceeded'), { isAxiosError: true, code: 'ECONNABORTED' });
+
+        return { data: state.album };
+    });
+
+    return state;
+}
+
 function rejectAdd(status: number, data: unknown) {
     postMock.mockImplementation(async (url: string) => {
         if (url.endsWith('/api/v1/album'))
@@ -79,7 +121,7 @@ describe('addOrMonitorAlbum', () => {
 
         expect(adds()).toHaveLength(0);
         expect(searches()).toHaveLength(0);
-        expect(outcome).toEqual({ result: 'failed', ok: false, message: "Lidarr's metadata has no releases for this album yet" });
+        expect(outcome).toEqual({ result: 'not_found', ok: false, message: "Lidarr's metadata has no releases for this album yet" });
     });
 
     // Lidarr answers any failed database constraint with 409, not only a second add of the same album
@@ -209,5 +251,48 @@ describe('addOrMonitorAlbum', () => {
 
         expect(outcome).toEqual({ result: 'failed', ok: false, message: 'Root folder path does not exist' });
         expect(searches()).toHaveLength(0);
+    });
+
+    describe('against a Lidarr that loads the releases after the add', () => {
+        beforeEach(() => { vi.useFakeTimers() });
+        afterEach(() => { vi.useRealTimers() });
+
+        async function settle<T>(pending: Promise<T>) {
+            await vi.advanceTimersByTimeAsync(120_000);
+
+            return pending;
+        }
+
+        it('pins, then searches once, after a clean add', async () => {
+            const lidarr = fakeLidarr();
+
+            const outcome = await settle(addOrMonitorAlbum(lookup, 'rel-spotify', settings, 'key'));
+
+            expect(outcome).toMatchObject({ result: 'added', ok: true });
+            expect(lidarr.searches).toEqual([{ pinned: true }]);
+        });
+
+        // The retry meets "already added" for the album its own first attempt saved
+        it('waits for the releases when an add timed out after Lidarr saved it', async () => {
+            const lidarr = fakeLidarr({ firstAddTimesOutAfterSaving: true });
+
+            const outcome = await settle(addOrMonitorAlbum(lookup, 'rel-spotify', settings, 'key'));
+
+            expect(lidarr.addAttempts).toBe(2);
+            expect(outcome).toMatchObject({ result: 'existing', ok: true });
+            expect(lidarr.searches).toEqual([{ pinned: true }]);
+        });
+
+        // The web "send album" endpoint and the nightly job can send the same album at once
+        it('searches only pinned when another sender added the album first', async () => {
+            const lidarr = fakeLidarr();
+
+            const first = addOrMonitorAlbum(lookup, 'rel-spotify', settings, 'key');
+            await vi.advanceTimersByTimeAsync(100);
+            await settle(Promise.all([first, addOrMonitorAlbum(lookup, 'rel-spotify', settings, 'key')]));
+
+            expect(lidarr.searches.length).toBeGreaterThan(0);
+            expect(lidarr.searches.every(s => s.pinned)).toBe(true);
+        });
     });
 });
