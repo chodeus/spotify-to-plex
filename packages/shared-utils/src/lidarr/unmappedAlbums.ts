@@ -1,4 +1,4 @@
-import type { UnmappedAlbum, UnmappedAlbums } from '@spotify-to-plex/shared-types/lidarr/UnmappedAlbum';
+import type { UnmappedAlbum, UnmappedAlbums, UnmappedStage } from '@spotify-to-plex/shared-types/lidarr/UnmappedAlbum';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { isSpotifyId } from '../musicbrainz/importLinks';
@@ -41,14 +41,14 @@ export function updateUnmappedAlbums(change: (list: UnmappedAlbums) => UnmappedA
     return next;
 }
 
-/** Adds the album, or counts another failed check on it; keeps first_seen and a dismissal. */
-export function recordUnmapped(list: UnmappedAlbums, album: AlbumRef, now = Date.now()): UnmappedAlbums {
+function record(list: UnmappedAlbums, album: AlbumRef, stage: UnmappedStage, now: number): UnmappedAlbums {
     const id = album.spotify_album_id;
     // Without an album id there is no Harmony link to offer and nothing to key on
     if (!isSpotifyId(id))
         return list;
 
     const existing = list[id];
+    const foundInMusicBrainz = stage === 'lidarr' ? existing?.found_in_musicbrainz ?? now : undefined;
     const entry: UnmappedAlbum = {
         spotify_album_id: id,
         artist_name: album.artist_name,
@@ -56,13 +56,28 @@ export function recordUnmapped(list: UnmappedAlbums, album: AlbumRef, now = Date
         first_seen: existing?.first_seen ?? now,
         last_checked: now,
         attempts: (existing?.attempts ?? 0) + 1,
+        stage,
+        ...(foundInMusicBrainz ? { found_in_musicbrainz: foundInMusicBrainz } : {}),
         ...(existing?.dismissed ? { dismissed: true } : {})
     };
 
     return { ...list, [id]: entry };
 }
 
-/** Counts a failed check only on an album already listed, so a manual retry of anything else adds nothing. */
+/** MusicBrainz has no entry: adds the album, or counts another failed check; keeps first_seen and a dismissal. */
+export function recordUnmapped(list: UnmappedAlbums, album: AlbumRef, now = Date.now()): UnmappedAlbums {
+    return record(list, album, 'musicbrainz', now);
+}
+
+/**
+ * MusicBrainz has it but Lidarr's metadata server does not yet - right after an import, for 2-3 hours.
+ * Kept listed so the album does not drop off the page before Lidarr can add it.
+ */
+export function recordAwaitingLidarr(list: UnmappedAlbums, album: AlbumRef, now = Date.now()): UnmappedAlbums {
+    return record(list, album, 'lidarr', now);
+}
+
+/** Counts a failed MusicBrainz check only on an album already listed, so a manual retry of anything else adds nothing. */
 export function touchUnmapped(list: UnmappedAlbums, spotifyAlbumId: string | undefined, now = Date.now()): UnmappedAlbums {
     if (!spotifyAlbumId || !list[spotifyAlbumId])
         return list;
@@ -70,7 +85,15 @@ export function touchUnmapped(list: UnmappedAlbums, spotifyAlbumId: string | und
     return recordUnmapped(list, list[spotifyAlbumId], now);
 }
 
-/** Drops the album: MusicBrainz knows it now. */
+/** Moves an album already listed to waiting on Lidarr; one not listed stays off. */
+export function touchAwaitingLidarr(list: UnmappedAlbums, spotifyAlbumId: string | undefined, now = Date.now()): UnmappedAlbums {
+    if (!spotifyAlbumId || !list[spotifyAlbumId])
+        return list;
+
+    return recordAwaitingLidarr(list, list[spotifyAlbumId], now);
+}
+
+/** Drops the album: Lidarr has taken it. */
 export function clearUnmapped(list: UnmappedAlbums, spotifyAlbumId: string | undefined): UnmappedAlbums {
     if (!spotifyAlbumId || !list[spotifyAlbumId])
         return list;

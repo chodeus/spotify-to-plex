@@ -20,7 +20,9 @@ type RowProps = {
 
 function UnmappedAlbumRow(props: RowProps) {
     const { album, busy, result, onRetry, onDismiss } = props;
-    const harmony = harmonyImportUrl(album.spotify_album_id);
+    const waitingOnLidarr = album.stage === 'lidarr';
+    // Already in MusicBrainz: importing again would only make a duplicate
+    const harmony = waitingOnLidarr ? undefined : harmonyImportUrl(album.spotify_album_id);
 
     const handleRetry = useCallback(() => {
         onRetry(album);
@@ -39,11 +41,17 @@ function UnmappedAlbumRow(props: RowProps) {
                     </Typography>
                     <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                         First seen <BMoment date={album.first_seen} format="D MMM YYYY" />
+                        {!!album.found_in_musicbrainz && <> · in MusicBrainz <BMoment date={album.found_in_musicbrainz} variant="from-now" /></>}
                         {' · '}checked <BMoment date={album.last_checked} variant="from-now" />
                         {album.attempts > 1 && ` · ${album.attempts} checks`}
                     </Typography>
                 </Box>
                 <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center', flexShrink: 0 }}>
+                    {waitingOnLidarr ? (
+                        <Tooltip title="MusicBrainz has this album, but Lidarr's metadata server picks up new entries 2-3 hours after an import. The next sync, or a retry after that, sends it to Lidarr.">
+                            <Chip size="small" color="info" label="Waiting for Lidarr" sx={{ cursor: 'help' }} />
+                        </Tooltip>
+                    ) : null}
                     {!!harmony && (
                         <Button
                             size="small"

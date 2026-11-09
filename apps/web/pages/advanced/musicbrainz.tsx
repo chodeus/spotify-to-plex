@@ -22,7 +22,8 @@ const Page: NextPage = () => {
                         <Typography variant="h4" sx={{ mt: 2, mb: 0.5 }}>Not in MusicBrainz</Typography>
                         <Typography variant="body1" sx={{ mb: 2, maxWidth: 560 }}>
                             Missing albums Lidarr cannot add because MusicBrainz has no entry for them. Import one with Harmony,
-                            then use retry to send it to Lidarr - Lidarr&apos;s metadata server can take a few days to pick up new entries.
+                            then give it 2-3 hours: Lidarr only sees a new MusicBrainz entry once its metadata server picks it up.
+                            Until then the album shows as waiting for Lidarr; the next sync, or a retry, sends it.
                         </Typography>
                         <UnmappedAlbums />
                     </Paper>
