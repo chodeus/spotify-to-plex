@@ -22,6 +22,8 @@ export type LidarrAddAlbumRequest = {
         monitorNewItems: string;
         addOptions?: {
             monitor: string;
+            /** Foreign album ids Lidarr's post-add step keeps monitored; set, it overrides monitor. */
+            albumsToMonitor?: string[];
             monitored: boolean;
             searchForMissingAlbums: boolean;
         };

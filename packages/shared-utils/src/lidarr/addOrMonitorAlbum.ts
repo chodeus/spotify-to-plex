@@ -114,6 +114,10 @@ function addRequest(lidarrAlbum: LidarrLookupResult, settings: LidarrAddSettings
             monitorNewItems: "none",
             addOptions: {
                 monitor: "none",
+                // Lidarr applies these options once the new artist's first disk scan ends - after the
+                // album is added, monitored and searched. "none" alone then unmonitors every album,
+                // this one included; listing it keeps it monitored and the rest of the artist off
+                albumsToMonitor: [lidarrAlbum.foreignAlbumId],
                 monitored: true,
                 searchForMissingAlbums: false,
             },
