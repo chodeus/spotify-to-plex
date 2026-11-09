@@ -93,19 +93,28 @@ async function lookupBySpotifyUrl(spotifyAlbumId: string): Promise<MusicBrainzLo
     }
 }
 
+export type GetMusicBrainzIdsOptions = {
+    /**
+     * Ask MusicBrainz even when a recent lookup found nothing. A miss is cached for
+     * 14 days, which outlasts an import: an album just added (with Harmony) would
+     * read as absent until the miss expired. A found answer is cached and served as ever.
+     */
+    recheckMiss?: boolean;
+};
+
 /**
  * Get MusicBrainz release group and artist IDs from Spotify album ID
  * Uses caching to minimize API calls
  * Falls back to text search when the album carries no Spotify URL relation
  */
-export async function getMusicBrainzIds(spotifyAlbumId: string, artistName?: string, albumName?: string): Promise<MusicBrainzLookup> {
+export async function getMusicBrainzIds(spotifyAlbumId: string, artistName?: string, albumName?: string, options: GetMusicBrainzIdsOptions = {}): Promise<MusicBrainzLookup> {
     const cache = getMusicBrainzCache();
 
     const cached = cache.get(spotifyAlbumId);
     if (cached)
         return cached.musicbrainz_release_id === undefined ? fillReleaseId(cache, cached) : fromCache(cached);
 
-    if (cache.hasRecentMiss(spotifyAlbumId))
+    if (!options.recheckMiss && cache.hasRecentMiss(spotifyAlbumId))
         return { status: 'not-found' };
 
     const direct = await lookupBySpotifyUrl(spotifyAlbumId);

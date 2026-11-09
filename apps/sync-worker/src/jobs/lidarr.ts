@@ -157,7 +157,10 @@ export async function syncLidarr() {
                 }
 
                 // STEP 1: Get MusicBrainz IDs (with fallback using artist/album names)
-                const musicBrainzIds = await getMusicBrainzIds(album.spotify_album_id, album.artist_name, album.album_name);
+                // An album on the list may have been imported since its miss was cached; a dismissed one keeps the cache
+                const listed = unmapped[album.spotify_album_id];
+                const recheckMiss = !!listed && !listed.dismissed;
+                const musicBrainzIds = await getMusicBrainzIds(album.spotify_album_id, album.artist_name, album.album_name, { recheckMiss });
 
                 if (musicBrainzIds.status !== 'found') {
                     // An unreachable MusicBrainz is this run's problem, not a

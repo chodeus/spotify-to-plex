@@ -46,7 +46,8 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
             }
 
             // Step 1: Get MusicBrainz IDs (with fallback using artist/album names)
-            const musicBrainzIds = await getMusicBrainzIds(spotify_album_id, artist_name, album_name);
+            // A manual send always asks MusicBrainz again: it is how an album just imported with Harmony gets found
+            const musicBrainzIds = await getMusicBrainzIds(spotify_album_id, artist_name, album_name, { recheckMiss: true });
             if (musicBrainzIds.status === 'unavailable') {
                 return res.status(503).json({
                     success: false,
