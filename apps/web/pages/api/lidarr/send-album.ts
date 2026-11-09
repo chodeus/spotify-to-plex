@@ -3,6 +3,7 @@ import { getLidarrSettings } from '@spotify-to-plex/plex-config/functions/getLid
 import { addOrMonitorAlbum } from '@spotify-to-plex/shared-utils/lidarr/addOrMonitorAlbum';
 import { getMusicBrainzIds } from '@spotify-to-plex/shared-utils/lidarr/getMusicBrainzIds';
 import { lookupLidarrAlbum } from '@spotify-to-plex/shared-utils/lidarr/lookupLidarrAlbum';
+import { clearUnmapped, touchUnmapped, updateUnmappedAlbums } from '@spotify-to-plex/shared-utils/lidarr/unmappedAlbums';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createRouter } from 'next-connect';
 
@@ -52,6 +53,11 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
                     message: 'MusicBrainz is unavailable, please try again',
                 });
             }
+
+            // Keep the "Not in MusicBrainz" list current: a retry that maps drops the album, one that fails counts
+            updateUnmappedAlbums(list => (musicBrainzIds.status === 'found'
+                ? clearUnmapped(list, spotify_album_id)
+                : touchUnmapped(list, spotify_album_id)));
 
             if (musicBrainzIds.status !== 'found') {
                 return res.status(404).json({

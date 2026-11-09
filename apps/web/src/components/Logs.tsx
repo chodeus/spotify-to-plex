@@ -5,6 +5,9 @@ import { useCallback, useEffect, useState } from "react";
 import { GetLogsResponse } from "../../pages/api/logs";
 import { SyncType } from "@spotify-to-plex/shared-types/common/sync";
 import BMoment from "./BMoment";
+import { OpenInNew } from "@mui/icons-material";
+import { Link } from "@mui/material";
+import { harmonyImportUrl } from "@spotify-to-plex/shared-utils/musicbrainz/importLinks";
 
 type TabPanelProps = {
     readonly children?: React.ReactNode;
@@ -258,6 +261,13 @@ export default function Logs() {
                                 <Typography variant="body2" sx={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
                                     {log.artist_name} - {log.album_name}
                                 </Typography>
+                                {log.status === 'not_found' && log.error === 'No MusicBrainz mapping found' && !!harmonyImportUrl(log.spotify_album_id) && (
+                                    <Tooltip title="Import this album into MusicBrainz with Harmony" arrow>
+                                        <Link href={harmonyImportUrl(log.spotify_album_id)} target="_blank" rel="noopener noreferrer" sx={{ display: 'flex' }}>
+                                            <OpenInNew fontSize="small" />
+                                        </Link>
+                                    </Tooltip>
+                                )}
                                 {log.start ? <Typography
                                     variant="body2"
                                     sx={{
