@@ -23,6 +23,14 @@ describe('missingListsFor', () => {
         });
     });
 
+    // Track artists come split on commas; the album artist does not
+    it('names the album by its album artist for Lidarr, whole, and the track by its first artist for slskd', async () => {
+        const result = await missingListsFor([track('a', { artists: ['Above', 'Below'], album_artist: 'Above, Below' }), track('b', { album_artist: '  ' })]);
+
+        expect(result.lidarr).toEqual([{ ...album('Album'), artist_name: 'Above, Below' }, album('Album')]);
+        expect(result.slskd[0]).toMatchObject({ artist_name: 'Above' });
+    });
+
     it('sends a local file to Lidarr only, and a track with no known album to the track lists only', async () => {
         vi.spyOn(console, 'log').mockImplementation(() => { /* expected */ });
 
