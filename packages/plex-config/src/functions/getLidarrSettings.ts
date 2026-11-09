@@ -8,6 +8,7 @@ const DEFAULT_SETTINGS: LidarrSettings = {
     quality_profile_id: 1,
     metadata_profile_id: 1,
     auto_sync: false,
+    pin_spotify_release: false,
 };
 
 export async function getLidarrSettings() {

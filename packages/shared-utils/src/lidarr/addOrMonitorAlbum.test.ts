@@ -13,7 +13,9 @@ const putMock = axios.put as unknown as Mock;
 
 const lookup = { id: 0, foreignAlbumId: 'rg-1', title: 'Hooked', releases: [{ foreignReleaseId: 'rel-spotify' }], artist: { foreignArtistId: 'ar-1', artistName: 'NOTION' } } as LidarrLookupResult;
 const alreadyAdded = [{ errorCode: 'AlbumExistsValidator', errorMessage: 'This album has already been added.' }];
-const settings = { url: 'http://lidarr:8686/', root_folder_path: '/music', quality_profile_id: 4, metadata_profile_id: 1 };
+// Most cases here are about the pin, so pinning is on; the default (off) has its own cases below
+const settings = { url: 'http://lidarr:8686/', root_folder_path: '/music', quality_profile_id: 4, metadata_profile_id: 1, pin_spotify_release: true };
+const unpinned = { ...settings, pin_spotify_release: undefined };
 const releases = [{ id: 1, foreignReleaseId: 'rel-extended', monitored: true }, { id: 2, foreignReleaseId: 'rel-spotify', monitored: false }];
 
 const adds = () => postMock.mock.calls.filter(([url]) => String(url).endsWith('/api/v1/album'));
@@ -178,12 +180,32 @@ describe('addOrMonitorAlbum', () => {
         expect(searches()).toHaveLength(1);
     });
 
-    it('searches without pinning, or waiting, when no release is known', async () => {
+    it('searches without pinning when no release is known', async () => {
         await addOrMonitorAlbum(lookup, undefined, settings, 'key');
 
         expect(putMock).not.toHaveBeenCalled();
-        expect(getMock).toHaveBeenCalledTimes(1);
         expect(searches()).toHaveLength(1);
+    });
+
+    // The default: downloads come from slskd, Deezer or Tidal, whose edition often is not Spotify's
+    describe('with pinning off', () => {
+        it('leaves any release importable, monitors and searches once', async () => {
+            const outcome = await addOrMonitorAlbum(lookup, 'rel-spotify', unpinned, 'key');
+
+            expect(adds()[0]?.[1]).toMatchObject({ anyReleaseOk: true });
+            expect(putMock).not.toHaveBeenCalled();
+            expect(searches()).toHaveLength(1);
+            expect(outcome).toMatchObject({ result: 'added', ok: true, message: 'Album already monitored, search triggered' });
+        });
+
+        it('monitors an unmonitored album Lidarr has without touching its releases', async () => {
+            getMock.mockResolvedValue({ data: [{ id: 7, foreignAlbumId: 'rg-1', title: 'Hooked', monitored: false, artistId: 1, anyReleaseOk: true, releases, statistics: { trackFileCount: 0, totalTrackCount: 1 } }] });
+
+            await addOrMonitorAlbum({ ...lookup, id: 7 }, 'rel-spotify', unpinned, 'key');
+
+            expect(putMock.mock.calls[0]?.[1]).toMatchObject({ monitored: true, anyReleaseOk: true, releases });
+            expect(searches()).toHaveLength(1);
+        });
     });
 
     describe("a new album's releases, which Lidarr loads after the add", () => {

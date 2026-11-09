@@ -14,6 +14,8 @@ export type LidarrAddSettings = {
     root_folder_path: string;
     quality_profile_id: number;
     metadata_profile_id: number;
+    /** Pin Spotify's release (see LidarrSettings); off unless set. */
+    pin_spotify_release?: boolean;
 };
 
 export type AddOrMonitorOutcome = {
@@ -27,7 +29,7 @@ type AddResult = { result: 'added' | 'existing' } | { result: 'failed' | 'not_fo
 
 /**
  * Add the album to Lidarr, or take the one it already has, then monitor it,
- * pin Spotify's release when known, and search.
+ * pin Spotify's release when known and pinning is on, and search.
  */
 export async function addOrMonitorAlbum(lidarrAlbum: LidarrLookupResult, releaseId: string | undefined, settings: LidarrAddSettings, apiKey: string): Promise<AddOrMonitorOutcome> {
     // Lidarr answers the lookup of an album it has from its library, with that album's id
@@ -35,13 +37,18 @@ export async function addOrMonitorAlbum(lidarrAlbum: LidarrLookupResult, release
     if (added.result === 'failed' || added.result === 'not_found')
         return { result: added.result, ok: false, message: added.message };
 
-    // A fresh album has no releases until the refresh Lidarr queues after the add; the pin needs them.
-    // "Already added" for an album the lookup did not find is fresh too: a retried add that timed out, or another sender
-    if (!lidarrAlbum.id && releaseId)
+    // Off by default: the download comes from slskd, Deezer or Tidal, not Spotify, and a pin to
+    // Spotify's edition makes Lidarr refuse the same album in another edition
+    const pinReleaseId = settings.pin_spotify_release ? releaseId : undefined;
+
+    // A fresh album has no releases until the refresh Lidarr queues after the add; the pin needs them,
+    // and a search run before them has nothing to match. "Already added" for an album the lookup did
+    // not find is fresh too: a retried add that timed out, or another sender
+    if (!lidarrAlbum.id)
         await waitForReleases(lidarrAlbum.foreignAlbumId, settings.url, apiKey);
 
     // Its own read decides the pin and says what happened, even if the wait gave up just before Lidarr finished
-    const outcome = await monitorAndSearchAlbum(lidarrAlbum.foreignAlbumId, settings.url, apiKey, releaseId);
+    const outcome = await monitorAndSearchAlbum(lidarrAlbum.foreignAlbumId, settings.url, apiKey, pinReleaseId);
 
     return { result: added.result, ok: outcome.success, message: outcome.message };
 }
