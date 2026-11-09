@@ -2,9 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { harmonyImportUrl, isSpotifyId, musicBrainzSearchUrl } from './importLinks';
 
 describe('harmonyImportUrl', () => {
-    it('links Harmony to the Spotify album, url-encoded, with a region', () => {
-        expect(harmonyImportUrl('72PfrevnGAsfQXknMYKGVu')).toBe('https://harmony.pulsewidth.org.uk/release?url=https%3A%2F%2Fopen.spotify.com%2Falbum%2F72PfrevnGAsfQXknMYKGVu&region=US');
-        expect(harmonyImportUrl('72PfrevnGAsfQXknMYKGVu', 'GB,US')).toContain('&region=GB%2CUS');
+    // The form Harmony's own page submits: the release url, then every provider to combine
+    it('links Harmony to the Spotify album, url-encoded, with a region and every provider', () => {
+        expect(harmonyImportUrl('1WUQvJMTzdN3MmELwmMJFL')).toBe('https://harmony.pulsewidth.org.uk/release?url=https%3A%2F%2Fopen.spotify.com%2Falbum%2F1WUQvJMTzdN3MmELwmMJFL&gtin=&region=US&musicbrainz=&discogs=&deezer=&spotify=&tidal=&qobuz=&beatport=');
+        expect(harmonyImportUrl('72PfrevnGAsfQXknMYKGVu', 'GB,US')).toContain('&region=GB%2CUS&');
     });
 
     // The Lidarr sync logs "unknown" for albums it cannot key; a uri or url is not a bare id either

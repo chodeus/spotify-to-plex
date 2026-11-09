@@ -2,6 +2,9 @@
 
 const SPOTIFY_ID = /^[0-9A-Za-z]{22}$/;
 
+/** The sources Harmony combines for an import, as its own form names them. */
+const HARMONY_PROVIDERS = ['musicbrainz', 'discogs', 'deezer', 'spotify', 'tidal', 'qobuz', 'beatport'] as const;
+
 /** A bare Spotify id: 22 base-62 characters, no uri or url around it. */
 export function isSpotifyId(id: unknown): id is string {
     return typeof id === 'string' && SPOTIFY_ID.test(id);
@@ -18,8 +21,14 @@ export function harmonyImportUrl(spotifyAlbumId: string | undefined, region = 'U
 
     const params = new URLSearchParams({
         url: `https://open.spotify.com/album/${spotifyAlbumId}`,
+        gtin: '',
         region
     });
+
+    // Harmony takes each provider named, even empty, as one to look the release up in too:
+    // the others add what Spotify lacks (label, catalogue numbers, other editions' links)
+    for (const provider of HARMONY_PROVIDERS)
+        params.append(provider, '');
 
     return `https://harmony.pulsewidth.org.uk/release?${params.toString()}`;
 }
