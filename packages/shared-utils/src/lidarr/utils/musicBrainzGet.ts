@@ -15,6 +15,9 @@ const MIN_INTERVAL_MS = 1100;
 // Without one, a MusicBrainz that stops answering holds the whole Lidarr job
 const REQUEST_TIMEOUT_MS = 20_000;
 
+// Retries of a transient failure (busy 503, timeout), 2s/4s/8s apart; see musicBrainzGet
+const MUSICBRAINZ_RETRIES = 3;
+
 let nextSlotAt = 0;
 let heldUntil = 0;
 
@@ -61,6 +64,9 @@ async function request<T>(url: string) {
  * a new call site - which is how both came to be missing in the first place.
  */
 export function musicBrainzGet<T>(url: string) {
-    // Paced inside the retry, so a retry takes its own slot like any other request
-    return withRetry(() => request<T>(url));
+    // MusicBrainz answers the odd paced request 503 when busy. One retry left an album that needs
+    // three requests (no Spotify URL on file, then two name searches) "unavailable" night after
+    // night; three, 2s/4s/8s apart, ride that out. Paced inside the retry, so a retry takes its
+    // own slot like any other request
+    return withRetry(() => request<T>(url), 2000, MUSICBRAINZ_RETRIES);
 }

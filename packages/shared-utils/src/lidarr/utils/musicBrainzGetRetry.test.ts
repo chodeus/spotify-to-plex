@@ -39,6 +39,35 @@ describe('musicBrainzGet retry', () => {
         expect(sentAt[2]! - sentAt[1]!).toBeGreaterThanOrEqual(1100);
     });
 
+    it('retries a busy MusicBrainz three times, each wait twice the last, then gives up', async () => {
+        vi.useFakeTimers();
+        const busy = () => Promise.reject(new AxiosError('busy', 'ERR_BAD_RESPONSE', undefined, undefined, { status: 503 } as AxiosResponse));
+
+        // Busy three times, then answers: the fourth try gets through
+        const sentAt: number[] = [];
+        getMock.mockImplementation(() => {
+            sentAt.push(Date.now());
+
+            return sentAt.length <= 3 ? busy() : Promise.resolve({ data: { ok: true } });
+        });
+        const answered = musicBrainzGet('https://musicbrainz.org/ws/2/a');
+        await vi.advanceTimersByTimeAsync(30_000);
+        await expect(answered).resolves.toMatchObject({ data: { ok: true } });
+        expect(sentAt).toHaveLength(4);
+        expect(sentAt[1]! - sentAt[0]!).toBeGreaterThanOrEqual(2000);
+        expect(sentAt[2]! - sentAt[1]!).toBeGreaterThanOrEqual(4000);
+        expect(sentAt[3]! - sentAt[2]!).toBeGreaterThanOrEqual(8000);
+
+        // Busy every time: four tries, then the 503 is the caller's
+        getMock.mockReset();
+        getMock.mockImplementation(busy);
+        const refused = musicBrainzGet('https://musicbrainz.org/ws/2/b');
+        const settled = refused.catch((error: unknown) => error);
+        await vi.advanceTimersByTimeAsync(30_000);
+        expect(await settled).toBeInstanceOf(AxiosError);
+        expect(getMock).toHaveBeenCalledTimes(4);
+    });
+
     // The queued request had claimed its slot before the 503 arrived
     it('holds the retry and a queued request for the wait Retry-After names', async () => {
         vi.useFakeTimers();
