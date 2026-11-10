@@ -49,14 +49,14 @@ export function listedUnmapped(list: UnmappedAlbums, spotifyAlbumId: string | un
     return spotifyAlbumId && Object.hasOwn(list, spotifyAlbumId) ? list[spotifyAlbumId] : undefined;
 }
 
-function record(list: UnmappedAlbums, album: AlbumRef, stage: UnmappedStage, now: number): UnmappedAlbums {
+function record(list: UnmappedAlbums, album: AlbumRef, stage: UnmappedStage, now: number, releasesWithoutStatus?: string[]): UnmappedAlbums {
     const id = album.spotify_album_id;
     // Without an album id there is no Harmony link to offer and nothing to key on
     if (!isSpotifyId(id))
         return list;
 
     const existing = listedUnmapped(list, id);
-    const foundInMusicBrainz = stage === 'lidarr' ? existing?.found_in_musicbrainz ?? now : undefined;
+    const foundInMusicBrainz = stage === 'musicbrainz' ? undefined : existing?.found_in_musicbrainz ?? now;
     const entry: UnmappedAlbum = {
         spotify_album_id: id,
         artist_name: album.artist_name,
@@ -66,6 +66,7 @@ function record(list: UnmappedAlbums, album: AlbumRef, stage: UnmappedStage, now
         attempts: (existing?.attempts ?? 0) + 1,
         stage,
         ...(foundInMusicBrainz ? { found_in_musicbrainz: foundInMusicBrainz } : {}),
+        ...(stage === 'release_status' && releasesWithoutStatus?.length ? { releases_without_status: releasesWithoutStatus } : {}),
         ...(existing?.dismissed ? { dismissed: true } : {})
     };
 
@@ -82,6 +83,11 @@ export function recordAwaitingLidarr(list: UnmappedAlbums, album: AlbumRef, now 
     return record(list, album, 'lidarr', now);
 }
 
+/** In MusicBrainz, but no release has a status, so Lidarr's metadata leaves them out; waiting does not help. */
+export function recordMissingReleaseStatus(list: UnmappedAlbums, album: AlbumRef, releaseIds: string[], now = Date.now()): UnmappedAlbums {
+    return record(list, album, 'release_status', now, releaseIds);
+}
+
 /** Counts a failed MusicBrainz check only on an album already listed, so a manual retry of anything else adds nothing. */
 export function touchUnmapped(list: UnmappedAlbums, spotifyAlbumId: string | undefined, now = Date.now()): UnmappedAlbums {
     const existing = listedUnmapped(list, spotifyAlbumId);
@@ -94,6 +100,13 @@ export function touchAwaitingLidarr(list: UnmappedAlbums, spotifyAlbumId: string
     const existing = listedUnmapped(list, spotifyAlbumId);
 
     return existing ? recordAwaitingLidarr(list, existing, now) : list;
+}
+
+/** Moves an album already listed to missing a release status; one not listed stays off. */
+export function touchMissingReleaseStatus(list: UnmappedAlbums, spotifyAlbumId: string | undefined, releaseIds: string[], now = Date.now()): UnmappedAlbums {
+    const existing = listedUnmapped(list, spotifyAlbumId);
+
+    return existing ? recordMissingReleaseStatus(list, existing, releaseIds, now) : list;
 }
 
 /** Drops the album: Lidarr has taken it. */

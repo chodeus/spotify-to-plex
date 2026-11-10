@@ -3,7 +3,7 @@ import { getLidarrSettings } from '@spotify-to-plex/plex-config/functions/getLid
 import { addOrMonitorAlbum } from '@spotify-to-plex/shared-utils/lidarr/addOrMonitorAlbum';
 import { getMusicBrainzIds } from '@spotify-to-plex/shared-utils/lidarr/getMusicBrainzIds';
 import { lookupLidarrAlbum } from '@spotify-to-plex/shared-utils/lidarr/lookupLidarrAlbum';
-import { clearUnmapped, touchAwaitingLidarr, touchUnmapped, updateUnmappedAlbums } from '@spotify-to-plex/shared-utils/lidarr/unmappedAlbums';
+import { clearUnmapped, touchAwaitingLidarr, touchMissingReleaseStatus, touchUnmapped, updateUnmappedAlbums } from '@spotify-to-plex/shared-utils/lidarr/unmappedAlbums';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createRouter } from 'next-connect';
 
@@ -82,7 +82,10 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
             // Step 3: Add to Lidarr, or monitor the album it has, then search
             const outcome = await addOrMonitorAlbum(lidarrAlbum, releaseId, settings, apiKey);
 
-            if (outcome.result === 'not_found')
+            const { releasesWithoutStatus } = outcome;
+            if (outcome.result === 'not_found' && releasesWithoutStatus?.length)
+                updateUnmappedAlbums(list => touchMissingReleaseStatus(list, spotify_album_id, releasesWithoutStatus));
+            else if (outcome.result === 'not_found')
                 updateUnmappedAlbums(list => touchAwaitingLidarr(list, spotify_album_id));
             else
                 updateUnmappedAlbums(list => clearUnmapped(list, spotify_album_id));

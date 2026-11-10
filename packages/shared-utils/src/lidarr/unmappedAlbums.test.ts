@@ -2,7 +2,7 @@ import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { clearUnmapped, listedUnmapped, pruneUnmapped, readUnmappedAlbums, recordAwaitingLidarr, recordUnmapped, setUnmappedDismissed, touchAwaitingLidarr, touchUnmapped, updateUnmappedAlbums } from './unmappedAlbums';
+import { clearUnmapped, listedUnmapped, pruneUnmapped, readUnmappedAlbums, recordAwaitingLidarr, recordMissingReleaseStatus, recordUnmapped, setUnmappedDismissed, touchAwaitingLidarr, touchMissingReleaseStatus, touchUnmapped, updateUnmappedAlbums } from './unmappedAlbums';
 
 const ID = '72PfrevnGAsfQXknMYKGVu';
 const OTHER = '4aawyAB9vmqN3uQ7FjRGTy';
@@ -49,6 +49,27 @@ describe('recordAwaitingLidarr', () => {
     it('touches only an album already listed', () => {
         expect(touchAwaitingLidarr({}, ID)).toEqual({});
         expect(touchAwaitingLidarr(recordUnmapped({}, deathwish, 100), ID, 200)[ID]?.stage).toBe('lidarr');
+    });
+});
+
+describe('recordMissingReleaseStatus', () => {
+    it('keeps the releases to fix and when MusicBrainz first had the album', () => {
+        const waiting = recordAwaitingLidarr({}, deathwish, 200);
+        const noStatus = recordMissingReleaseStatus(waiting, deathwish, ['rel-1'], 300);
+
+        expect(noStatus[ID]).toMatchObject({ stage: 'release_status', releases_without_status: ['rel-1'], found_in_musicbrainz: 200, attempts: 2 });
+    });
+
+    // Once the status is set the album waits on Lidarr like any fresh entry
+    it('drops the releases when the album moves on to waiting for Lidarr', () => {
+        const noStatus = recordMissingReleaseStatus({}, deathwish, ['rel-1'], 100);
+
+        expect(recordAwaitingLidarr(noStatus, deathwish, 200)[ID]).not.toHaveProperty('releases_without_status');
+    });
+
+    it('touches only an album already listed', () => {
+        expect(touchMissingReleaseStatus({}, ID, ['rel-1'])).toEqual({});
+        expect(touchMissingReleaseStatus(recordUnmapped({}, deathwish, 100), ID, ['rel-1'], 200)[ID]?.stage).toBe('release_status');
     });
 });
 

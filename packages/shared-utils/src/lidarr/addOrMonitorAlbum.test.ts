@@ -2,11 +2,15 @@ import axios from 'axios';
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import type { LidarrLookupResult } from '@spotify-to-plex/shared-types/musicbrainz/LidarrLookupResult';
 import { addOrMonitorAlbum } from './addOrMonitorAlbum';
+import { getReleasesWithoutStatus } from '../musicbrainz/getReleasesWithoutStatus';
 
 vi.mock('axios', () => ({
     default: { get: vi.fn(), put: vi.fn(), post: vi.fn(), isAxiosError: (error: { isAxiosError?: boolean }) => error?.isAxiosError === true }
 }));
 
+vi.mock('../musicbrainz/getReleasesWithoutStatus', () => ({ getReleasesWithoutStatus: vi.fn(async () => []) }));
+
+const statusMock = getReleasesWithoutStatus as unknown as Mock;
 const getMock = axios.get as unknown as Mock;
 const postMock = axios.post as unknown as Mock;
 const putMock = axios.put as unknown as Mock;
@@ -125,6 +129,26 @@ describe('addOrMonitorAlbum', () => {
 
         expect(adds()).toHaveLength(0);
         expect(searches()).toHaveLength(0);
+        expect(outcome).toEqual({ result: 'not_found', ok: false, message: "Lidarr's metadata has no releases for this album yet" });
+    });
+
+    // Lidarr's metadata server leaves such releases out, so waiting for it would never help
+    it('says so, and names the releases, when none of the MusicBrainz releases has a status', async () => {
+        statusMock.mockResolvedValueOnce(['rel-a', 'rel-b']);
+
+        const outcome = await addOrMonitorAlbum({ ...lookup, releases: [] }, 'rel-spotify', settings, 'key');
+
+        expect(statusMock).toHaveBeenCalledWith('rg-1');
+        expect(adds()).toHaveLength(0);
+        expect(outcome).toMatchObject({ result: 'not_found', ok: false, releasesWithoutStatus: ['rel-a', 'rel-b'] });
+        expect(outcome.message).toMatch(/no status/);
+    });
+
+    it('keeps the waiting message when MusicBrainz cannot be asked', async () => {
+        statusMock.mockResolvedValueOnce(undefined);
+
+        const outcome = await addOrMonitorAlbum({ ...lookup, releases: [] }, 'rel-spotify', settings, 'key');
+
         expect(outcome).toEqual({ result: 'not_found', ok: false, message: "Lidarr's metadata has no releases for this album yet" });
     });
 

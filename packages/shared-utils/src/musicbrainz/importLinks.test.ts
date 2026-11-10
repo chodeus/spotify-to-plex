@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { harmonyImportUrl, isSpotifyId, musicBrainzSearchUrl } from './importLinks';
+import { musicBrainzReleaseEditUrl, harmonyImportUrl, isSpotifyId, musicBrainzSearchUrl } from './importLinks';
 
 describe('harmonyImportUrl', () => {
     // The form Harmony's own page submits: the release url, then every provider to combine
@@ -32,5 +32,11 @@ describe('musicBrainzSearchUrl', () => {
         expect(url.origin + url.pathname).toBe('https://musicbrainz.org/search');
         expect(url.searchParams.get('query')).toBe('Deathwish Locked Years');
         expect(url.searchParams.get('type')).toBe('release_group');
+    });
+});
+
+describe('musicBrainzReleaseEditUrl', () => {
+    it("links the release's edit page", () => {
+        expect(musicBrainzReleaseEditUrl('386221ed-e25e-41cc-9e22-b9f7cac1626c')).toBe('https://musicbrainz.org/release/386221ed-e25e-41cc-9e22-b9f7cac1626c/edit');
     });
 });

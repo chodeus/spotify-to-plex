@@ -14,7 +14,7 @@ import { updateSyncTypeProgress } from "../utils/updateSyncTypeProgress";
 import { getMusicBrainzIds } from "@spotify-to-plex/shared-utils/lidarr/getMusicBrainzIds";
 import { lookupLidarrAlbum } from "@spotify-to-plex/shared-utils/lidarr/lookupLidarrAlbum";
 import { addOrMonitorAlbum } from "@spotify-to-plex/shared-utils/lidarr/addOrMonitorAlbum";
-import { clearUnmapped, listedUnmapped, pruneUnmapped, readUnmappedAlbums, recordAwaitingLidarr, recordUnmapped, updateUnmappedAlbums, writeUnmappedAlbums } from "@spotify-to-plex/shared-utils/lidarr/unmappedAlbums";
+import { clearUnmapped, listedUnmapped, pruneUnmapped, readUnmappedAlbums, recordAwaitingLidarr, recordMissingReleaseStatus, recordUnmapped, updateUnmappedAlbums, writeUnmappedAlbums } from "@spotify-to-plex/shared-utils/lidarr/unmappedAlbums";
 
 export async function syncLidarr() {
     console.log('Starting Lidarr sync...');
@@ -197,8 +197,9 @@ export async function syncLidarr() {
                 // STEP 3: Add to Lidarr, or monitor the album it has, then search
                 const outcome = await addOrMonitorAlbum(lidarrAlbum, releaseId, settings, apiKey);
                 if (outcome.result === 'not_found') {
-                    // Lidarr knows the album but has no releases for it yet - the same metadata lag
-                    updateUnmappedAlbums(list => recordAwaitingLidarr(list, album));
+                    // Lidarr knows the album but has no releases for it: the metadata lag, or releases with no status
+                    const noStatus = outcome.releasesWithoutStatus;
+                    updateUnmappedAlbums(list => (noStatus?.length ? recordMissingReleaseStatus(list, album, noStatus) : recordAwaitingLidarr(list, album)));
                     albumLog.status = 'not_found';
                     albumLog.error = outcome.message;
                     albumLog.end = Date.now();

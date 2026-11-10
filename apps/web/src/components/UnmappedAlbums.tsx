@@ -2,7 +2,7 @@ import { errorBoundary } from "@/helpers/errors/errorBoundary";
 import { OpenInNew, Refresh, Search, Visibility, VisibilityOff } from "@mui/icons-material";
 import { Alert, Box, Button, Chip, CircularProgress, FormControlLabel, IconButton, Link, Stack, Switch, Tooltip, Typography } from "@mui/material";
 import type { UnmappedAlbum } from "@spotify-to-plex/shared-types/lidarr/UnmappedAlbum";
-import { harmonyImportUrl, musicBrainzSearchUrl } from "@spotify-to-plex/shared-utils/musicbrainz/importLinks";
+import { harmonyImportUrl, musicBrainzReleaseEditUrl, musicBrainzSearchUrl } from "@spotify-to-plex/shared-utils/musicbrainz/importLinks";
 import axios from "axios";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { GetUnmappedAlbumsResponse } from "../../pages/api/lidarr/unmapped";
@@ -26,8 +26,10 @@ function UnmappedAlbumRow(props: RowProps) {
     const { album, fetchedAt, busy, result, onRetry, onDismiss } = props;
     const waitingOnLidarr = album.stage === 'lidarr';
     const stuck = waitingOnLidarr && fetchedAt - (album.found_in_musicbrainz ?? album.first_seen) > STUCK_AFTER_MS;
+    const missingStatus = album.stage === 'release_status';
     // Already in MusicBrainz: importing again would only make a duplicate
-    const harmony = waitingOnLidarr ? undefined : harmonyImportUrl(album.spotify_album_id);
+    const harmony = waitingOnLidarr || missingStatus ? undefined : harmonyImportUrl(album.spotify_album_id);
+    const statusReleases = missingStatus ? album.releases_without_status ?? [] : [];
 
     const handleRetry = useCallback(() => {
         onRetry(album);
@@ -62,6 +64,25 @@ function UnmappedAlbumRow(props: RowProps) {
                             <Chip size="small" color="warning" label="Not reaching Lidarr" sx={{ cursor: 'help' }} />
                         </Tooltip>
                     ) : null}
+                    {missingStatus ? (
+                        <Tooltip title="MusicBrainz has this album, but none of its releases has a status, and Lidarr's metadata leaves those out. Set the status (usually Official) on each release; Lidarr sees it 2-3 hours later.">
+                            <Chip size="small" color="warning" label="No release status" sx={{ cursor: 'help' }} />
+                        </Tooltip>
+                    ) : null}
+                    {statusReleases.map((releaseId, index) => (
+                        <Button
+                            key={releaseId}
+                            size="small"
+                            variant="contained"
+                            component={Link}
+                            href={musicBrainzReleaseEditUrl(releaseId)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            endIcon={<OpenInNew fontSize="small" />}
+                        >
+                            {statusReleases.length > 1 ? `Set status ${index + 1}` : 'Set status'}
+                        </Button>
+                    ))}
                     {!!harmony && (
                         <Button
                             size="small"

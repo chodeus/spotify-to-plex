@@ -29,6 +29,11 @@ export function harmonyImportUrl(spotifyAlbumId: string | undefined, region = 'U
     return `https://harmony.pulsewidth.org.uk/release?${params.toString()}`;
 }
 
+/** A MusicBrainz release's edit page, where its status is set. */
+export function musicBrainzReleaseEditUrl(releaseId: string) {
+    return `https://musicbrainz.org/release/${encodeURIComponent(releaseId)}/edit`;
+}
+
 /** MusicBrainz's release group search, to check for an entry before importing a duplicate. */
 export function musicBrainzSearchUrl(artistName: string, albumName: string) {
     const params = new URLSearchParams({

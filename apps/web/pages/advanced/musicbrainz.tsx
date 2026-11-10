@@ -24,6 +24,8 @@ const Page: NextPage = () => {
                             Missing albums Lidarr cannot add because MusicBrainz has no entry for them. Import one with Harmony,
                             then give it 2-3 hours: Lidarr only sees a new MusicBrainz entry once its metadata server picks it up.
                             Until then the album shows as waiting for Lidarr; the next sync, or a retry, sends it.
+                            An album marked &quot;No release status&quot; is in MusicBrainz, but Lidarr skips releases with no
+                            status: set it on each release, then allow the same 2-3 hours.
                         </Typography>
                         <UnmappedAlbums />
                     </Paper>

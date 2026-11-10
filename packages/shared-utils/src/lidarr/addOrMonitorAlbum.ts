@@ -5,6 +5,7 @@ import { LIDARR_TIMEOUT_MS } from './utils/lidarrTimeout';
 import { withRetry } from './utils/withRetry';
 import { getLidarrAlbum } from './getLidarrAlbum';
 import { monitorAndSearchAlbum } from './monitorAndSearchAlbum';
+import { getReleasesWithoutStatus } from '../musicbrainz/getReleasesWithoutStatus';
 
 const RELEASE_WAIT_MS = 90_000;
 const RELEASE_POLL_MS = 3000;
@@ -23,9 +24,14 @@ export type AddOrMonitorOutcome = {
     result: 'added' | 'existing' | 'failed' | 'not_found';
     ok: boolean;
     message?: string;
+    /** not_found only: MusicBrainz's releases of the album, when none has the status Lidarr's metadata needs. */
+    releasesWithoutStatus?: string[];
 };
 
-type AddResult = { result: 'added' | 'existing' } | { result: 'failed' | 'not_found'; message: string };
+type AddResult = { result: 'added' | 'existing' } | { result: 'failed' | 'not_found'; message: string; releasesWithoutStatus?: string[] };
+
+export const NO_RELEASES_MESSAGE = "Lidarr's metadata has no releases for this album yet";
+export const NO_RELEASE_STATUS_MESSAGE = "MusicBrainz's releases of this album have no status, which Lidarr's metadata skips - set it (usually Official) on each release";
 
 /**
  * Add the album to Lidarr, or take the one it already has, then monitor it,
@@ -35,7 +41,7 @@ export async function addOrMonitorAlbum(lidarrAlbum: LidarrLookupResult, release
     // Lidarr answers the lookup of an album it has from its library, with that album's id
     const added: AddResult = lidarrAlbum.id ? { result: 'existing' } : await addAlbum(lidarrAlbum, settings, apiKey);
     if (added.result === 'failed' || added.result === 'not_found')
-        return { result: added.result, ok: false, message: added.message };
+        return { result: added.result, ok: false, message: added.message, ...(added.result === 'not_found' && added.releasesWithoutStatus?.length ? { releasesWithoutStatus: added.releasesWithoutStatus } : {}) };
 
     // Off by default: the download comes from slskd, Deezer or Tidal, not Spotify, and a pin to
     // Spotify's edition makes Lidarr refuse the same album in another edition
@@ -52,9 +58,15 @@ export async function addOrMonitorAlbum(lidarrAlbum: LidarrLookupResult, release
 }
 
 async function addAlbum(lidarrAlbum: LidarrLookupResult, settings: LidarrAddSettings, apiKey: string): Promise<AddResult> {
-    // Lidarr would add it as an empty album that no search can fill
-    if (lidarrAlbum.releases.length === 0)
-        return { result: 'not_found', message: "Lidarr's metadata has no releases for this album yet" };
+    // Lidarr would add it as an empty album that no search can fill. Usually its metadata server has not
+    // caught up yet; but it also leaves out releases with no status, and then waiting changes nothing
+    if (lidarrAlbum.releases.length === 0) {
+        const releasesWithoutStatus = await getReleasesWithoutStatus(lidarrAlbum.foreignAlbumId);
+        if (releasesWithoutStatus?.length)
+            return { result: 'not_found', message: NO_RELEASE_STATUS_MESSAGE, releasesWithoutStatus };
+
+        return { result: 'not_found', message: NO_RELEASES_MESSAGE };
+    }
 
     const baseUrl = settings.url.endsWith('/') ? settings.url.slice(0, -1) : settings.url;
 
