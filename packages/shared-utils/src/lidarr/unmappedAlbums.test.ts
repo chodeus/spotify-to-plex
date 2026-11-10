@@ -116,6 +116,14 @@ describe('pruneUnmapped', () => {
         expect(Object.keys(pruneUnmapped(list, [OTHER, undefined]))).toEqual([OTHER]);
         expect(pruneUnmapped(list, [])).toEqual({});
     });
+
+    // updateUnmappedAlbums writes only a new list, so an unchanged one cannot overwrite a dismiss made meanwhile
+    it('hands back the same list when every album is still missing', () => {
+        const list = recordUnmapped({}, deathwish);
+        expect(pruneUnmapped(list, [ID, OTHER])).toBe(list);
+        const empty = {};
+        expect(pruneUnmapped(empty, [])).toBe(empty);
+    });
 });
 
 describe('reading and writing', () => {

@@ -204,6 +204,8 @@ export default function UnmappedAlbums() {
     }, [dismiss]);
 
     const onReload = useCallback(() => {
+        // A sync may have moved any row on since its retry: an old result would misstate it
+        setResults(new Map());
         fetchAlbums();
     }, [fetchAlbums]);
 

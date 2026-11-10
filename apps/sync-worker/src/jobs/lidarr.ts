@@ -14,7 +14,7 @@ import { updateSyncTypeProgress } from "../utils/updateSyncTypeProgress";
 import { getMusicBrainzIds } from "@spotify-to-plex/shared-utils/lidarr/getMusicBrainzIds";
 import { lookupLidarrAlbum } from "@spotify-to-plex/shared-utils/lidarr/lookupLidarrAlbum";
 import { addOrMonitorAlbum } from "@spotify-to-plex/shared-utils/lidarr/addOrMonitorAlbum";
-import { clearUnmapped, listedUnmapped, pruneUnmapped, readUnmappedAlbums, recordAwaitingLidarr, recordMissingReleaseStatus, recordUnmapped, updateUnmappedAlbums, writeUnmappedAlbums } from "@spotify-to-plex/shared-utils/lidarr/unmappedAlbums";
+import { clearUnmapped, listedUnmapped, pruneUnmapped, readUnmappedAlbums, recordAwaitingLidarr, recordMissingReleaseStatus, recordUnmapped, updateUnmappedAlbums } from "@spotify-to-plex/shared-utils/lidarr/unmappedAlbums";
 
 export async function syncLidarr() {
     console.log('Starting Lidarr sync...');
@@ -90,7 +90,7 @@ export async function syncLidarr() {
             // Nothing is missing, so nothing is waiting on MusicBrainz either - unless a list
             // could not be read, when what it held is unknown and the stored list stands
             if (unreadable.length === 0)
-                writeUnmappedAlbums({});
+                updateUnmappedAlbums(list => pruneUnmapped(list, []));
 
             settle();
 

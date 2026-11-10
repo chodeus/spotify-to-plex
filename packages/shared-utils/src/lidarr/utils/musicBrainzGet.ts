@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { retryAfterMs } from '@spotify-to-plex/http-client/retryAfterMs';
-import { withRetry } from './withRetry';
+import { isTransientError } from './isTransientError';
 
 // MusicBrainz asks anonymous clients to identify themselves, and answers 403 to
 // a request with no agent string at all
@@ -15,8 +15,12 @@ const MIN_INTERVAL_MS = 1100;
 // Without one, a MusicBrainz that stops answering holds the whole Lidarr job
 const REQUEST_TIMEOUT_MS = 20_000;
 
-// Retries of a transient failure (busy 503, timeout), 2s/4s/8s apart; see musicBrainzGet
-const MUSICBRAINZ_RETRIES = 3;
+// Retries of a busy answer (503 and the like), 2s/4s/8s apart; a busy MusicBrainz answers fast
+const BUSY_RETRIES = 3;
+// A request that got no answer at all already took up to REQUEST_TIMEOUT_MS: retry it only once,
+// so a MusicBrainz that is down costs ~42s per call, not ~94s (a manual send waits on this)
+const NO_ANSWER_RETRIES = 1;
+const RETRY_DELAY_MS = 2000;
 
 let nextSlotAt = 0;
 let heldUntil = 0;
@@ -58,7 +62,23 @@ async function request<T>(url: string) {
 }
 
 /** A GET against MusicBrainz, identified and paced; every MusicBrainz call goes through here so neither is forgotten. */
-export function musicBrainzGet<T>(url: string) {
-    // Retries a transient failure 2s/4s/8s apart; paced inside the retry, so each takes its own slot
-    return withRetry(() => request<T>(url), 2000, MUSICBRAINZ_RETRIES);
+export async function musicBrainzGet<T>(url: string) {
+    // Paced inside the retry, so each retry takes its own slot
+    for (let attempt = 0; ; attempt++) {
+        try {
+            return await request<T>(url);
+        } catch (error) {
+            if (attempt >= retriesFor(error))
+                throw error;
+
+            await new Promise(resolve => { setTimeout(resolve, RETRY_DELAY_MS * 2 ** attempt) });
+        }
+    }
+}
+
+function retriesFor(error: unknown) {
+    if (!isTransientError(error))
+        return 0;
+
+    return axios.isAxiosError(error) && error.response ? BUSY_RETRIES : NO_ANSWER_RETRIES;
 }

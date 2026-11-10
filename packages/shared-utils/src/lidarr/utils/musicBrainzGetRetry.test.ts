@@ -68,6 +68,19 @@ describe('musicBrainzGet retry', () => {
         expect(getMock).toHaveBeenCalledTimes(4);
     });
 
+    // Each try already waited out the request timeout, and a manual send waits on all of them
+    it('retries a request that got no answer only once', async () => {
+        vi.useFakeTimers();
+        getMock.mockImplementation(() => Promise.reject(new AxiosError('timeout of 20000ms exceeded', 'ECONNABORTED')));
+
+        const settled = musicBrainzGet('https://musicbrainz.org/ws/2/a').catch((error: unknown) => error);
+        // Well past the pacing slot the earlier cases' fake clocks left claimed
+        await vi.advanceTimersByTimeAsync(300_000);
+
+        expect(await settled).toBeInstanceOf(AxiosError);
+        expect(getMock).toHaveBeenCalledTimes(2);
+    });
+
     // The queued request had claimed its slot before the 503 arrived
     it('holds the retry and a queued request for the wait Retry-After names', async () => {
         vi.useFakeTimers();

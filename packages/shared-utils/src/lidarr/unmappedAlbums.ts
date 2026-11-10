@@ -132,6 +132,8 @@ export function setUnmappedDismissed(list: UnmappedAlbums, spotifyAlbumId: strin
 /** Keeps only albums still on the missing lists: one now in Plex, or whose playlist went, is no longer wanted. */
 export function pruneUnmapped(list: UnmappedAlbums, stillMissingIds: Iterable<string | undefined>): UnmappedAlbums {
     const keep = new Set(stillMissingIds);
+    const kept = Object.entries(list).filter(([id]) => keep.has(id));
 
-    return Object.fromEntries(Object.entries(list).filter(([id]) => keep.has(id)));
+    // The same list when nothing goes, so updateUnmappedAlbums skips the write and keeps a concurrent change
+    return kept.length === Object.keys(list).length ? list : Object.fromEntries(kept);
 }
