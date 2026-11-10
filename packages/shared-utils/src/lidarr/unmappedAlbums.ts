@@ -41,13 +41,18 @@ export function updateUnmappedAlbums(change: (list: UnmappedAlbums) => UnmappedA
     return next;
 }
 
+/** The entry listed under this id; an inherited name such as "constructor" is not one. */
+export function listedUnmapped(list: UnmappedAlbums, spotifyAlbumId: string | undefined): UnmappedAlbum | undefined {
+    return spotifyAlbumId && Object.hasOwn(list, spotifyAlbumId) ? list[spotifyAlbumId] : undefined;
+}
+
 function record(list: UnmappedAlbums, album: AlbumRef, stage: UnmappedStage, now: number): UnmappedAlbums {
     const id = album.spotify_album_id;
     // Without an album id there is no Harmony link to offer and nothing to key on
     if (!isSpotifyId(id))
         return list;
 
-    const existing = list[id];
+    const existing = listedUnmapped(list, id);
     const foundInMusicBrainz = stage === 'lidarr' ? existing?.found_in_musicbrainz ?? now : undefined;
     const entry: UnmappedAlbum = {
         spotify_album_id: id,
@@ -69,33 +74,28 @@ export function recordUnmapped(list: UnmappedAlbums, album: AlbumRef, now = Date
     return record(list, album, 'musicbrainz', now);
 }
 
-/**
- * MusicBrainz has it but Lidarr's metadata server does not yet - right after an import, for 2-3 hours.
- * Kept listed so the album does not drop off the page before Lidarr can add it.
- */
+/** MusicBrainz has it, Lidarr's metadata server does not yet; stays listed until Lidarr can add it. */
 export function recordAwaitingLidarr(list: UnmappedAlbums, album: AlbumRef, now = Date.now()): UnmappedAlbums {
     return record(list, album, 'lidarr', now);
 }
 
 /** Counts a failed MusicBrainz check only on an album already listed, so a manual retry of anything else adds nothing. */
 export function touchUnmapped(list: UnmappedAlbums, spotifyAlbumId: string | undefined, now = Date.now()): UnmappedAlbums {
-    if (!spotifyAlbumId || !list[spotifyAlbumId])
-        return list;
+    const existing = listedUnmapped(list, spotifyAlbumId);
 
-    return recordUnmapped(list, list[spotifyAlbumId], now);
+    return existing ? recordUnmapped(list, existing, now) : list;
 }
 
 /** Moves an album already listed to waiting on Lidarr; one not listed stays off. */
 export function touchAwaitingLidarr(list: UnmappedAlbums, spotifyAlbumId: string | undefined, now = Date.now()): UnmappedAlbums {
-    if (!spotifyAlbumId || !list[spotifyAlbumId])
-        return list;
+    const existing = listedUnmapped(list, spotifyAlbumId);
 
-    return recordAwaitingLidarr(list, list[spotifyAlbumId], now);
+    return existing ? recordAwaitingLidarr(list, existing, now) : list;
 }
 
 /** Drops the album: Lidarr has taken it. */
 export function clearUnmapped(list: UnmappedAlbums, spotifyAlbumId: string | undefined): UnmappedAlbums {
-    if (!spotifyAlbumId || !list[spotifyAlbumId])
+    if (!spotifyAlbumId || !listedUnmapped(list, spotifyAlbumId))
         return list;
 
     const { [spotifyAlbumId]: _removed, ...rest } = list;
@@ -104,7 +104,7 @@ export function clearUnmapped(list: UnmappedAlbums, spotifyAlbumId: string | und
 }
 
 export function setUnmappedDismissed(list: UnmappedAlbums, spotifyAlbumId: string, dismissed: boolean): UnmappedAlbums {
-    const existing = list[spotifyAlbumId];
+    const existing = listedUnmapped(list, spotifyAlbumId);
     if (!existing)
         return list;
 

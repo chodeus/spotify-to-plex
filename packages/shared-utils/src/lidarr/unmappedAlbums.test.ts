@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { clearUnmapped, pruneUnmapped, readUnmappedAlbums, recordAwaitingLidarr, recordUnmapped, setUnmappedDismissed, touchAwaitingLidarr, touchUnmapped, updateUnmappedAlbums } from './unmappedAlbums';
+import { clearUnmapped, listedUnmapped, pruneUnmapped, readUnmappedAlbums, recordAwaitingLidarr, recordUnmapped, setUnmappedDismissed, touchAwaitingLidarr, touchUnmapped, updateUnmappedAlbums } from './unmappedAlbums';
 
 const ID = '72PfrevnGAsfQXknMYKGVu';
 const OTHER = '4aawyAB9vmqN3uQ7FjRGTy';
@@ -73,6 +73,19 @@ describe('setUnmappedDismissed', () => {
         const list = setUnmappedDismissed(recordUnmapped({}, deathwish), ID, true);
         expect(list[ID]?.dismissed).toBe(true);
         expect(setUnmappedDismissed(list, ID, false)[ID]).not.toHaveProperty('dismissed');
+    });
+});
+
+// The dismiss endpoint takes any string from the request body
+describe('names every object inherits', () => {
+    it.each(['constructor', 'toString', '__proto__'])('treats "%s" as not on the list', (name) => {
+        const list = recordUnmapped({}, deathwish);
+
+        expect(listedUnmapped(list, name)).toBeUndefined();
+        expect(setUnmappedDismissed(list, name, true)).toBe(list);
+        expect(touchUnmapped(list, name)).toBe(list);
+        expect(touchAwaitingLidarr(list, name)).toBe(list);
+        expect(clearUnmapped(list, name)).toBe(list);
     });
 });
 
