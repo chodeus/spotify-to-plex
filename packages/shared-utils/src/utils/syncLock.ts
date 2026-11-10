@@ -1,14 +1,12 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { getStorageDir } from './getStorageDir';
 
 /**
- * One run of each sync at a time. The web server runs a sync in its own process and the
- * scheduler starts each in a new one, so the lock is a file: in the temp directory, which
- * both share and a container restart empties, and per storage directory, since two
- * installs that keep their files apart cannot step on each other.
+ * One run of each sync at a time: a lock file in the temp directory the web server and the scheduler
+ * share, per storage directory so separate installs never meet. It outlives a container restart.
  */
 function lockPath(name: string) {
     const storage = createHash('sha256')
@@ -47,20 +45,33 @@ function isAlive(pid: number) {
 // An unreadable lock this young is a holder still writing it; an older one, a holder that died doing so
 const MID_WRITE_MS = 60_000;
 
-function isFresh(path: string) {
+// A holder touches its lock this often. A restarted container hands the same pids out again, so a
+// live pid alone does not prove the holder lives: a lock untouched for STALE_MS was left behind
+const HEARTBEAT_MS = 30_000;
+const STALE_MS = 5 * 60_000;
+
+function ageMs(path: string) {
     try {
-        return Date.now() - statSync(path).mtimeMs < MID_WRITE_MS;
+        return Date.now() - statSync(path).mtimeMs;
     } catch {
-        // Gone since the failed create: nothing left to clear
-        return false;
+        return Number.POSITIVE_INFINITY;
     }
+}
+
+function isHeld(path: string, holder: Holder | undefined) {
+    return !!holder && isAlive(holder.pid) && ageMs(path) < STALE_MS;
+}
+
+function isFresh(path: string) {
+    // Gone since the failed create reads as infinitely old: nothing left to clear
+    return ageMs(path) < MID_WRITE_MS;
 }
 
 /** Whether a run of this sync holds its lock now. A lock left by a process that has since died does not count. */
 export function isSyncRunning(name: string) {
-    const holder = readHolder(lockPath(name));
+    const path = lockPath(name);
 
-    return !!holder && isAlive(holder.pid);
+    return isHeld(path, readHolder(path));
 }
 
 function acquire(name: string): (() => void) | undefined {
@@ -72,10 +83,17 @@ function acquire(name: string): (() => void) | undefined {
         try {
             // wx fails when the file exists, so of two runs starting together only one creates it
             writeFileSync(path, JSON.stringify({ pid: process.pid, token } satisfies Holder), { flag: 'wx' });
+            const ours = () => readHolder(path)?.token === token;
+            const heartbeat = setInterval(() => {
+                if (ours())
+                    utimesSync(path, new Date(), new Date());
+            }, HEARTBEAT_MS);
+            heartbeat.unref();
 
             return () => {
+                clearInterval(heartbeat);
                 // Only our own: a lock another run took after this one's was cleared stays
-                if (readHolder(path)?.token === token)
+                if (ours())
                     rmSync(path, { force: true });
             };
         } catch (error) {
@@ -83,7 +101,7 @@ function acquire(name: string): (() => void) | undefined {
                 throw error;
 
             const holder = readHolder(path);
-            if (holder ? isAlive(holder.pid) : isFresh(path))
+            if (holder ? isHeld(path, holder) : isFresh(path))
                 return undefined;
 
             rmSync(path, { force: true });

@@ -26,6 +26,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllEnvs();
     vi.restoreAllMocks();
     delete process.env.STORAGE_DIR;
@@ -88,6 +89,30 @@ describe('runExclusive', () => {
 
         expect(isSyncRunning('lidarr')).toBe(false);
         await expect(runExclusive('lidarr', async () => 'took over')).resolves.toBe('took over');
+    });
+
+    // A restarted container gives the same pids out again, so the old holder's pid can be alive
+    it('takes over a lock whose holder stopped refreshing it, though its pid is alive', async () => {
+        await runExclusive('lidarr', async () => { /* a run that ends at once */ });
+        writeFileSync(lockFile('lidarr'), JSON.stringify({ pid: process.pid, token: 'before the restart' }));
+        const stale = new Date(Date.now() - 6 * 60_000);
+        utimesSync(lockFile('lidarr'), stale, stale);
+
+        expect(isSyncRunning('lidarr')).toBe(false);
+        await expect(runExclusive('lidarr', async () => 'took over')).resolves.toBe('took over');
+    });
+
+    it('keeps a long run holding its lock', async () => {
+        vi.useFakeTimers();
+        const first = heldRun();
+        const running = runExclusive('lidarr', first.run);
+
+        await vi.advanceTimersByTimeAsync(20 * 60_000);
+        expect(isSyncRunning('lidarr')).toBe(true);
+        await expect(runExclusive('lidarr', async () => 'second')).resolves.toBeUndefined();
+
+        first.finish();
+        await running;
     });
 
     it('waits on a lock still being written, but not on one left half-written long ago', async () => {
