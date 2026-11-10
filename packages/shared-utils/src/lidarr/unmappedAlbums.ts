@@ -33,10 +33,13 @@ export function writeUnmappedAlbums(list: UnmappedAlbums, path = unmappedAlbumsP
     writeJsonFileAtomic(path, list, 2);
 }
 
-/** Read, change and write back in one step, for callers outside the sync run (the web API). */
+/** Read, change and write back in one step; the sync job and the web API both write this list. */
 export function updateUnmappedAlbums(change: (list: UnmappedAlbums) => UnmappedAlbums, path = unmappedAlbumsPath()) {
-    const next = change(readUnmappedAlbums(path));
-    writeUnmappedAlbums(next, path);
+    const current = readUnmappedAlbums(path);
+    const next = change(current);
+    // The change helpers hand back the same list when nothing changed: no write, so no other writer's change is lost
+    if (next !== current)
+        writeUnmappedAlbums(next, path);
 
     return next;
 }

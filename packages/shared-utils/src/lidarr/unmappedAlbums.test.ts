@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -119,5 +119,12 @@ describe('reading and writing', () => {
         const path = join(dir, 'lidarr_unmapped_albums.json');
         updateUnmappedAlbums(list => recordUnmapped(list, deathwish, 100), path);
         expect(readUnmappedAlbums(path)[ID]).toMatchObject({ attempts: 1 });
+    });
+
+    // Another process may have written in between; rewriting what was read would undo that
+    it('writes nothing when the change leaves the list as it was', () => {
+        const path = join(dir, 'lidarr_unmapped_albums.json');
+        updateUnmappedAlbums(list => clearUnmapped(list, ID), path);
+        expect(existsSync(path)).toBe(false);
     });
 });
