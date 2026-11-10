@@ -149,7 +149,7 @@ Three things are going on:
 
 **`version:match` on every row.** Duration cannot tell two remixes apart when they are the same length. This compares what the titles claim, ignoring featured-artist credits, years and the words in your Text Processing noise list — so `(Original Mix)` and `(feat. X)` are not treated as differences, but `(Jauz remix)` and `- UK Edit` are.
 
-**Row order matters.** Filters are evaluated top-down and the first row returning anything wins, so the order decides which *imperfect* match is preferred. `artist:match AND title:contains` is demoted below the exact-title rows here, because otherwise a search for "Perfect (Exceeder)" happily settles for a track called "Exceeder".
+**Row order matters.** Filters are evaluated top-down and the first row returning anything sets the match, so the order decides which *imperfect* match is preferred. The one exception: a later row that finds the exact edit you asked for (same artist, title and version, length within 3%) replaces an earlier imperfect match, so a radio edit that only a `title:contains` row can see still beats the album cut an exact-title row found first. `artist:match AND title:contains` is demoted below the exact-title rows here, because otherwise a search for "Perfect (Exceeder)" happily settles for a track called "Exceeder".
 
 The trade is deliberate: a wrong match is silent and permanent, a missing track flows to Lidarr or slskd and fixes itself once the file arrives. This configuration prefers the miss. Expect playlists to be a little smaller and to fill back in as downloads land. A track that is already in your library under a different title is usually found by the ISRC match instead of waiting on a download.
 
