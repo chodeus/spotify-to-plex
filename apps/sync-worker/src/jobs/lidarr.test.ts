@@ -9,6 +9,7 @@ vi.mock('axios', () => ({
     default: { get: vi.fn(), put: vi.fn(), post: vi.fn(), isAxiosError: (error: { isAxiosError?: boolean }) => error?.isAxiosError === true }
 }));
 const getMock = axios.get as unknown as Mock;
+const postMock = axios.post as unknown as Mock;
 
 const { syncLidarr } = await import('./lidarr');
 const { clearUnmapped, setUnmappedDismissed, updateUnmappedAlbums } = await import('@spotify-to-plex/shared-utils/lidarr/unmappedAlbums');
@@ -46,6 +47,7 @@ describe('syncLidarr and the "Not in MusicBrainz" list', () => {
         ))));
         writeFileSync(join(dir, 'lidarr_unmapped_albums.json'), JSON.stringify({ [W]: listed(W, 'W'), [X]: listed(X, 'X') }));
         getMock.mockReset();
+        postMock.mockReset();
         vi.spyOn(console, 'log').mockImplementation(() => { /* expected */ });
     });
 
@@ -69,5 +71,27 @@ describe('syncLidarr and the "Not in MusicBrainz" list', () => {
 
         expect(readList()[W]).toBeUndefined();
         expect(readList()[X]).toMatchObject({ attempts: 2 });
+    }, 20_000);
+
+    // A new artist's first scan keeps only the albums its first add named: that add must name both
+    it("names every album of a new artist that the run sends in each add", async () => {
+        const adds: { artist: { addOptions: { albumsToMonitor: string[] } } }[] = [];
+        getMock.mockImplementation(async (url: string) => {
+            const rg = /lidarr:(rg-\w+)/.exec(url)?.[1] ?? new URL(url).searchParams.get('foreignAlbumId');
+            if (url.includes('/album/lookup'))
+                return { data: [{ id: 0, foreignAlbumId: rg, title: rg, releases: [{ foreignReleaseId: `rel-${rg}` }], artist: { foreignArtistId: 'ar-new', artistName: 'Artist' } }] };
+
+            return { data: [{ id: 1, foreignAlbumId: rg, title: rg, monitored: true, artistId: 1, anyReleaseOk: true, releases: [{ id: 1, foreignReleaseId: `rel-${rg}`, monitored: true }], statistics: { trackFileCount: 0, totalTrackCount: 1 } }] };
+        });
+        postMock.mockImplementation(async (url: string, body: (typeof adds)[number]) => {
+            if (url.endsWith('/api/v1/album'))
+                adds.push(body);
+
+            return { data: {} };
+        });
+
+        await syncLidarr();
+
+        expect(adds.map(body => body.artist.addOptions.albumsToMonitor)).toEqual([[`rg-${W}`, `rg-${X}`], [`rg-${X}`, `rg-${W}`]]);
     }, 20_000);
 });

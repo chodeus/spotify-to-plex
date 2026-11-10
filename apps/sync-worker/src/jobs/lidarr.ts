@@ -2,6 +2,7 @@ import { getLidarrSettings } from "@spotify-to-plex/plex-config/functions/getLid
 import { getStorageDir } from "@spotify-to-plex/shared-utils/utils/getStorageDir";
 import { LidarrAlbumData } from "@spotify-to-plex/shared-types/lidarr/LidarrAlbumData";
 import { LidarrSyncLog } from "@spotify-to-plex/shared-types/lidarr/LidarrSyncLog";
+import type { LidarrLookupResult } from "@spotify-to-plex/shared-types/musicbrainz/LidarrLookupResult";
 import { existsSync, readFileSync } from "node:fs";
 import { writeJsonFileAtomic } from "@spotify-to-plex/shared-utils/utils/writeJsonFileAtomic";
 import { basename, join } from "node:path";
@@ -15,6 +16,19 @@ import { getMusicBrainzIds } from "@spotify-to-plex/shared-utils/lidarr/getMusic
 import { lookupLidarrAlbum } from "@spotify-to-plex/shared-utils/lidarr/lookupLidarrAlbum";
 import { addOrMonitorAlbum } from "@spotify-to-plex/shared-utils/lidarr/addOrMonitorAlbum";
 import { clearUnmapped, listedUnmapped, pruneUnmapped, readUnmappedAlbums, recordAwaitingLidarr, recordMissingReleaseStatus, recordUnmapped, updateUnmappedAlbums } from "@spotify-to-plex/shared-utils/lidarr/unmappedAlbums";
+
+/** An album looked up in MusicBrainz and Lidarr, waiting for step 3. */
+type ResolvedAlbum = { album: LidarrAlbumData; albumLog: LidarrSyncLog; logId: string; lidarrAlbum: LidarrLookupResult; releaseId?: string };
+
+/** The release groups sent per Lidarr artist. */
+function albumsByArtist(albums: ResolvedAlbum[]) {
+    const byArtist = new Map<string, string[]>();
+
+    for (const { lidarrAlbum } of albums)
+        byArtist.set(lidarrAlbum.artist.foreignArtistId, [...byArtist.get(lidarrAlbum.artist.foreignArtistId) ?? [], lidarrAlbum.foreignAlbumId]);
+
+    return byArtist;
+}
 
 export async function syncLidarr() {
     console.log('Starting Lidarr sync...');
@@ -109,6 +123,7 @@ export async function syncLidarr() {
         let successCount = 0;
         let errorCount = 0;
         let notFoundCount = 0;
+        const toSend: ResolvedAlbum[] = [];
 
         for (let i = 0; i < albums.length; i++) {
             const album = albums[i];
@@ -194,8 +209,30 @@ export async function syncLidarr() {
                     continue;
                 }
 
-                // STEP 3: Add to Lidarr, or monitor the album it has, then search
-                const outcome = await addOrMonitorAlbum(lidarrAlbum, releaseId, settings, apiKey);
+                toSend.push({ album, albumLog, logId, lidarrAlbum, releaseId });
+
+            } catch (error: unknown) {
+                albumLog.status = 'error';
+                albumLog.error = error instanceof Error ? error.message : 'Unknown error';
+                albumLog.end = Date.now();
+                errorCount++;
+                lidarrLogs[logId] = albumLog;
+            }
+
+            await new Promise(resolve => {
+                setTimeout(resolve, 1000); // Increased from 500ms to 1000ms for MusicBrainz rate limit
+            });
+        }
+
+        // STEP 3 once all are looked up: a new artist's first add must name every album of it this run sends
+        const artistAlbums = albumsByArtist(toSend);
+
+        for (const [i, { album, albumLog, logId, lidarrAlbum, releaseId }] of toSend.entries()) {
+            updateSyncTypeProgress('lidarr', i + 1, toSend.length);
+
+            try {
+                // Add to Lidarr, or monitor the album it has, then search
+                const outcome = await addOrMonitorAlbum(lidarrAlbum, releaseId, settings, apiKey, artistAlbums.get(lidarrAlbum.artist.foreignArtistId));
                 if (outcome.result === 'not_found') {
                     // Lidarr knows the album but has no releases for it: the metadata lag, or releases with no status
                     const noStatus = outcome.releasesWithoutStatus;
@@ -225,10 +262,6 @@ export async function syncLidarr() {
                 errorCount++;
                 lidarrLogs[logId] = albumLog;
             }
-
-            await new Promise(resolve => {
-                setTimeout(resolve, 1000); // Increased from 500ms to 1000ms for MusicBrainz rate limit
-            });
         }
 
         // Save Lidarr logs
