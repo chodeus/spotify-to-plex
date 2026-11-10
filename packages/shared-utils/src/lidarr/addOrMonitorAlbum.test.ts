@@ -206,6 +206,17 @@ describe('addOrMonitorAlbum', () => {
             expect(putMock.mock.calls[0]?.[1]).toMatchObject({ monitored: true, anyReleaseOk: true, releases });
             expect(searches()).toHaveLength(1);
         });
+
+        // Pinning was unconditional before the setting, so an upgrade leaves such albums pinned
+        it("frees an empty album an earlier send pinned to Spotify's release", async () => {
+            const pinned = releases.map(release => ({ ...release, monitored: release.foreignReleaseId === 'rel-spotify' }));
+            getMock.mockResolvedValue({ data: [{ id: 7, foreignAlbumId: 'rg-1', title: 'Hooked', monitored: true, artistId: 1, anyReleaseOk: false, releases: pinned, statistics: { trackFileCount: 0, totalTrackCount: 1 } }] });
+
+            await addOrMonitorAlbum({ ...lookup, id: 7 }, 'rel-spotify', unpinned, 'key');
+
+            expect(putMock.mock.calls[0]?.[1]).toMatchObject({ anyReleaseOk: true, releases: pinned });
+            expect(searches()).toHaveLength(1);
+        });
     });
 
     describe("a new album's releases, which Lidarr loads after the add", () => {

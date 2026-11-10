@@ -3,15 +3,20 @@ import { LIDARR_TIMEOUT_MS } from './utils/lidarrTimeout';
 import { withRetry } from './utils/withRetry';
 import { getLidarrAlbum, type LidarrAlbum } from './getLidarrAlbum';
 
+/** Spotify's release of the album, and whether Lidarr may import only that one. */
+export type SpotifyRelease = { id: string; pin: boolean };
+
+type ReleaseChange = { change?: Partial<LidarrAlbum>; note?: string };
+
 /**
  * Monitor an existing album in Lidarr and trigger a search to download it.
- * With releaseId, an album that has no files yet is pinned to that release first.
+ * With a release, an album that has no files yet is pinned to it first, or freed from an earlier pin to it.
  */
 export async function monitorAndSearchAlbum(
     foreignAlbumId: string,
     lidarrUrl: string,
     apiKey: string,
-    releaseId?: string
+    release?: SpotifyRelease
 ): Promise<{ success: boolean; message: string }> {
     try {
         const baseUrl = lidarrUrl.endsWith('/') ? lidarrUrl.slice(0, -1) : lidarrUrl;
@@ -35,7 +40,7 @@ export async function monitorAndSearchAlbum(
             };
         }
 
-        const pin = releaseId ? pinToRelease(existingAlbum, releaseId) : undefined;
+        const pin = release && (release.pin ? pinToRelease(existingAlbum, release.id) : unpinFromRelease(existingAlbum, release.id));
 
         if (!existingAlbum.monitored || pin?.change) {
             const updateUrl = `${baseUrl}/api/v1/album/${existingAlbum.id}`;
@@ -91,7 +96,7 @@ export async function monitorAndSearchAlbum(
  * Select Spotify's release and stop Lidarr importing any other release in its place.
  * Only while the album has no files: switching a release drops Lidarr's links to the files it has.
  */
-function pinToRelease(album: LidarrAlbum, releaseId: string): { change?: Partial<LidarrAlbum>; note?: string } {
+function pinToRelease(album: LidarrAlbum, releaseId: string): ReleaseChange {
     // No statistics until Lidarr has loaded the album's tracks, so nothing says it is empty
     if (!album.statistics)
         return { note: "Lidarr had not loaded the album's releases yet, so none was selected" };
@@ -115,4 +120,17 @@ function pinToRelease(album: LidarrAlbum, releaseId: string): { change?: Partial
         },
         note: "Spotify's release selected"
     };
+}
+
+/** With pinning off, lets an empty album pinned to Spotify's release import any edition again. */
+function unpinFromRelease(album: LidarrAlbum, releaseId: string): ReleaseChange {
+    if (album.anyReleaseOk !== false || album.statistics?.trackFileCount !== 0)
+        return {};
+
+    // Another selected release was picked by hand, not pinned by this sync
+    const selected = (album.releases ?? []).filter(release => release.monitored);
+    if (selected.length !== 1 || selected[0]?.foreignReleaseId !== releaseId)
+        return {};
+
+    return { change: { anyReleaseOk: true }, note: "Spotify's release unpinned" };
 }

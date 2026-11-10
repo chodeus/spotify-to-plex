@@ -39,16 +39,14 @@ export async function addOrMonitorAlbum(lidarrAlbum: LidarrLookupResult, release
 
     // Off by default: the download comes from slskd, Deezer or Tidal, not Spotify, and a pin to
     // Spotify's edition makes Lidarr refuse the same album in another edition
-    const pinReleaseId = settings.pin_spotify_release ? releaseId : undefined;
+    const release = releaseId ? { id: releaseId, pin: !!settings.pin_spotify_release } : undefined;
 
-    // A fresh album has no releases until the refresh Lidarr queues after the add; the pin needs them,
-    // and a search run before them has nothing to match. "Already added" for an album the lookup did
-    // not find is fresh too: a retried add that timed out, or another sender
+    // Fresh albums, "already added" ones the lookup missed included, get releases only after Lidarr's post-add refresh
     if (!lidarrAlbum.id)
         await waitForReleases(lidarrAlbum.foreignAlbumId, settings.url, apiKey);
 
     // Its own read decides the pin and says what happened, even if the wait gave up just before Lidarr finished
-    const outcome = await monitorAndSearchAlbum(lidarrAlbum.foreignAlbumId, settings.url, apiKey, pinReleaseId);
+    const outcome = await monitorAndSearchAlbum(lidarrAlbum.foreignAlbumId, settings.url, apiKey, release);
 
     return { result: added.result, ok: outcome.success, message: outcome.message };
 }
@@ -121,9 +119,7 @@ function addRequest(lidarrAlbum: LidarrLookupResult, settings: LidarrAddSettings
             monitorNewItems: "none",
             addOptions: {
                 monitor: "none",
-                // Lidarr applies these options once the new artist's first disk scan ends - after the
-                // album is added, monitored and searched. "none" alone then unmonitors every album,
-                // this one included; listing it keeps it monitored and the rest of the artist off
+                // Applied at the end of the artist's first scan, after this album's search: "none" alone would unmonitor it too
                 albumsToMonitor: [lidarrAlbum.foreignAlbumId],
                 monitored: true,
                 searchForMissingAlbums: false,
