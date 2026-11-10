@@ -82,14 +82,14 @@ function UnmappedAlbumRow(props: RowProps) {
                     </Tooltip>
                     <Tooltip title="Check MusicBrainz again and send to Lidarr if found">
                         <span>
-                            <IconButton size="small" disabled={busy} onClick={handleRetry}>
+                            <IconButton size="small" aria-label="Retry" disabled={busy} onClick={handleRetry}>
                                 {busy ? <CircularProgress size={18} /> : <Refresh fontSize="small" />}
                             </IconButton>
                         </span>
                     </Tooltip>
                     <Tooltip title={album.dismissed ? 'Restore' : 'Dismiss: not importing this one'}>
                         <span>
-                            <IconButton size="small" disabled={busy} onClick={handleDismiss}>
+                            <IconButton size="small" aria-label={album.dismissed ? 'Restore' : 'Dismiss'} disabled={busy} onClick={handleDismiss}>
                                 {album.dismissed ? <Visibility fontSize="small" /> : <VisibilityOff fontSize="small" />}
                             </IconButton>
                         </span>
