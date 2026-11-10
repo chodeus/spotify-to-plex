@@ -10,11 +10,7 @@ export function isSpotifyId(id: unknown): id is string {
     return typeof id === 'string' && SPOTIFY_ID.test(id);
 }
 
-/**
- * Harmony's import page for a Spotify album, or undefined when there is no usable id.
- * Harmony only takes release urls, so this is only ever given an album id - a track id
- * (missing_*_slskd.json holds those) would build a url Harmony rejects.
- */
+/** Harmony import URL for a Spotify album id, or undefined without a usable id; never pass a track id. */
 export function harmonyImportUrl(spotifyAlbumId: string | undefined, region = 'US'): string | undefined {
     if (!isSpotifyId(spotifyAlbumId))
         return;

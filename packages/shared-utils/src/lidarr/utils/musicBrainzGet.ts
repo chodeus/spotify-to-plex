@@ -64,9 +64,6 @@ async function request<T>(url: string) {
  * a new call site - which is how both came to be missing in the first place.
  */
 export function musicBrainzGet<T>(url: string) {
-    // MusicBrainz answers the odd paced request 503 when busy. One retry left an album that needs
-    // three requests (no Spotify URL on file, then two name searches) "unavailable" night after
-    // night; three, 2s/4s/8s apart, ride that out. Paced inside the retry, so a retry takes its
-    // own slot like any other request
+    // Retries a transient failure 2s/4s/8s apart; paced inside the retry, so each takes its own slot
     return withRetry(() => request<T>(url), 2000, MUSICBRAINZ_RETRIES);
 }

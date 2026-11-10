@@ -1,8 +1,4 @@
-/**
- * Where an album that Lidarr cannot add yet is stuck:
- * - musicbrainz: MusicBrainz has no entry for it - import it (Harmony)
- * - lidarr: MusicBrainz has it, Lidarr's metadata server does not yet (it usually catches up in 2-3 hours)
- */
+/** 'musicbrainz': no MusicBrainz entry, import it; 'lidarr': in MusicBrainz, not yet on Lidarr's metadata server. */
 export type UnmappedStage = 'musicbrainz' | 'lidarr';
 
 /** An album the Lidarr sync could not add for want of metadata, kept across runs until Lidarr takes it or it stops being missing. */

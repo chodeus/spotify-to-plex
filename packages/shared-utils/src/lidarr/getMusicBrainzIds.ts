@@ -94,11 +94,7 @@ async function lookupBySpotifyUrl(spotifyAlbumId: string): Promise<MusicBrainzLo
 }
 
 export type GetMusicBrainzIdsOptions = {
-    /**
-     * Ask MusicBrainz even when a recent lookup found nothing. A miss is cached for
-     * 14 days, which outlasts an import: an album just added (with Harmony) would
-     * read as absent until the miss expired. A found answer is cached and served as ever.
-     */
+    /** Bypass a recent cached miss, e.g. for an album just imported with Harmony. */
     recheckMiss?: boolean;
 };
 

@@ -1,8 +1,7 @@
 import { isTransientError } from './isTransientError';
 
 /**
- * Helper to perform HTTP request, retrying a transient failure
- * Handles transient errors like 503 (Service Unavailable) and network issues
+ * Perform an HTTP request, retrying a transient failure (503, network) up to `retries` times.
  * Each retry waits twice as long as the one before: retryDelay, 2x, 4x...
  */
 export async function withRetry<T>(fn: () => Promise<T>, retryDelay: number = 2000, retries: number = 1) {
