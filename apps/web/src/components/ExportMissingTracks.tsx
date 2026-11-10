@@ -208,8 +208,8 @@ export default function ExportMissingTracks(props: Props) {
                 return;
             }
 
-            // Use first artist as album artist
-            const artist = track.artists[0] || 'Unknown Artist';
+            // Playlist and scraped track artists are split on commas; the album artist is whole, as MusicBrainz names it
+            const artist = track.album_artist?.trim() || track.artists[0] || 'Unknown Artist';
             const album = track.album?.trim() || 'Unknown Album';
             const key = `${artist}|${album}`;
 

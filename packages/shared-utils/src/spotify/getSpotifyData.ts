@@ -27,6 +27,7 @@ export async function getSpotifyData(api: SpotifyApi, id: string, simplified: bo
                     id: item.id,
                     artists: item.artists.map(artist => artist.name),
                     album: result.name,
+                    album_artist: result.artists[0]?.name,
                     title: item.name,
                     album_id: result.id,
                     duration_ms: item.duration_ms
@@ -177,6 +178,7 @@ export async function getSpotifyData(api: SpotifyApi, id: string, simplified: bo
                     return {
                         ...track,
                         album: enrichedTrack.album.name,
+                        album_artist: enrichedTrack.album.artists?.[0]?.name,
                         album_id: enrichedTrack.album.id,
                         duration_ms: track.duration_ms ?? enrichedTrack.duration_ms,
                         isrc: enrichedTrack.external_ids?.isrc
@@ -266,6 +268,7 @@ export async function getSpotifyData(api: SpotifyApi, id: string, simplified: bo
 type EnrichableTrack = {
     id: string;
     album: string;
+    album_artist?: string;
     album_id: string;
     duration_ms?: number;
     isrc?: string;
@@ -284,6 +287,7 @@ async function enrichTracksIndividually<T extends EnrichableTrack>(api: SpotifyA
             result[i] = {
                 ...track,
                 album: enrichedTrack.album.name,
+                album_artist: enrichedTrack.album.artists?.[0]?.name,
                 album_id: enrichedTrack.album.id,
                 duration_ms: track.duration_ms ?? enrichedTrack.duration_ms,
                 isrc: enrichedTrack.external_ids?.isrc

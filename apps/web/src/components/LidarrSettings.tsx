@@ -11,6 +11,7 @@ type LidarrSettings = {
     quality_profile_id: number;
     metadata_profile_id: number;
     auto_sync: boolean;
+    pin_spotify_release?: boolean;
 };
 
 type LidarrProfile = {
@@ -148,6 +149,10 @@ export default function LidarrSettings() {
         handleChange('auto_sync', e.target.checked);
     }, [handleChange]);
 
+    const handlePinReleaseChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
+        handleChange('pin_spotify_release', e.target.checked);
+    }, [handleChange]);
+
     const handleSaveClick = useCallback(() => {
         handleSave();
     }, [handleSave]);
@@ -240,6 +245,15 @@ export default function LidarrSettings() {
                 <FormControlLabel control={<Switch checked={settings.auto_sync} onChange={handleAutoSyncChange} />} label="Enable Automatic Synchronization" sx={{ mb: 2 }} />
                 <Typography variant="body2" sx={{ mb: 2, color: 'text.secondary' }}>
                     When enabled, Lidarr will automatically download missing albums during daily synchronization.
+                </Typography>
+
+                <FormControlLabel control={<Switch checked={!!settings.pin_spotify_release} onChange={handlePinReleaseChange} />} label="Only accept Spotify's edition" sx={{ mb: 2 }} />
+                <Typography variant="body2" sx={{ mb: 2, color: 'text.secondary' }}>
+                    Selects the release Spotify has and stops Lidarr importing any other edition. Leave off unless your downloads
+                    come from the same source as Spotify&apos;s edition: slskd, Deezer and Tidal often carry another edition of
+                    the same album, which Lidarr then refuses with &quot;Album release not requested&quot;. While it is off, an album
+                    an earlier send pinned to Spotify&apos;s edition is freed when it is next sent, once Lidarr reports it has no
+                    files. A release other than Spotify&apos;s, picked by hand in Lidarr, stays pinned.
                 </Typography>
 
                 <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>

@@ -1,7 +1,7 @@
 import Logo from "@/components/Logo";
 import PlexConnectionDialog from "@/components/PlexConnectionDialog";
 import MainLayout from "@/layouts/MainLayout";
-import { Assignment, Settings, Sync, Tune } from "@mui/icons-material";
+import { Assignment, LibraryAdd, Settings, Sync, Tune } from "@mui/icons-material";
 import { Button, Card, CardActionArea, CardContent, Container, Divider, Paper, Typography } from "@mui/material";
 import Grid from '@mui/material/Grid';
 import { NextPage } from "next";
@@ -40,6 +40,12 @@ const Page: NextPage = () => {
             description: 'Manual triggers and settings',
             icon: <Sync sx={{ fontSize: 40 }} />,
             path: '/advanced/syncing'
+        },
+        {
+            title: 'Not in MusicBrainz',
+            description: 'Albums Lidarr cannot add yet, with Harmony import links',
+            icon: <LibraryAdd sx={{ fontSize: 40 }} />,
+            path: '/advanced/musicbrainz'
         },
         {
             title: 'Logs',

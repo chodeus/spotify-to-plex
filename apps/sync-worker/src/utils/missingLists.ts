@@ -65,10 +65,14 @@ function lidarrAndSlskdEntries(tracks: Track[], albumId?: string) {
         const artist = track.artists[0] || 'Unknown Artist';
         const album = track.album || 'Unknown Album';
 
+        // The album's own artist, whole: playlist and scraped track artists are split on commas, so a
+        // band named "Above, Below" would be looked up in MusicBrainz as "Above" and never found
+        const albumArtist = track.album_artist?.trim() || artist;
+
         if (track.album_id === 'unknown')
             console.log(`⚠️  Skipping track with unknown album_id: ${track.title} by ${track.artists[0]}`);
         else
-            lidarr.push({ artist_name: artist, album_name: album, spotify_album_id: albumId ?? track.album_id });
+            lidarr.push({ artist_name: albumArtist, album_name: album, spotify_album_id: albumId ?? track.album_id });
 
         // A local file has no spotify id to export - splitting its uri would yield the artist name
         const id = track.id && !isLocalTrack(track.id) ? spotifyTrackId(track.id) : undefined;

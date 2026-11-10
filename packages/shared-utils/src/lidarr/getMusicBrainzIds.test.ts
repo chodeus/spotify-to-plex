@@ -59,6 +59,18 @@ describe('getMusicBrainzIds', () => {
         expect(links()[0]).toMatchObject({ musicbrainz_release_group_id: 'rg-text', musicbrainz_release_id: null });
     });
 
+    it('answers a recent miss from the cache, unless asked to recheck it', async () => {
+        writeFileSync(join(dir, 'album_musicbrainz_misses.json'), JSON.stringify([{ spotify_album_id: 'sp-1', cached_at: Date.now() }]));
+        musicBrainzLinks('rel-1');
+
+        expect(await getMusicBrainzIds('sp-1', 'Artist', 'Album')).toEqual({ status: 'not-found' });
+        expect(getMock).not.toHaveBeenCalled();
+
+        // Imported since: the recheck finds it and caches the mapping
+        expect(await getMusicBrainzIds('sp-1', 'Artist', 'Album', { recheckMiss: true })).toMatchObject({ status: 'found', releaseGroupId: 'rg-url' });
+        expect(links()[0]).toMatchObject({ spotify_album_id: 'sp-1', musicbrainz_release_group_id: 'rg-url' });
+    });
+
     it('serves a cached release without asking MusicBrainz', async () => {
         cacheHolds({ musicbrainz_release_id: 'rel-cached' });
 

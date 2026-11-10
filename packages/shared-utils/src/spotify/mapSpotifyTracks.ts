@@ -20,6 +20,9 @@ export function mapSpotifyTracks(items: (PlaylistedTrack<Track> | SavedTrack)[])
                 artist: track.artists?.[0]?.name || 'Unknown',
                 album: track.album?.name || 'Unknown',
                 artists: artists || [],
+                // Unsplit: "Above, Below" is one band, which the split above makes "Above" and "Below".
+                // MusicBrainz and Lidarr look the album up by this name
+                album_artist: track.album?.artists?.[0]?.name,
                 album_id: track.album?.id || 'unknown',
                 duration_ms: track.duration_ms,
                 isrc: track.external_ids?.isrc

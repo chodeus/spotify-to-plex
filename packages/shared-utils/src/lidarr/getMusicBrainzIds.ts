@@ -93,19 +93,24 @@ async function lookupBySpotifyUrl(spotifyAlbumId: string): Promise<MusicBrainzLo
     }
 }
 
+export type GetMusicBrainzIdsOptions = {
+    /** Bypass a recent cached miss, e.g. for an album just imported with Harmony. */
+    recheckMiss?: boolean;
+};
+
 /**
  * Get MusicBrainz release group and artist IDs from Spotify album ID
  * Uses caching to minimize API calls
  * Falls back to text search when the album carries no Spotify URL relation
  */
-export async function getMusicBrainzIds(spotifyAlbumId: string, artistName?: string, albumName?: string): Promise<MusicBrainzLookup> {
+export async function getMusicBrainzIds(spotifyAlbumId: string, artistName?: string, albumName?: string, options: GetMusicBrainzIdsOptions = {}): Promise<MusicBrainzLookup> {
     const cache = getMusicBrainzCache();
 
     const cached = cache.get(spotifyAlbumId);
     if (cached)
         return cached.musicbrainz_release_id === undefined ? fillReleaseId(cache, cached) : fromCache(cached);
 
-    if (cache.hasRecentMiss(spotifyAlbumId))
+    if (!options.recheckMiss && cache.hasRecentMiss(spotifyAlbumId))
         return { status: 'not-found' };
 
     const direct = await lookupBySpotifyUrl(spotifyAlbumId);

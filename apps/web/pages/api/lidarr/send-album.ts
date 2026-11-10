@@ -3,6 +3,7 @@ import { getLidarrSettings } from '@spotify-to-plex/plex-config/functions/getLid
 import { addOrMonitorAlbum } from '@spotify-to-plex/shared-utils/lidarr/addOrMonitorAlbum';
 import { getMusicBrainzIds } from '@spotify-to-plex/shared-utils/lidarr/getMusicBrainzIds';
 import { lookupLidarrAlbum } from '@spotify-to-plex/shared-utils/lidarr/lookupLidarrAlbum';
+import { clearUnmapped, touchAwaitingLidarr, touchMissingReleaseStatus, touchUnmapped, updateUnmappedAlbums } from '@spotify-to-plex/shared-utils/lidarr/unmappedAlbums';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createRouter } from 'next-connect';
 
@@ -45,7 +46,8 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
             }
 
             // Step 1: Get MusicBrainz IDs (with fallback using artist/album names)
-            const musicBrainzIds = await getMusicBrainzIds(spotify_album_id, artist_name, album_name);
+            // A manual send always asks MusicBrainz again: it is how an album just imported with Harmony gets found
+            const musicBrainzIds = await getMusicBrainzIds(spotify_album_id, artist_name, album_name, { recheckMiss: true });
             if (musicBrainzIds.status === 'unavailable') {
                 return res.status(503).json({
                     success: false,
@@ -53,7 +55,10 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
                 });
             }
 
+            // Keeps the "Not in MusicBrainz" list current for albums on it; others are left off
             if (musicBrainzIds.status !== 'found') {
+                updateUnmappedAlbums(list => touchUnmapped(list, spotify_album_id));
+
                 return res.status(404).json({
                     success: false,
                     message: `No MusicBrainz mapping found for Spotify album: ${spotify_album_id}`,
@@ -66,14 +71,24 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
             const lidarrAlbum = await lookupLidarrAlbum(releaseGroupId, settings.url, apiKey);
 
             if (!lidarrAlbum?.artist) {
+                updateUnmappedAlbums(list => touchAwaitingLidarr(list, spotify_album_id));
+
                 return res.status(404).json({
                     success: false,
-                    message: 'Album not found in Lidarr database',
+                    message: 'Album not found in Lidarr database - if it was just added to MusicBrainz, Lidarr usually picks it up within 2-3 hours',
                 });
             }
 
             // Step 3: Add to Lidarr, or monitor the album it has, then search
             const outcome = await addOrMonitorAlbum(lidarrAlbum, releaseId, settings, apiKey);
+
+            const { releasesWithoutStatus } = outcome;
+            if (outcome.result === 'not_found' && releasesWithoutStatus?.length)
+                updateUnmappedAlbums(list => touchMissingReleaseStatus(list, spotify_album_id, releasesWithoutStatus));
+            else if (outcome.result === 'not_found')
+                updateUnmappedAlbums(list => touchAwaitingLidarr(list, spotify_album_id));
+            else
+                updateUnmappedAlbums(list => clearUnmapped(list, spotify_album_id));
 
             if (outcome.result === 'not_found') {
                 return res.status(404).json({

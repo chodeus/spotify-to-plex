@@ -15,6 +15,8 @@ function lidarrHas(album: object) {
 }
 
 const searched = () => postMock.mock.calls.some(([, body]) => body?.name === 'AlbumSearch');
+const pinTo = (id: string) => ({ id, pin: true });
+const unpinned = (id: string) => ({ id, pin: false });
 
 describe('monitorAndSearchAlbum', () => {
     beforeEach(() => {
@@ -77,7 +79,7 @@ describe('monitorAndSearchAlbum', () => {
         it('selects it on an empty album and turns any-release-ok off, before searching', async () => {
             lidarrHas(empty);
 
-            const outcome = await monitorAndSearchAlbum('rg-1', 'http://lidarr:8686', 'key', 'rel-spotify');
+            const outcome = await monitorAndSearchAlbum('rg-1', 'http://lidarr:8686', 'key', pinTo('rel-spotify'));
 
             expect(putMock.mock.calls[0]?.[1]).toMatchObject({
                 monitored: true,
@@ -91,7 +93,7 @@ describe('monitorAndSearchAlbum', () => {
         it('monitors and pins an unmonitored empty album in one update', async () => {
             lidarrHas({ ...empty, monitored: false });
 
-            await monitorAndSearchAlbum('rg-1', 'http://lidarr:8686', 'key', 'rel-spotify');
+            await monitorAndSearchAlbum('rg-1', 'http://lidarr:8686', 'key', pinTo('rel-spotify'));
 
             expect(putMock).toHaveBeenCalledTimes(1);
             expect(putMock.mock.calls[0]?.[1]).toMatchObject({ monitored: true, anyReleaseOk: false });
@@ -101,7 +103,7 @@ describe('monitorAndSearchAlbum', () => {
         it('leaves an album with files on its release', async () => {
             lidarrHas({ ...empty, statistics: { trackFileCount: 1, totalTrackCount: 2 } });
 
-            await monitorAndSearchAlbum('rg-1', 'http://lidarr:8686', 'key', 'rel-spotify');
+            await monitorAndSearchAlbum('rg-1', 'http://lidarr:8686', 'key', pinTo('rel-spotify'));
 
             expect(putMock).not.toHaveBeenCalled();
             expect(searched()).toBe(true);
@@ -110,7 +112,7 @@ describe('monitorAndSearchAlbum', () => {
         it('leaves an album alone when Lidarr sends no statistics, and says nothing was selected', async () => {
             lidarrHas({ anyReleaseOk: true, releases });
 
-            const outcome = await monitorAndSearchAlbum('rg-1', 'http://lidarr:8686', 'key', 'rel-spotify');
+            const outcome = await monitorAndSearchAlbum('rg-1', 'http://lidarr:8686', 'key', pinTo('rel-spotify'));
 
             expect(putMock).not.toHaveBeenCalled();
             expect(outcome.message).toBe("Album already monitored, Lidarr had not loaded the album's releases yet, so none was selected, search triggered");
@@ -119,7 +121,7 @@ describe('monitorAndSearchAlbum', () => {
         it("says so when Spotify's release is not in Lidarr's list, and still searches", async () => {
             lidarrHas(empty);
 
-            const outcome = await monitorAndSearchAlbum('rg-1', 'http://lidarr:8686', 'key', 'rel-elsewhere');
+            const outcome = await monitorAndSearchAlbum('rg-1', 'http://lidarr:8686', 'key', pinTo('rel-elsewhere'));
 
             expect(putMock).not.toHaveBeenCalled();
             expect(searched()).toBe(true);
@@ -129,7 +131,7 @@ describe('monitorAndSearchAlbum', () => {
         it('does not update an album already pinned to it', async () => {
             lidarrHas({ ...empty, anyReleaseOk: false, releases: releases.map(r => ({ ...r, monitored: r.id === 2 })) });
 
-            await monitorAndSearchAlbum('rg-1', 'http://lidarr:8686', 'key', 'rel-spotify');
+            await monitorAndSearchAlbum('rg-1', 'http://lidarr:8686', 'key', pinTo('rel-spotify'));
 
             expect(putMock).not.toHaveBeenCalled();
             expect(searched()).toBe(true);
@@ -138,9 +140,53 @@ describe('monitorAndSearchAlbum', () => {
         it('turns any-release-ok off when its release is already the selected one', async () => {
             lidarrHas({ ...empty, releases: releases.map(r => ({ ...r, monitored: r.id === 2 })) });
 
-            await monitorAndSearchAlbum('rg-1', 'http://lidarr:8686', 'key', 'rel-spotify');
+            await monitorAndSearchAlbum('rg-1', 'http://lidarr:8686', 'key', pinTo('rel-spotify'));
 
             expect(putMock.mock.calls[0]?.[1]).toMatchObject({ anyReleaseOk: false });
+        });
+    });
+
+    // Pinning used to be unconditional, so albums sent before the setting existed are still pinned
+    describe('with pinning off', () => {
+        const pinnedToSpotify = [{ id: 1, foreignReleaseId: 'rel-extended', monitored: false }, { id: 2, foreignReleaseId: 'rel-spotify', monitored: true }];
+        const pinnedEmpty = { anyReleaseOk: false, releases: pinnedToSpotify, statistics: { trackFileCount: 0, totalTrackCount: 1 } };
+
+        it("frees an empty album pinned to Spotify's release, leaving its releases as they are", async () => {
+            lidarrHas(pinnedEmpty);
+
+            const outcome = await monitorAndSearchAlbum('rg-1', 'http://lidarr:8686', 'key', unpinned('rel-spotify'));
+
+            expect(putMock).toHaveBeenCalledTimes(1);
+            expect(putMock.mock.calls[0]?.[1]).toMatchObject({ monitored: true, anyReleaseOk: true, releases: pinnedToSpotify });
+            expect(searched()).toBe(true);
+            expect(outcome.message).toBe("Album already monitored, Spotify's release unpinned, search triggered");
+        });
+
+        it('leaves a release picked by hand pinned', async () => {
+            lidarrHas({ ...pinnedEmpty, releases: pinnedToSpotify.map(r => ({ ...r, monitored: r.id === 1 })) });
+
+            await monitorAndSearchAlbum('rg-1', 'http://lidarr:8686', 'key', unpinned('rel-spotify'));
+
+            expect(putMock).not.toHaveBeenCalled();
+        });
+
+        it('leaves an album with files, or with no statistics yet, pinned', async () => {
+            lidarrHas({ ...pinnedEmpty, statistics: { trackFileCount: 1, totalTrackCount: 2 } });
+            await monitorAndSearchAlbum('rg-1', 'http://lidarr:8686', 'key', unpinned('rel-spotify'));
+
+            lidarrHas({ anyReleaseOk: false, releases: pinnedToSpotify });
+            await monitorAndSearchAlbum('rg-1', 'http://lidarr:8686', 'key', unpinned('rel-spotify'));
+
+            expect(putMock).not.toHaveBeenCalled();
+        });
+
+        it('changes nothing on an album that is not pinned', async () => {
+            lidarrHas({ ...pinnedEmpty, anyReleaseOk: true });
+
+            await monitorAndSearchAlbum('rg-1', 'http://lidarr:8686', 'key', unpinned('rel-spotify'));
+
+            expect(putMock).not.toHaveBeenCalled();
+            expect(searched()).toBe(true);
         });
     });
 
