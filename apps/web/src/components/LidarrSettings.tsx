@@ -253,7 +253,7 @@ export default function LidarrSettings() {
                     come from the same source as Spotify&apos;s edition: slskd, Deezer and Tidal often carry another edition of
                     the same album, which Lidarr then refuses with &quot;Album release not requested&quot;. While it is off, an album
                     an earlier send pinned to Spotify&apos;s edition is freed when it is next sent, once Lidarr reports it has no
-                    files. A release picked by hand in Lidarr stays pinned.
+                    files. A release other than Spotify&apos;s, picked by hand in Lidarr, stays pinned.
                 </Typography>
 
                 <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
