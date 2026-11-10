@@ -8,6 +8,9 @@ import { syncMQTT } from 'cronjob/mqtt';
 import { syncSlskd } from 'cronjob/slskd';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createRouter } from 'next-connect';
+import { isSyncRunning } from '@spotify-to-plex/shared-utils/utils/syncLock';
+
+const ALL_TYPES = ['users', 'albums', 'playlists', 'lidarr', 'mqtt', 'slskd'] as const;
 
 const router = createRouter<NextApiRequest, NextApiResponse>()
     .post(
@@ -17,6 +20,11 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
 
             if (type !== 'albums' && type !== 'playlists' && type !== "users" && type !== "lidarr" && type !== "mqtt" && type !== "slskd" && type !== "all")
                 throw new Error(`Expecting type albums, playlists, users, lidarr, mqtt, slskd, or all. Got ${typeof type === 'string' ? type : 'none'}`)
+
+            // The job would skip itself anyway; saying so here keeps the page from reporting a start that never happens
+            const running = (type === 'all' ? ALL_TYPES : [type]).filter(isSyncRunning)
+            if (running.length > 0)
+                return res.status(409).json({ error: `Already running: the ${running.join(', ')} sync. Wait for it to finish, then start it again.` })
 
             // Fire and forget - start the sync process without awaiting
             if (type === 'all') {

@@ -1,0 +1,132 @@
+import { mkdtempSync, readdirSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { isSyncRunning, runExclusive } from './syncLock';
+
+// No process has this pid: Linux caps them far lower
+const DEAD_PID = 2_147_483_647;
+
+let storage: string;
+let temp: string;
+
+// The one lock file the module made for this storage directory
+function lockFile(name: string) {
+    const [dir] = readdirSync(join(temp, 'spotify-to-plex-locks'));
+
+    return join(temp, 'spotify-to-plex-locks', dir!, `${name}.lock`);
+}
+
+beforeEach(() => {
+    storage = mkdtempSync(join(tmpdir(), 'sync-lock-storage-'));
+    temp = mkdtempSync(join(tmpdir(), 'sync-lock-temp-'));
+    process.env.STORAGE_DIR = storage;
+    vi.stubEnv('TMPDIR', temp);
+    vi.spyOn(console, 'log').mockImplementation(() => { /* expected */ });
+});
+
+afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+    delete process.env.STORAGE_DIR;
+    rmSync(storage, { recursive: true, force: true });
+    rmSync(temp, { recursive: true, force: true });
+});
+
+// A run that stays going until the test lets it finish
+function heldRun() {
+    let finish!: () => void;
+    const done = new Promise<void>(resolve => { finish = resolve });
+
+    return {
+        run: async () => {
+            await done;
+
+            return 'first';
+        },
+        finish
+    };
+}
+
+describe('runExclusive', () => {
+    it('runs the sync and returns its result', async () => {
+        await expect(runExclusive('lidarr', async () => 'done')).resolves.toBe('done');
+    });
+
+    it('does not start a second run while the first is going', async () => {
+        const first = heldRun();
+        const running = runExclusive('lidarr', first.run);
+        const second = vi.fn(async () => 'second');
+
+        await expect(runExclusive('lidarr', second)).resolves.toBeUndefined();
+        expect(second).not.toHaveBeenCalled();
+
+        first.finish();
+        await expect(running).resolves.toBe('first');
+    });
+
+    it('lets a different sync run alongside', async () => {
+        const first = heldRun();
+        const running = runExclusive('lidarr', first.run);
+
+        await expect(runExclusive('playlists', async () => 'other')).resolves.toBe('other');
+
+        first.finish();
+        await running;
+    });
+
+    it('frees the lock when the run throws', async () => {
+        await expect(runExclusive('lidarr', async () => { throw new Error('boom') })).rejects.toThrow('boom');
+
+        expect(isSyncRunning('lidarr')).toBe(false);
+        await expect(runExclusive('lidarr', async () => 'again')).resolves.toBe('again');
+    });
+
+    it('takes over a lock its holder died without releasing', async () => {
+        await runExclusive('lidarr', async () => { /* a run that ends at once */ });
+        writeFileSync(lockFile('lidarr'), JSON.stringify({ pid: DEAD_PID, token: 'gone' }));
+
+        expect(isSyncRunning('lidarr')).toBe(false);
+        await expect(runExclusive('lidarr', async () => 'took over')).resolves.toBe('took over');
+    });
+
+    it('waits on a lock still being written, but not on one left half-written long ago', async () => {
+        await runExclusive('lidarr', async () => { /* a run that ends at once */ });
+        const path = lockFile('lidarr');
+        writeFileSync(path, '');
+
+        await expect(runExclusive('lidarr', async () => 'too soon')).resolves.toBeUndefined();
+
+        const longAgo = new Date(Date.now() - 5 * 60_000);
+        utimesSync(path, longAgo, longAgo);
+        await expect(runExclusive('lidarr', async () => 'cleared')).resolves.toBe('cleared');
+    });
+
+    it('keeps installs with separate storage apart', async () => {
+        const first = heldRun();
+        const running = runExclusive('lidarr', first.run);
+
+        const otherStorage = mkdtempSync(join(tmpdir(), 'sync-lock-other-'));
+        process.env.STORAGE_DIR = otherStorage;
+        await expect(runExclusive('lidarr', async () => 'other install')).resolves.toBe('other install');
+
+        process.env.STORAGE_DIR = storage;
+        first.finish();
+        await running;
+        rmSync(otherStorage, { recursive: true, force: true });
+    });
+});
+
+describe('isSyncRunning', () => {
+    it('is true only while a run holds the lock', async () => {
+        expect(isSyncRunning('lidarr')).toBe(false);
+
+        const first = heldRun();
+        const running = runExclusive('lidarr', first.run);
+        expect(isSyncRunning('lidarr')).toBe(true);
+
+        first.finish();
+        await running;
+        expect(isSyncRunning('lidarr')).toBe(false);
+    });
+});

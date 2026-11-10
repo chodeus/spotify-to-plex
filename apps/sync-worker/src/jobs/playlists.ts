@@ -26,12 +26,18 @@ import { findMissingTracks } from "../utils/findMissingTracks";
 import { readMissingSpotifyTrackIds } from "../utils/readMissingSpotifyTrackIds";
 import { emptyMissingLists, missingListsFor, writeMissingLists } from "../utils/missingLists";
 import { clearSyncState, openSyncState } from "../utils/syncState";
+import { runExclusive } from "@spotify-to-plex/shared-utils/utils/syncLock";
 
 const STATE_FILE = 'playlists_sync_state.json';
 
 
 /** Syncs every enrolled playlist that is due; force syncs them all, whatever their interval. */
 export async function syncPlaylists(force = process.argv.slice(2).includes("force")) {
+    // A second start while a run is going - two clicks, or by hand during the scheduled run - ends at once
+    return runExclusive('playlists', () => runPlaylists(force));
+}
+
+async function runPlaylists(force: boolean) {
     // Start sync type logging
     startSyncType('playlists');
     clearSyncTypeLogs('playlists');

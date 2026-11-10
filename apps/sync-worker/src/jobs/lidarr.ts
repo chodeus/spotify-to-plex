@@ -16,6 +16,7 @@ import { getMusicBrainzIds } from "@spotify-to-plex/shared-utils/lidarr/getMusic
 import { lookupLidarrAlbum } from "@spotify-to-plex/shared-utils/lidarr/lookupLidarrAlbum";
 import { addOrMonitorAlbum } from "@spotify-to-plex/shared-utils/lidarr/addOrMonitorAlbum";
 import { clearUnmapped, listedUnmapped, pruneUnmapped, readUnmappedAlbums, recordAwaitingLidarr, recordMissingReleaseStatus, recordUnmapped, updateUnmappedAlbums } from "@spotify-to-plex/shared-utils/lidarr/unmappedAlbums";
+import { runExclusive } from "@spotify-to-plex/shared-utils/utils/syncLock";
 
 /** An album looked up in MusicBrainz and Lidarr, waiting for step 3. */
 type ResolvedAlbum = { album: LidarrAlbumData; albumLog: LidarrSyncLog; logId: string; lidarrAlbum: LidarrLookupResult; releaseId?: string };
@@ -31,6 +32,11 @@ function albumsByArtist(albums: ResolvedAlbum[]) {
 }
 
 export async function syncLidarr() {
+    // A second start while a run is going - two clicks, or by hand during the scheduled run - ends at once
+    return runExclusive('lidarr', () => runLidarr());
+}
+
+async function runLidarr() {
     console.log('Starting Lidarr sync...');
 
     // Check Lidarr settings

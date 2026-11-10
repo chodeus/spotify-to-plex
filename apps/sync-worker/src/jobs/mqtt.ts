@@ -27,12 +27,18 @@ import { savePublishedItems } from '../services/mqtt/savePublishedItems';
 import { findItemsToRemove } from '../services/mqtt/findItemsToRemove';
 import { writeDryRunManifest } from '../services/mqtt/writeDryRunManifest';
 import { PublishedItem, TrackLink, MQTTEntity } from '../services/mqtt/types';
+import { runExclusive } from "@spotify-to-plex/shared-utils/utils/syncLock";
 
 /**
  * Main MQTT sync function
  * Publishes Plex playlist and album data to Home Assistant via MQTT Discovery
  */
 export async function syncMQTT() {
+    // A second start while a run is going - two clicks, or by hand during the scheduled run - ends at once
+    return runExclusive('mqtt', () => runMQTT());
+}
+
+async function runMQTT() {
     // MQTT is optional and configured only by environment. Without a broker there
     // is nothing to publish to, and loadMQTTConfig throws - which happened above
     // the try block below, so the job never reached its error handler and sat
