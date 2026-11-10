@@ -14,7 +14,7 @@ import { updateSyncTypeProgress } from "../utils/updateSyncTypeProgress";
 import { getMusicBrainzIds } from "@spotify-to-plex/shared-utils/lidarr/getMusicBrainzIds";
 import { lookupLidarrAlbum } from "@spotify-to-plex/shared-utils/lidarr/lookupLidarrAlbum";
 import { addOrMonitorAlbum } from "@spotify-to-plex/shared-utils/lidarr/addOrMonitorAlbum";
-import { clearUnmapped, pruneUnmapped, readUnmappedAlbums, recordAwaitingLidarr, recordUnmapped, writeUnmappedAlbums } from "@spotify-to-plex/shared-utils/lidarr/unmappedAlbums";
+import { clearUnmapped, listedUnmapped, pruneUnmapped, readUnmappedAlbums, recordAwaitingLidarr, recordUnmapped, updateUnmappedAlbums, writeUnmappedAlbums } from "@spotify-to-plex/shared-utils/lidarr/unmappedAlbums";
 
 export async function syncLidarr() {
     console.log('Starting Lidarr sync...');
@@ -105,9 +105,6 @@ export async function syncLidarr() {
         const lidarrLogsPath = join(getStorageDir(), 'lidarr_sync_log.json');
         const lidarrLogs: Record<string, LidarrSyncLog> = {};
 
-        // Unlike the log, this list outlives the run: albums MusicBrainz has no entry for, to import
-        let unmapped = readUnmappedAlbums();
-
         // Process each album
         let successCount = 0;
         let errorCount = 0;
@@ -157,8 +154,9 @@ export async function syncLidarr() {
                 }
 
                 // STEP 1: Get MusicBrainz IDs (with fallback using artist/album names)
-                // An album on the list may have been imported since its miss was cached; a dismissed one keeps the cache
-                const listed = unmapped[album.spotify_album_id];
+                // An album on the list may have been imported since its miss was cached; a dismissed one keeps the cache.
+                // The web pages write this list too, so each change below re-reads it rather than keeping a copy
+                const listed = listedUnmapped(readUnmappedAlbums(), album.spotify_album_id);
                 const recheckMiss = !!listed && !listed.dismissed;
                 const musicBrainzIds = await getMusicBrainzIds(album.spotify_album_id, album.artist_name, album.album_name, { recheckMiss });
 
@@ -167,7 +165,7 @@ export async function syncLidarr() {
                     // verdict on the album - logging it as not_found reads as
                     // "this album does not exist", and it is retried next sync
                     const unavailable = musicBrainzIds.status === 'unavailable';
-                    unmapped = unavailable ? unmapped : recordUnmapped(unmapped, album);
+                    updateUnmappedAlbums(list => (unavailable ? list : recordUnmapped(list, album)));
 
                     albumLog.status = unavailable ? 'error' : 'not_found';
                     albumLog.error = unavailable ? 'MusicBrainz unavailable, retrying next sync' : 'No MusicBrainz mapping found';
@@ -187,7 +185,7 @@ export async function syncLidarr() {
 
                 if (!lidarrAlbum?.artist) {
                     // In MusicBrainz but not yet on Lidarr's metadata server, which lags a new entry by 2-3 hours
-                    unmapped = recordAwaitingLidarr(unmapped, album);
+                    updateUnmappedAlbums(list => recordAwaitingLidarr(list, album));
                     albumLog.status = 'not_found';
                     albumLog.error = 'Album not found in Lidarr database';
                     albumLog.end = Date.now();
@@ -200,7 +198,7 @@ export async function syncLidarr() {
                 const outcome = await addOrMonitorAlbum(lidarrAlbum, releaseId, settings, apiKey);
                 if (outcome.result === 'not_found') {
                     // Lidarr knows the album but has no releases for it yet - the same metadata lag
-                    unmapped = recordAwaitingLidarr(unmapped, album);
+                    updateUnmappedAlbums(list => recordAwaitingLidarr(list, album));
                     albumLog.status = 'not_found';
                     albumLog.error = outcome.message;
                     albumLog.end = Date.now();
@@ -210,7 +208,7 @@ export async function syncLidarr() {
                 }
 
                 // Lidarr has taken it, or refused it for a reason other than metadata: either way nothing to import
-                unmapped = clearUnmapped(unmapped, album.spotify_album_id);
+                updateUnmappedAlbums(list => clearUnmapped(list, album.spotify_album_id));
 
                 albumLog.status = outcome.ok ? 'success' : 'error';
                 albumLog.error = outcome.message;
@@ -237,9 +235,7 @@ export async function syncLidarr() {
 
         // An album dropped from every missing list is no longer wanted; with a list unreadable, keep them all
         if (unreadable.length === 0)
-            unmapped = pruneUnmapped(unmapped, albums.map(album => album.spotify_album_id));
-
-        writeUnmappedAlbums(unmapped);
+            updateUnmappedAlbums(list => pruneUnmapped(list, albums.map(album => album.spotify_album_id)));
 
         // Complete sync log
         logComplete(syncLog);
