@@ -21,9 +21,13 @@ const BUSY_RETRIES = 3;
 // so a MusicBrainz that is down costs ~42s per call, not ~94s (a manual send waits on this)
 const NO_ANSWER_RETRIES = 1;
 const RETRY_DELAY_MS = 2000;
+// After a call gives up on a transient failure, later calls fail at once for this long instead of each paying again
+const DOWN_FOR_MS = 2 * 60 * 1000;
 
 let nextSlotAt = 0;
 let heldUntil = 0;
+let downUntil = 0;
+let downError: unknown;
 
 /**
  * Wait for this request's turn. The slot is claimed synchronously, before any
@@ -63,17 +67,31 @@ async function request<T>(url: string) {
 
 /** A GET against MusicBrainz, identified and paced; every MusicBrainz call goes through here so neither is forgotten. */
 export async function musicBrainzGet<T>(url: string) {
+    // The same transient error, so callers still answer "unavailable" and the job retries next run
+    if (Date.now() < downUntil)
+        throw downError;
+
     // Paced inside the retry, so each retry takes its own slot
     for (let attempt = 0; ; attempt++) {
         try {
             return await request<T>(url);
         } catch (error) {
             if (attempt >= retriesFor(error))
-                throw error;
+                throw giveUp(error);
 
             await new Promise(resolve => { setTimeout(resolve, RETRY_DELAY_MS * 2 ** attempt) });
         }
     }
+}
+
+/** A transient failure that has used up its retries starts an outage; the error goes back to the caller either way. */
+function giveUp(error: unknown) {
+    if (isTransientError(error)) {
+        downUntil = Date.now() + DOWN_FOR_MS;
+        downError = error;
+    }
+
+    return error;
 }
 
 function retriesFor(error: unknown) {
