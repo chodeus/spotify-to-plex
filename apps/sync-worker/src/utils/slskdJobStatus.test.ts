@@ -9,7 +9,7 @@ let dir: string;
 const syncStatus = () => JSON.parse(readFileSync(join(dir, 'sync_type_log.json'), 'utf8')).slskd;
 const settings = (url = 'http://slskd.test') => writeFileSync(join(dir, 'slskd.json'), JSON.stringify({ enabled: true, url, allowed_extensions: ['flac'], search_timeout: 5, max_results: 30, download_attempts: 3, auto_sync: true }));
 
-// Every way the job can end before it searches settles its status
+// Every way a started job can end before it searches settles its status (a disabled one never starts)
 describe('syncSlskd status', () => {
     beforeEach(() => {
         dir = mkdtempSync(join(tmpdir(), 'slskd-status-'));
