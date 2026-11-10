@@ -36,10 +36,11 @@ export const NO_RELEASE_STATUS_MESSAGE = "MusicBrainz's releases of this album h
 /**
  * Add the album to Lidarr, or take the one it already has, then monitor it,
  * pin Spotify's release when known and pinning is on, and search.
+ * artistAlbums: every release group of this artist being sent, which a new artist's add keeps monitored.
  */
-export async function addOrMonitorAlbum(lidarrAlbum: LidarrLookupResult, releaseId: string | undefined, settings: LidarrAddSettings, apiKey: string): Promise<AddOrMonitorOutcome> {
+export async function addOrMonitorAlbum(lidarrAlbum: LidarrLookupResult, releaseId: string | undefined, settings: LidarrAddSettings, apiKey: string, artistAlbums: string[] = []): Promise<AddOrMonitorOutcome> {
     // Lidarr answers the lookup of an album it has from its library, with that album's id
-    const added: AddResult = lidarrAlbum.id ? { result: 'existing' } : await addAlbum(lidarrAlbum, settings, apiKey);
+    const added: AddResult = lidarrAlbum.id ? { result: 'existing' } : await addAlbum(lidarrAlbum, settings, apiKey, artistAlbums);
     if (added.result === 'failed' || added.result === 'not_found')
         return { result: added.result, ok: false, message: added.message, ...(added.result === 'not_found' && added.releasesWithoutStatus?.length ? { releasesWithoutStatus: added.releasesWithoutStatus } : {}) };
 
@@ -57,7 +58,7 @@ export async function addOrMonitorAlbum(lidarrAlbum: LidarrLookupResult, release
     return { result: added.result, ok: outcome.success, message: outcome.message };
 }
 
-async function addAlbum(lidarrAlbum: LidarrLookupResult, settings: LidarrAddSettings, apiKey: string): Promise<AddResult> {
+async function addAlbum(lidarrAlbum: LidarrLookupResult, settings: LidarrAddSettings, apiKey: string, artistAlbums: string[]): Promise<AddResult> {
     // Lidarr would add it as an empty album that no search can fill. Usually its metadata server has not
     // caught up yet; but it also leaves out releases with no status, and then waiting changes nothing
     if (lidarrAlbum.releases.length === 0) {
@@ -72,7 +73,7 @@ async function addAlbum(lidarrAlbum: LidarrLookupResult, settings: LidarrAddSett
 
     try {
         // A retry after an add that timed out but went through meets the "already added" answer below
-        await withRetry(() => axios.post(`${baseUrl}/api/v1/album`, addRequest(lidarrAlbum, settings), {
+        await withRetry(() => axios.post(`${baseUrl}/api/v1/album`, addRequest(lidarrAlbum, settings, artistAlbums), {
             headers: { 'X-Api-Key': apiKey, 'Content-Type': 'application/json' },
             timeout: LIDARR_TIMEOUT_MS
         }));
@@ -103,7 +104,7 @@ async function waitForReleases(foreignAlbumId: string, url: string, apiKey: stri
     }
 }
 
-function addRequest(lidarrAlbum: LidarrLookupResult, settings: LidarrAddSettings): LidarrAddAlbumRequest {
+function addRequest(lidarrAlbum: LidarrLookupResult, settings: LidarrAddSettings, artistAlbums: string[]): LidarrAddAlbumRequest {
     return {
         foreignAlbumId: lidarrAlbum.foreignAlbumId,
         title: lidarrAlbum.title,
@@ -129,10 +130,11 @@ function addRequest(lidarrAlbum: LidarrLookupResult, settings: LidarrAddSettings
             monitored: true,
             // Unset means All: every album a later refresh finds would come in monitored
             monitorNewItems: "none",
+            // As Lidarr's import lists do: its first scan keeps only albumsToMonitor monitored, and only this first
+            // add's list counts, so it names every album sent of the artist; "all" keeps the artist monitored for RSS
             addOptions: {
-                monitor: "none",
-                // Applied at the end of the artist's first scan, after this album's search: "none" alone would unmonitor it too
-                albumsToMonitor: [lidarrAlbum.foreignAlbumId],
+                monitor: "all",
+                albumsToMonitor: [...new Set([lidarrAlbum.foreignAlbumId, ...artistAlbums])],
                 monitored: true,
                 searchForMissingAlbums: false,
             },
