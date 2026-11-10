@@ -10,8 +10,12 @@ import BMoment from "./BMoment";
 
 type RetryResult = { success: boolean; message: string };
 
+// Lidarr's metadata catches up with a new MusicBrainz entry in 2-3 hours; past this, something else is wrong
+const STUCK_AFTER_MS = 24 * 60 * 60 * 1000;
+
 type RowProps = {
     readonly album: UnmappedAlbum;
+    readonly fetchedAt: number;
     readonly busy: boolean;
     readonly result?: RetryResult;
     readonly onRetry: (album: UnmappedAlbum) => void;
@@ -19,8 +23,9 @@ type RowProps = {
 };
 
 function UnmappedAlbumRow(props: RowProps) {
-    const { album, busy, result, onRetry, onDismiss } = props;
+    const { album, fetchedAt, busy, result, onRetry, onDismiss } = props;
     const waitingOnLidarr = album.stage === 'lidarr';
+    const stuck = waitingOnLidarr && fetchedAt - (album.found_in_musicbrainz ?? album.first_seen) > STUCK_AFTER_MS;
     // Already in MusicBrainz: importing again would only make a duplicate
     const harmony = waitingOnLidarr ? undefined : harmonyImportUrl(album.spotify_album_id);
 
@@ -47,9 +52,14 @@ function UnmappedAlbumRow(props: RowProps) {
                     </Typography>
                 </Box>
                 <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center', flexShrink: 0 }}>
-                    {waitingOnLidarr ? (
+                    {waitingOnLidarr && !stuck ? (
                         <Tooltip title="MusicBrainz has this album, but Lidarr's metadata server picks up new entries 2-3 hours after an import. The next sync, or a retry after that, sends it to Lidarr.">
                             <Chip size="small" color="info" label="Waiting for Lidarr" sx={{ cursor: 'help' }} />
+                        </Tooltip>
+                    ) : null}
+                    {stuck ? (
+                        <Tooltip title="MusicBrainz has had this album for over a day, but Lidarr's metadata still lacks it. Lidarr leaves out MusicBrainz releases that have no status: check that the release has one, such as Official.">
+                            <Chip size="small" color="warning" label="Not reaching Lidarr" sx={{ cursor: 'help' }} />
                         </Tooltip>
                     ) : null}
                     {!!harmony && (
@@ -96,6 +106,7 @@ function UnmappedAlbumRow(props: RowProps) {
 export default function UnmappedAlbums() {
     const [loading, setLoading] = useState(true);
     const [data, setData] = useState<GetUnmappedAlbumsResponse | null>(null);
+    const [fetchedAt, setFetchedAt] = useState(0);
     const [showDismissed, setShowDismissed] = useState(false);
     const [busy, setBusy] = useState<Set<string>>(() => new Set());
     const [results, setResults] = useState<Map<string, RetryResult>>(() => new Map());
@@ -104,8 +115,9 @@ export default function UnmappedAlbums() {
         await errorBoundary(async () => {
             const result = await axios.get<GetUnmappedAlbumsResponse>('/api/lidarr/unmapped', { params: showDismissed ? { all: 1 } : {} });
             setData(result.data);
-            setLoading(false);
+            setFetchedAt(Date.now());
         });
+        setLoading(false);
     }, [showDismissed]);
 
     useEffect(() => {
@@ -133,9 +145,14 @@ export default function UnmappedAlbums() {
                 artist_name: album.artist_name,
                 album_name: album.album_name
             }, { validateStatus: () => true });
-            const body = result.data ?? { success: false, message: `HTTP ${result.status}` };
-            setResults(prev => new Map(prev).set(album.spotify_album_id, { success: !!body.success, message: body.message }));
+            // The router's own error handler answers { error }, and a proxy's error page has neither
+            const body = result.data as Partial<RetryResult & { error: string }> | undefined;
+            const message = body?.message || body?.error || `HTTP ${result.status}`;
+            setResults(prev => new Map(prev).set(album.spotify_album_id, { success: !!body?.success, message }));
             await fetchAlbums();
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : 'Request failed';
+            setResults(prev => new Map(prev).set(album.spotify_album_id, { success: false, message }));
         } finally {
             setBusyFor(album.spotify_album_id, false);
         }
@@ -185,13 +202,30 @@ export default function UnmappedAlbums() {
                 </Stack>
             </Stack>
 
-            {albums.length === 0 && (
+            {!data && (
+                <Alert severity="warning">
+                    The list could not be loaded. Use Reload to try again.
+                </Alert>
+            )}
+            {!!data && albums.length === 0 && (!showDismissed && data.dismissed > 0 ? (
+                <Alert severity="info">
+                    No albums to show: {data.dismissed} dismissed album{data.dismissed === 1 ? ' is' : 's are'} hidden.
+                </Alert>
+            ) : (
                 <Alert severity="success">
                     Every album the Lidarr sync looked up was found in MusicBrainz. Albums it cannot map are listed here after the next Lidarr sync.
                 </Alert>
-            )}
+            ))}
             {albums.map(album => (
-                <UnmappedAlbumRow key={album.spotify_album_id} album={album} busy={busy.has(album.spotify_album_id)} result={results.get(album.spotify_album_id)} onRetry={onRetry} onDismiss={onDismiss} />
+                <UnmappedAlbumRow
+                    key={album.spotify_album_id}
+                    album={album}
+                    fetchedAt={fetchedAt}
+                    busy={busy.has(album.spotify_album_id)}
+                    result={results.get(album.spotify_album_id)}
+                    onRetry={onRetry}
+                    onDismiss={onDismiss}
+                />
             ))}
         </Box>
     );
