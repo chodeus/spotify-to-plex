@@ -252,7 +252,8 @@ export default function LidarrSettings() {
                     Selects the release Spotify has and stops Lidarr importing any other edition. Leave off unless your downloads
                     come from the same source as Spotify&apos;s edition: slskd, Deezer and Tidal often carry another edition of
                     the same album, which Lidarr then refuses with &quot;Album release not requested&quot;. While it is off, an album
-                    still pinned to Spotify&apos;s edition from an earlier send, with no files yet, is freed the next time it is sent.
+                    an earlier send pinned to Spotify&apos;s edition is freed when it is next sent, once Lidarr reports it has no
+                    files. A release picked by hand in Lidarr stays pinned.
                 </Typography>
 
                 <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>

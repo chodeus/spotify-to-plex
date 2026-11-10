@@ -65,8 +65,8 @@ function lidarrAndSlskdEntries(tracks: Track[], albumId?: string) {
         const artist = track.artists[0] || 'Unknown Artist';
         const album = track.album || 'Unknown Album';
 
-        // The album's own artist, whole: track artists are split on commas, so a band named
-        // "Above, Below" would be looked up in MusicBrainz as "Above" and never found
+        // The album's own artist, whole: playlist and scraped track artists are split on commas, so a
+        // band named "Above, Below" would be looked up in MusicBrainz as "Above" and never found
         const albumArtist = track.album_artist?.trim() || artist;
 
         if (track.album_id === 'unknown')

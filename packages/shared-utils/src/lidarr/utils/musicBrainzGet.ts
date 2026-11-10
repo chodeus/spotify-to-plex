@@ -57,12 +57,7 @@ async function request<T>(url: string) {
     }
 }
 
-/**
- * A GET against the MusicBrainz web service: identified, paced against the rate
- * limit, and retried once on a transient failure. Every MusicBrainz call goes
- * through here, so neither the agent string nor the spacing can be forgotten at
- * a new call site - which is how both came to be missing in the first place.
- */
+/** A GET against MusicBrainz, identified and paced; every MusicBrainz call goes through here so neither is forgotten. */
 export function musicBrainzGet<T>(url: string) {
     // Retries a transient failure 2s/4s/8s apart; paced inside the retry, so each takes its own slot
     return withRetry(() => request<T>(url), 2000, MUSICBRAINZ_RETRIES);

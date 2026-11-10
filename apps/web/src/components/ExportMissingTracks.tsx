@@ -208,7 +208,7 @@ export default function ExportMissingTracks(props: Props) {
                 return;
             }
 
-            // Track artists are split on commas; the album artist is whole, as MusicBrainz names it
+            // Playlist and scraped track artists are split on commas; the album artist is whole, as MusicBrainz names it
             const artist = track.album_artist?.trim() || track.artists[0] || 'Unknown Artist';
             const album = track.album?.trim() || 'Unknown Album';
             const key = `${artist}|${album}`;

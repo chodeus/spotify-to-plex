@@ -23,7 +23,7 @@ describe('missingListsFor', () => {
         });
     });
 
-    // Track artists come split on commas; the album artist does not
+    // Playlist and scraped track artists come split on commas; the album artist does not
     it('names the album by its album artist for Lidarr, whole, and the track by its first artist for slskd', async () => {
         const result = await missingListsFor([track('a', { artists: ['Above', 'Below'], album_artist: 'Above, Below' }), track('b', { album_artist: '  ' })]);
 

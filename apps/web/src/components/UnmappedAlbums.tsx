@@ -4,7 +4,7 @@ import { Alert, Box, Button, Chip, CircularProgress, FormControlLabel, IconButto
 import type { UnmappedAlbum } from "@spotify-to-plex/shared-types/lidarr/UnmappedAlbum";
 import { harmonyImportUrl, musicBrainzSearchUrl } from "@spotify-to-plex/shared-utils/musicbrainz/importLinks";
 import axios from "axios";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { GetUnmappedAlbumsResponse } from "../../pages/api/lidarr/unmapped";
 import BMoment from "./BMoment";
 
@@ -111,9 +111,16 @@ export default function UnmappedAlbums() {
     const [busy, setBusy] = useState<Set<string>>(() => new Set());
     const [results, setResults] = useState<Map<string, RetryResult>>(() => new Map());
 
+    // Only the newest request may set the list: an older one finishing last would show the other filter
+    const latestRequest = useRef(0);
+
     const fetchAlbums = useCallback(async () => {
+        const request = ++latestRequest.current;
         await errorBoundary(async () => {
             const result = await axios.get<GetUnmappedAlbumsResponse>('/api/lidarr/unmapped', { params: showDismissed ? { all: 1 } : {} });
+            if (request !== latestRequest.current)
+                return;
+
             setData(result.data);
             setFetchedAt(Date.now());
         });
