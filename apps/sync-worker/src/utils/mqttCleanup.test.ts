@@ -3,8 +3,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const published: { topic: string; message: string }[] = [];
-const publish = vi.fn(async (topic: string, message: string) => { published.push({ topic, message }) });
+const published: { topic: string; message: string; retain?: boolean }[] = [];
+const publish = vi.fn(async (topic: string, message: string, options?: { retain?: boolean }) => { published.push({ topic, message, retain: options?.retain }) });
 vi.mock('../services/mqtt/createMQTTClient', () => ({
     createMQTTClient: () => ({ connect: vi.fn(), disconnect: vi.fn(), publish, isConnected: () => true })
 }));
@@ -26,14 +26,15 @@ const previous = (id: string) => ({ id, entity_id: `sensor.spotify_to_plex_item_
 
 const PREFIX = 'spotify_to_plex';
 const IDS = ['kept', 'flaky', 'deleted', 'unsaved'];
-const cleared = (topic: string) => published.some(item => item.topic === topic && item.message === '');
-const configCleared = (id: string) => cleared(createDiscoveryTopic(createEntityId(id, PREFIX), 'homeassistant'));
-const stateCleared = (id: string) => cleared(createStateTopic(id, PREFIX));
+// A clear left unretained does not remove what the broker holds
+const cleared = (topic: string, retained = false) => published.some(item => item.topic === topic && item.message === '' && (!retained || item.retain === true));
+const configCleared = (id: string, retained?: boolean) => cleared(createDiscoveryTopic(createEntityId(id, PREFIX), 'homeassistant'), retained);
+const stateCleared = (id: string, retained?: boolean) => cleared(createStateTopic(id, PREFIX), retained);
 
-// Removing an entity clears its retained discovery config and its state; either one alone counts as removing it
+// Removing an entity clears its retained discovery config and its state; any clear alone counts as removing it
 const removed = () => {
     const ids = IDS.filter(id => configCleared(id) || stateCleared(id));
-    expect(ids.filter(id => !configCleared(id) || !stateCleared(id)), 'half removed').toEqual([]);
+    expect(ids.filter(id => !configCleared(id, true) || !stateCleared(id, true)), 'not fully removed').toEqual([]);
 
     return ids;
 };
@@ -87,11 +88,11 @@ describe('syncMQTT cleanup', () => {
     });
 
     it('keeps an entity whose publish failed, as the broker still holds the last one', async () => {
-        publish.mockImplementation(async (topic: string, message: string) => {
+        publish.mockImplementation(async (topic: string, message: string, options?: { retain?: boolean }) => {
             if (topic.includes('flaky') && message !== '')
                 throw new Error('publish timed out');
 
-            published.push({ topic, message });
+            published.push({ topic, message, retain: options?.retain });
         });
 
         await syncMQTT();
