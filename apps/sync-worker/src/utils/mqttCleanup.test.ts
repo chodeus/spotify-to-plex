@@ -13,6 +13,9 @@ const getById = vi.fn();
 vi.mock('@spotify-to-plex/plex-music-search/functions/getById', () => ({ getById }));
 
 const { PlexItemMissingError } = await import('@spotify-to-plex/plex-music-search/utils/PlexItemMissingError');
+const { createEntityId } = await import('../services/mqtt/createEntityId');
+const { createDiscoveryTopic } = await import('../services/mqtt/createDiscoveryTopic');
+const { createStateTopic } = await import('../services/mqtt/createStateTopic');
 const { syncMQTT } = await import('../jobs/mqtt');
 
 let dir: string;
@@ -21,10 +24,19 @@ const write = (name: string, data: unknown) => writeFileSync(join(dir, name), JS
 const saved = (id: string, plexId: number) => ({ type: 'plex-media', uri: `/library/metadata/${plexId}`, id, title: id, label: 'Mood' });
 const previous = (id: string) => ({ id, entity_id: `sensor.spotify_to_plex_item_${id}`, category: 'Mood' });
 
-// An entity is removed by publishing an empty retained state
-const removed = () => published
-    .filter(({ topic, message }) => message === '' && topic.endsWith('/state'))
-    .map(({ topic }) => topic.split('/')[2]);
+const PREFIX = 'spotify_to_plex';
+const IDS = ['kept', 'flaky', 'deleted', 'unsaved'];
+const cleared = (topic: string) => published.some(item => item.topic === topic && item.message === '');
+const configCleared = (id: string) => cleared(createDiscoveryTopic(createEntityId(id, PREFIX), 'homeassistant'));
+const stateCleared = (id: string) => cleared(createStateTopic(id, PREFIX));
+
+// Removing an entity clears its retained discovery config and its state; either one alone counts as removing it
+const removed = () => {
+    const ids = IDS.filter(id => configCleared(id) || stateCleared(id));
+    expect(ids.filter(id => !configCleared(id) || !stateCleared(id)), 'half removed').toEqual([]);
+
+    return ids;
+};
 const kept = () => (JSON.parse(readFileSync(join(dir, 'mqtt_published_items.json'), 'utf8')) as { id: string }[]).map(item => item.id);
 
 // The cleanup removes what was published last time and is gone now: an item that only
@@ -36,6 +48,7 @@ describe('syncMQTT cleanup', () => {
         vi.stubEnv('MQTT_BROKER_URL', 'mqtt://broker.test');
         // A dry run publishes nothing, so there would be no removals to read
         vi.stubEnv('MQTT_DRY_RUN', 'false');
+        vi.stubEnv('MQTT_TOPIC_PREFIX', PREFIX);
         published.length = 0;
         publish.mockClear();
         getById.mockReset();
