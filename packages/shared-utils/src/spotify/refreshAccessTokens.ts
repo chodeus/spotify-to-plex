@@ -7,6 +7,10 @@ import { decrypt } from "../security/decrypt";
 import { encrypt } from "../security/encrypt"
 import { writeJsonFileAtomic } from "../utils/writeJsonFileAtomic"
 
+// A token is used for a while after it is read - paging a large playlist, searching its tracks -
+// so one that is about to expire is refreshed now, rather than failing with a 401 partway through
+export const REFRESH_MARGIN_MS = 5 * 60 * 1000
+
 export async function refreshAccessTokens() {
     const credentialsPath = join(getStorageDir(), 'spotify.json')
     if (!existsSync(credentialsPath))
@@ -28,7 +32,7 @@ export async function refreshAccessTokens() {
 
     for (let i = 0; i < users.length; i++) {
         const user = users[i];
-        if (!user || now > user.expires_at) {
+        if (!user || now > user.expires_at - REFRESH_MARGIN_MS) {
 
             try {
                 if (!user?.access_token?.refresh_token)
