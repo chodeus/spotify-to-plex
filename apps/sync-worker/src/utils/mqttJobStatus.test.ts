@@ -20,8 +20,10 @@ const plex = () => writeFileSync(join(dir, 'plex.json'), JSON.stringify({ id: 's
 describe('syncMQTT status', () => {
     beforeEach(() => {
         dir = mkdtempSync(join(tmpdir(), 'mqtt-status-'));
-        process.env.STORAGE_DIR = dir;
-        process.env.MQTT_BROKER_URL = 'mqtt://broker.test';
+        vi.stubEnv('STORAGE_DIR', dir);
+        vi.stubEnv('MQTT_BROKER_URL', 'mqtt://broker.test');
+        // A dry run never connects, so the broker test would fail on the missing data files instead
+        vi.stubEnv('MQTT_DRY_RUN', 'false');
         connect.mockReset();
         disconnect.mockClear();
         vi.spyOn(console, 'log').mockImplementation(() => { /* expected */ });
@@ -30,9 +32,8 @@ describe('syncMQTT status', () => {
 
     afterEach(() => {
         vi.restoreAllMocks();
+        vi.unstubAllEnvs();
         rmSync(dir, { recursive: true, force: true });
-        delete process.env.STORAGE_DIR;
-        delete process.env.MQTT_BROKER_URL;
     });
 
     it('errors when there is no Plex connection', async () => {
