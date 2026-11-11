@@ -62,7 +62,8 @@ export async function authenticate() {
             }
         );
 
-        setToken(result.data.access_token, Date.now() + result.data.expires_in);
+        // expires_in is in seconds
+        setToken(result.data.access_token, Date.now() + result.data.expires_in * 1000);
     } catch (error) {
         if (error instanceof AxiosError) {
             throw new Error(`Failed authenticating with the Tidal API: ${JSON.stringify(error.response?.data)}`);
