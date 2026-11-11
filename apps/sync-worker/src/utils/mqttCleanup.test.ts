@@ -32,8 +32,10 @@ const kept = () => (JSON.parse(readFileSync(join(dir, 'mqtt_published_items.json
 describe('syncMQTT cleanup', () => {
     beforeEach(() => {
         dir = mkdtempSync(join(tmpdir(), 'mqtt-cleanup-'));
-        process.env.STORAGE_DIR = dir;
-        process.env.MQTT_BROKER_URL = 'mqtt://broker.test';
+        vi.stubEnv('STORAGE_DIR', dir);
+        vi.stubEnv('MQTT_BROKER_URL', 'mqtt://broker.test');
+        // A dry run publishes nothing, so there would be no removals to read
+        vi.stubEnv('MQTT_DRY_RUN', 'false');
         published.length = 0;
         publish.mockClear();
         getById.mockReset();
@@ -50,9 +52,8 @@ describe('syncMQTT cleanup', () => {
 
     afterEach(() => {
         vi.restoreAllMocks();
+        vi.unstubAllEnvs();
         rmSync(dir, { recursive: true, force: true });
-        delete process.env.STORAGE_DIR;
-        delete process.env.MQTT_BROKER_URL;
     });
 
     it('keeps an entity when Plex fails to answer, and removes one Plex no longer has', async () => {
@@ -84,6 +85,15 @@ describe('syncMQTT cleanup', () => {
 
         expect(removed()).toEqual(['unsaved']);
         expect(kept()).toEqual(['kept', 'flaky', 'deleted']);
+    });
+
+    it.each(['playlists.json', 'track_links.json'])('removes nothing when %s cannot be read', async file => {
+        writeFileSync(join(dir, file), '{ half written');
+
+        await expect(syncMQTT()).rejects.toThrow(`Failed to load ${file}`);
+
+        expect(removed()).toEqual([]);
+        expect(kept()).toEqual(['kept', 'flaky', 'deleted', 'unsaved']);
     });
 
     it('does not keep an item that was never published', async () => {

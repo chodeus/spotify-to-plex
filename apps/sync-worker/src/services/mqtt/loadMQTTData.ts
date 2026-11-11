@@ -47,9 +47,8 @@ function loadPlaylists(): PlaylistData {
         return JSON.parse(content) as PlaylistData;
     } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
-        console.warn(`[MQTT] Failed to load playlists.json: ${message}`);
-
-        return { data: [] };
+        // Not empty data: every item would lose its Plex id and the cleanup would delete its entity
+        throw new Error(`Failed to load playlists.json: ${message}`);
     }
 }
 
@@ -72,9 +71,8 @@ function loadTrackLinks(): TrackLink[] {
         return JSON.parse(content) as TrackLink[];
     } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
-        console.warn(`[MQTT] Failed to load track_links.json: ${message}`);
-
-        return [];
+        // Not empty data: every item would lose its Plex id and the cleanup would delete its entity
+        throw new Error(`Failed to load track_links.json: ${message}`);
     }
 }
 
