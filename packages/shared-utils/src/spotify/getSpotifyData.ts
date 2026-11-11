@@ -16,13 +16,24 @@ export async function getSpotifyData(api: SpotifyApi, id: string, simplified: bo
         const albumId = id.slice(Math.max(0, id.indexOf('spotify:album:') + 'spotify:album:'.length)).trim();
         try {
             const result = await api.albums.get(albumId)
+            // The album answer holds only the first 50 tracks: page through the rest, as a
+            // longer album otherwise syncs as a playlist cut off at track 50. A failed page
+            // fails the whole album below, rather than syncing it short.
+            const items = [...result.tracks.items]
+            while (items.length < result.tracks.total) {
+                const page = await api.albums.tracks(albumId, undefined, 50, items.length)
+                if (page.items.length == 0)
+                    break;
+
+                items.push(...page.items)
+            }
 
             return {
                 type: "spotify-album",
                 id: result.id,
                 title: result.name,
                 image: result.images[0]?.url || '',
-                tracks: result.tracks.items.map(item => ({
+                tracks: items.map(item => ({
                     artist: item.artists[0]?.name,
                     id: item.id,
                     artists: item.artists.map(artist => artist.name),
