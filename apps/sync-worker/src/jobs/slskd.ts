@@ -32,15 +32,16 @@ export async function syncSlskd() {
     clearSyncTypeLogs('slskd');
 
     try {
+        // Each early return settles the status, or the overview shows "running" until the next run
         if (!settings.url) {
-            console.log('SLSKD URL not configured');
+            errorSyncType('slskd', 'SLSKD URL not configured');
 
             return;
         }
 
         const apiKey = process.env.SLSKD_API_KEY?.trim();
         if (!apiKey) {
-            console.log('SLSKD API key not configured in environment (SLSKD_API_KEY)');
+            errorSyncType('slskd', 'SLSKD_API_KEY not set');
 
             return;
         }

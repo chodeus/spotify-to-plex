@@ -19,7 +19,9 @@ export default defineConfig({
             workspace('tidal-music-search'),
             workspace('plex-config'),
             workspace('plex-helpers'),
-            workspace('http-client')
+            workspace('http-client'),
+            // Imported by its package root, which the subpath pattern above does not match
+            { find: /^@spotify-to-plex\/slskd-music-search$/, replacement: resolve(import.meta.dirname, '../../packages/slskd-music-search/src/index.ts') }
         ]
     }
 });
