@@ -27,6 +27,7 @@ import { savePublishedItems } from '../services/mqtt/savePublishedItems';
 import { findItemsToRemove } from '../services/mqtt/findItemsToRemove';
 import { writeDryRunManifest } from '../services/mqtt/writeDryRunManifest';
 import { PublishedItem, TrackLink, MQTTEntity } from '../services/mqtt/types';
+import { PlexItemMissingError } from '@spotify-to-plex/plex-music-search/utils/PlexItemMissingError';
 import { runExclusive } from "@spotify-to-plex/shared-utils/utils/syncLock";
 
 /**
@@ -95,6 +96,7 @@ async function runMQTT() {
 
         // Load previously published items for cleanup
         const previouslyPublished = loadPreviousItems();
+        const previousById = new Map(previouslyPublished.filter(published => published?.id).map(published => [published.id, published]));
 
         // Create MQTT publisher (only if not dry-run)
         let publisher = null;
@@ -125,6 +127,17 @@ async function runMQTT() {
             updateSyncTypeProgress('mqtt', i + 1, savedItems.length);
 
             const itemLog = putLog(`mqtt_${item.id}`, item.title);
+            // A failure that may pass - Plex down or slow, the broker refusing one publish - keeps the
+            // entity Home Assistant already has, rather than the cleanup below deleting it. Only an
+            // item Plex says it no longer has is gone for good.
+            const keepUnlessGone = (error: unknown) => {
+                if (error instanceof PlexItemMissingError)
+                    return;
+
+                const previous = previousById.get(item.id);
+                if (previous)
+                    currentPublished.push(previous);
+            };
             categories.add(item.label);
 
             try {
@@ -148,6 +161,7 @@ async function runMQTT() {
                     console.warn(`[MQTT] Warning: Failed to fetch Plex metadata for "${item.title}": ${error instanceof Error ? error.message : 'Unknown error'}`);
                     logError(itemLog, `Failed to fetch Plex metadata`);
                     errorCount++;
+                    keepUnlessGone(error);
                     continue;
                 }
 
@@ -205,6 +219,7 @@ async function runMQTT() {
                 console.error(`[MQTT] Error publishing "${item.title}": ${message}`);
                 logError(itemLog, `Failed to publish: ${message}`);
                 errorCount++;
+                keepUnlessGone(error);
             }
         }
 
