@@ -17,7 +17,7 @@ function rewriteLists(target: typeof JOBS[number], deadline: number) {
     // A running sync writes over an edit made now, and may have read the hand matches before this one was saved
     if (isSyncRunning(job)) {
         if (Date.now() < deadline)
-            setTimeout(() => rewriteLists(target, deadline), RETRY_MS).unref();
+            setTimeout(() => retry(target, deadline), RETRY_MS).unref();
 
         return;
     }
@@ -25,6 +25,15 @@ function rewriteLists(target: typeof JOBS[number], deadline: number) {
     const lists = rewriteSyncState(file, withoutHandMatched(kind));
     if (lists)
         writeMissingLists(kind, lists);
+}
+
+// A throw in a timer would end the web server: a failed retry leaves the lists to the next sync
+function retry(target: typeof JOBS[number], deadline: number) {
+    try {
+        rewriteLists(target, deadline);
+    } catch (e) {
+        console.error(`Error taking hand-matched tracks off the ${target.job} lists:`, e);
+    }
 }
 
 /** Takes hand-matched tracks off this app's own missing lists, once any running sync ends; Lidarr and slskd are never touched. */

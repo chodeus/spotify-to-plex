@@ -157,6 +157,21 @@ describe('forgetHandMatchedTracks', () => {
         expect(lidarr()).toEqual(['Artist|B']);
     });
 
+    it('survives a list write that fails after waiting for a sync', async () => {
+        await storePlaylists({ p1: [song('t1', 'A')] });
+        vi.spyOn(console, 'error').mockImplementation(() => { /* expected */ });
+        vi.useFakeTimers();
+        let finish!: () => void;
+        const running = runExclusive('playlists', () => new Promise<void>(resolve => { finish = resolve }));
+        match('t1');
+        mkdirSync(join(dir, 'missing_tracks_lidarr.json'));
+
+        finish();
+        await running;
+
+        await expect(vi.advanceTimersByTimeAsync(15_000)).resolves.not.toThrow();
+    });
+
     // The same recording can sit in a playlist as a single and as an album track
     it('keeps a Tidal link another listed track still needs', async () => {
         await storePlaylists({ p1: [song('t1', 'A'), song('t2', 'B'), song('t3', 'C')] });
