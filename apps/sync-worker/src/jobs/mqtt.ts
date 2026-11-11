@@ -53,33 +53,35 @@ export async function syncMQTT() {
     const isDryRun = process.env.MQTT_DRY_RUN === 'true';
     console.log('[MQTT] Starting MQTT publish job...');
 
-    // Load MQTT configuration
-    const mqttConfig = loadMQTTConfig();
+    let client: ReturnType<typeof createMQTTClient> | undefined;
 
-    // Get Plex settings
-    const settings = await getSettings();
-    if (!settings.uri || !settings.token)
-        throw new Error('No Plex connection found');
-
-    const plexConfig: PlexMusicSearchConfig = {
-        uri: settings.uri,
-        token: settings.token
-    };
-
-    // Connect to MQTT broker (skip in dry-run mode)
-    let client;
-    if (!isDryRun) {
-        client = createMQTTClient(mqttConfig);
-
-        try {
-            await client.connect();
-        } catch {
-            console.error('[MQTT] ERROR: Failed to connect to MQTT broker');
-            throw new Error('Failed to connect to MQTT broker');
-        }
-    }
-
+    // Everything after the start settles the status: a throw above this try left it "running" until the next run
     try {
+        // Load MQTT configuration
+        const mqttConfig = loadMQTTConfig();
+
+        // Get Plex settings
+        const settings = await getSettings();
+        if (!settings.uri || !settings.token)
+            throw new Error('No Plex connection found');
+
+        const plexConfig: PlexMusicSearchConfig = {
+            uri: settings.uri,
+            token: settings.token
+        };
+
+        // Connect to MQTT broker (skip in dry-run mode)
+        if (!isDryRun) {
+            client = createMQTTClient(mqttConfig);
+
+            try {
+                await client.connect();
+            } catch {
+                console.error('[MQTT] ERROR: Failed to connect to MQTT broker');
+                throw new Error('Failed to connect to MQTT broker');
+            }
+        }
+
         // Load data files
         const { savedItems, playlists, trackLinks } = loadMQTTData();
 

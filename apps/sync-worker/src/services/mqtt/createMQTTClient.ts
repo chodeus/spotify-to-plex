@@ -28,16 +28,36 @@ export function createMQTTClient(config: MQTTConfig) {
                 reconnectPeriod: 0, // Disable auto-reconnect for one-time jobs
             };
 
-            client = mqtt.connect(config.brokerUrl, options);
+            const connecting = mqtt.connect(config.brokerUrl, options);
+            client = connecting;
+            let settled = false;
 
-            client.on('connect', () => {
+            const fail = (error: Error) => {
+                if (settled)
+                    return;
+
+                settled = true;
+                // Nothing to disconnect from later: end it here, so disconnect() returns at once
+                client = null;
+                connecting.end(true);
+                reject(error);
+            };
+
+            connecting.on('connect', () => {
+                settled = true;
                 console.log('[MQTT] Connected to broker');
                 resolve();
             });
 
-            client.on('error', (error) => {
+            connecting.on('error', (error) => {
                 console.error('[MQTT] Connection error:', error.message);
-                reject(error);
+                fail(error);
+            });
+
+            // A broker that drops the socket before answering only closes it (a silent one gets a
+            // "connack timeout" error); with reconnecting off, nothing else would settle this promise
+            connecting.on('close', () => {
+                fail(new Error('Connection to the MQTT broker closed before it was established'));
             });
         });
     };
