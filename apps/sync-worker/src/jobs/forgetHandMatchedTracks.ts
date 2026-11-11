@@ -8,16 +8,29 @@ const JOBS = [
     { job: 'albums', file: ALBUMS_STATE_FILE, kind: 'album' }
 ] as const;
 
-/** Takes hand-matched tracks off this app's own missing lists now; Lidarr and slskd are never touched. */
-export function forgetHandMatchedTracks() {
-    for (const { job, file, kind } of JOBS) {
-        // A running sync takes them off itself when it ends, and would write over an edit made now. Not
-        // its lock: a sync starting meanwhile would be refused and lose its whole run
-        if (isSyncRunning(job))
-            continue;
+const RETRY_MS = 15_000;
+// Longer than any sync runs; a later sync takes the tracks off by itself anyway
+const GIVE_UP_AFTER_MS = 2 * 60 * 60 * 1000;
 
-        const lists = rewriteSyncState(file, withoutHandMatched(kind));
-        if (lists)
-            writeMissingLists(kind, lists);
+function rewriteLists(target: typeof JOBS[number], deadline: number) {
+    const { job, file, kind } = target;
+    // A running sync writes over an edit made now, and may have read the hand matches before this one was saved
+    if (isSyncRunning(job)) {
+        if (Date.now() < deadline)
+            setTimeout(() => rewriteLists(target, deadline), RETRY_MS).unref();
+
+        return;
     }
+
+    const lists = rewriteSyncState(file, withoutHandMatched(kind));
+    if (lists)
+        writeMissingLists(kind, lists);
+}
+
+/** Takes hand-matched tracks off this app's own missing lists, once any running sync ends; Lidarr and slskd are never touched. */
+export function forgetHandMatchedTracks() {
+    const deadline = Date.now() + GIVE_UP_AFTER_MS;
+
+    for (const job of JOBS)
+        rewriteLists(job, deadline);
 }

@@ -41,7 +41,7 @@ export function openSyncState(file: string) {
     };
 }
 
-/** Passes every stored sync's lists through change; returns them merged when any changed, as settle() would. */
+/** Passes every stored sync's lists through change and returns them merged, as settle() would; undefined when none is stored. */
 export function rewriteSyncState(file: string, change: (missing: MissingLists) => MissingLists | undefined) {
     let changed = false;
     const entries = Object.entries(readSyncState(file)).map(([id, entry]) => {
@@ -53,11 +53,13 @@ export function rewriteSyncState(file: string, change: (missing: MissingLists) =
 
         return [id, { ...entry, missing }] as const;
     });
-    if (!changed)
+    if (entries.length == 0)
         return;
 
-    writeJsonFileAtomic(join(getStorageDir(), file), Object.fromEntries(entries), 2);
+    if (changed)
+        writeJsonFileAtomic(join(getStorageDir(), file), Object.fromEntries(entries), 2);
 
+    // Even unchanged: rewriting the lists from the state repairs a list write that failed last time
     return mergeMissingLists(entries.map(([, entry]) => entry.missing));
 }
 

@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -49,6 +49,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
     vi.unstubAllEnvs();
     rmSync(dir, { recursive: true, force: true });
@@ -133,28 +134,61 @@ describe('forgetHandMatchedTracks', () => {
         expect(state('playlists_sync_state.json').p1.missing.spotify).toEqual(['t1']);
     });
 
-    it('writes nothing for a track no list holds', async () => {
+    it('leaves the lists as they are for a track none of them holds', async () => {
         await storePlaylists({ p1: [song('t1', 'A')] });
         const before = read('playlists_sync_state.json');
 
         match('t7');
 
         expect(read('playlists_sync_state.json')).toBe(before);
-        expect(existsSync(join(dir, 'missing_tracks_slskd.json'))).toBe(false);
+        expect(slskdIds()).toEqual(['t1']);
     });
 
-    // The running sync would write its own lists over an edit made now
-    it('leaves the lists of a running sync alone', async () => {
-        await storePlaylists({ p1: [song('t1', 'A')] });
+    // The state is saved before the lists: a list write that failed must not stay wrong
+    it('repairs the lists a failed write left behind', async () => {
+        await storePlaylists({ p1: [song('t1', 'A'), song('t2', 'B')] });
+        mkdirSync(join(dir, 'missing_tracks_lidarr.json'));
+
+        expect(() => { match('t1') }).toThrow();
+        rmSync(join(dir, 'missing_tracks_lidarr.json'), { recursive: true });
+        forgetHandMatchedTracks();
+
+        expect(slskdIds()).toEqual(['t2']);
+        expect(lidarr()).toEqual(['Artist|B']);
+    });
+
+    // The same recording can sit in a playlist as a single and as an album track
+    it('keeps a Tidal link another listed track still needs', async () => {
+        await storePlaylists({ p1: [song('t1', 'A'), song('t2', 'B'), song('t3', 'C')] });
+        const stored = state('playlists_sync_state.json');
+        stored.p1.missing.tidal = ['T', 'T3'];
+        write('playlists_sync_state.json', stored);
+        write('track_links.json', [{ spotify_id: 't1', tidal_id: ['T'] }, { spotify_id: 't2', tidal_id: ['T'] }, { spotify_id: 't3', tidal_id: ['T3'] }]);
+
+        match('t1');
+        expect(read('missing_tracks_tidal.txt')).toBe('https://tidal.com/browse/track/T\nhttps://tidal.com/browse/track/T3');
+
+        match('t2');
+        expect(read('missing_tracks_tidal.txt')).toBe('https://tidal.com/browse/track/T3');
+    });
+
+    // The running sync would write its own lists over an edit made now, and may have read the matches already
+    it('waits for a running sync to end, then takes the track off', async () => {
+        await storePlaylists({ p1: [song('t1', 'A'), song('t2', 'B')] });
         const before = read('playlists_sync_state.json');
+        vi.useFakeTimers();
         let finish!: () => void;
         const running = runExclusive('playlists', () => new Promise<void>(resolve => { finish = resolve }));
 
         match('t1');
-
         expect(read('playlists_sync_state.json')).toBe(before);
+
         finish();
         await running;
+        await vi.advanceTimersByTimeAsync(15_000);
+
+        expect(slskdIds()).toEqual(['t2']);
+        vi.useRealTimers();
     });
 
     // The playlist is not due for a week: the next run must take the track off all the same
