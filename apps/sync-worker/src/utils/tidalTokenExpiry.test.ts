@@ -9,7 +9,7 @@ describe('Tidal token expiry', () => {
         resetState();
     });
 
-    // Read as milliseconds, a day-long token expired after 86 seconds and every later search signed in again
+    // expires_in is in seconds; expiresAt is a millisecond timestamp
     it('keeps a token for the seconds Tidal grants it', async () => {
         vi.useFakeTimers();
         vi.setSystemTime(new Date('2026-01-01T00:00:00Z'));
