@@ -10,13 +10,13 @@ const track = (index: number) => ({
 });
 
 // Spotify's album answer holds the first 50 tracks; the rest come from the album tracks endpoint
-function albumApi(total: number, failAt?: number) {
+function albumApi(total: number, failAt?: number, emptyAt?: number) {
     const all = Array.from({ length: total }, (_v, i) => track(i));
     const tracks = vi.fn(async (_id: string, _market: unknown, limit: number, offset: number) => {
         if (offset === failAt)
             throw new Error('502 Bad Gateway');
 
-        return { items: all.slice(offset, offset + limit), total };
+        return { items: offset === emptyAt ? [] : all.slice(offset, offset + limit), total };
     });
     const api = {
         albums: {
@@ -57,6 +57,12 @@ describe('getSpotifyData album', () => {
     // Syncing part of the album would shrink its Plex playlist
     it('fails the album rather than returning part of it', async () => {
         const { api } = albumApi(120, 100);
+
+        await expect(getSpotifyData(api, 'spotify:album:album')).resolves.toBeNull();
+    });
+
+    it('fails the album when a page comes back empty short of the total', async () => {
+        const { api } = albumApi(120, undefined, 100);
 
         await expect(getSpotifyData(api, 'spotify:album:album')).resolves.toBeNull();
     });

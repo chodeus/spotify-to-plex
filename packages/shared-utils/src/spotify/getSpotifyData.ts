@@ -22,8 +22,9 @@ export async function getSpotifyData(api: SpotifyApi, id: string, simplified: bo
             const items = [...result.tracks.items]
             while (items.length < result.tracks.total) {
                 const page = await api.albums.tracks(albumId, undefined, 50, items.length)
+                // An empty page short of the total would end the loop on part of the album
                 if (page.items.length == 0)
-                    break;
+                    throw new Error(`Spotify returned ${items.length} of ${result.tracks.total} tracks for album ${albumId}`);
 
                 items.push(...page.items)
             }
