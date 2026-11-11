@@ -1,5 +1,6 @@
 import { generateError } from '@/helpers/errors/generateError';
 import { setManualTrackLink } from '@spotify-to-plex/shared-utils/cache/setManualTrackLink';
+import { forgetMissingTrack } from 'cronjob/forgetMissingTrack';
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createRouter } from 'next-connect';
@@ -14,13 +15,20 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
 
             try {
                 setManualTrackLink(spotifyId, plexId);
-
-                return res.json({ success: true });
             } catch (error) {
                 console.error('Error caching manual match:', error);
 
                 return res.status(500).json({ error: 'Failed to save the manual match' });
             }
+
+            // The match is saved either way: the lists catch up at the next sync
+            try {
+                await forgetMissingTrack(spotifyId);
+            } catch (error) {
+                console.error('Error taking a hand-matched track off the missing lists:', error);
+            }
+
+            return res.json({ success: true });
         })
 
 export default router.handler({

@@ -1,4 +1,5 @@
 import { generateError } from '@/helpers/errors/generateError';
+import { getCachedMatches } from '@/helpers/plex/getCachedMatches';
 import { describeHttpError } from '@spotify-to-plex/http-client/describeHttpError';
 import { getCachedTrackLinks } from '@spotify-to-plex/shared-utils/cache/getCachedTrackLink';
 import { search } from '@spotify-to-plex/plex-music-search/functions/search';
@@ -60,9 +61,13 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
 
                 let searchResult: SearchResponse[] = []
                 switch (type) {
-                    case "spotify-album":
-                        searchResult = await searchAlbum(plexConfig, searchItems)
+                    case "spotify-album": {
+                        // A track matched by hand keeps that match, whatever the album search found
+                        const manual = await getCachedMatches(searchItems, plexConfig, true)
+                        const searched = await searchAlbum(plexConfig, searchItems)
+                        searchResult = searched.map(item => manual.find(pick => pick.id === item.id) ?? item)
                         break;
+                    }
 
                     default:
                         searchResult = await search(plexConfig, searchItems)

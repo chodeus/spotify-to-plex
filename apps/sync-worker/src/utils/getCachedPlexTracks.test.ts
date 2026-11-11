@@ -84,6 +84,27 @@ describe('getCachedPlexTracks', () => {
         expect(JSON.parse(readFileSync(join(dir, 'track_links.json'), 'utf8'))[0]).toEqual({ spotify_id: 'spotify-1', plex_id: [] });
     });
 
+    it('hands back a manual pick on its own, but not an automatic match', async () => {
+        writeLink({ manual: true });
+        const { manual } = await getCachedPlexTracks(config, playlist);
+        writeLink({});
+        const { manual: automatic } = await getCachedPlexTracks(config, { ...playlist, tracks: [{ ...playlist.tracks[0]!, title: 'Song (explicit)' }] });
+
+        expect(manual.map(item => item.result[0]?.id)).toEqual(['/library/metadata/1']);
+        expect(automatic).toEqual([]);
+    });
+
+    // Kept so a Plex hiccup cannot replace it, but it has no track to stand in with this run
+    it('does not hand back a manual pick whose lookup failed', async () => {
+        writeLink({ manual: true });
+        getByIdMock.mockRejectedValue(new Error('connect ECONNREFUSED'));
+
+        const { result, manual } = await getCachedPlexTracks(config, playlist);
+
+        expect(result).toHaveLength(1);
+        expect(manual).toEqual([]);
+    });
+
     it('keeps a manual link while Plex is unreachable', async () => {
         writeLink({ manual: true });
         getByIdMock.mockRejectedValue(new Error('connect ECONNREFUSED'));

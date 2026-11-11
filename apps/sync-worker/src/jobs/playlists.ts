@@ -25,10 +25,10 @@ import { getSettings } from "@spotify-to-plex/plex-config/functions/getSettings"
 import { findMissingTracks } from "../utils/findMissingTracks";
 import { readMissingSpotifyTrackIds } from "../utils/readMissingSpotifyTrackIds";
 import { emptyMissingLists, missingListsFor, writeMissingLists } from "../utils/missingLists";
-import { clearSyncState, openSyncState } from "../utils/syncState";
+import { PLAYLISTS_STATE_FILE, clearSyncState, openSyncState } from "../utils/syncState";
 import { runExclusive } from "@spotify-to-plex/shared-utils/utils/syncLock";
 
-const STATE_FILE = 'playlists_sync_state.json';
+const STATE_FILE = PLAYLISTS_STATE_FILE;
 
 
 /** Syncs every enrolled playlist that is due; force syncs them all, whatever their interval. */

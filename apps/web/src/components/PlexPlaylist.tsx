@@ -268,6 +268,10 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
         }, undefined, true)
     }, [onSetSongIndex])
 
+    const onMissingTrackManualSelect = useCallback((track: Track, plexTrack: SearchResponse['result'][0]) => {
+        onManualTrackSelect(track.id, track.title, track.artists[0] ?? 'Unknown', plexTrack)
+    }, [onManualTrackSelect])
+
     ///////////////////////////////////////////////
     // Modify Playlist name
     ///////////////////////////////////////////////
@@ -711,7 +715,7 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
             }
 
             {!!showExportMissingTracks && missingTracks.length > 0 &&
-                <ExportMissingTracks onClose={onExportMissingClick} tracks={missingTracks} playlist={playlist} />
+                <ExportMissingTracks onClose={onExportMissingClick} tracks={missingTracks} playlist={playlist} onManualSelect={onMissingTrackManualSelect} />
             }
 
         </>

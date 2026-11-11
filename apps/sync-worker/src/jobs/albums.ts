@@ -13,10 +13,10 @@ import { updateSyncTypeProgress } from "../utils/updateSyncTypeProgress";
 import { loadSpotifyData } from "../utils/loadSpotifyData";
 import { getSettings } from "@spotify-to-plex/plex-config/functions/getSettings";
 import { emptyMissingLists, missingAlbumListsFor, writeMissingLists } from "../utils/missingLists";
-import { clearSyncState, openSyncState } from "../utils/syncState";
+import { ALBUMS_STATE_FILE, clearSyncState, openSyncState } from "../utils/syncState";
 import { runExclusive } from "@spotify-to-plex/shared-utils/utils/syncLock";
 
-const STATE_FILE = 'albums_sync_state.json';
+const STATE_FILE = ALBUMS_STATE_FILE;
 
 /** Syncs every enrolled album that is due; force syncs them all, whatever their interval. */
 export async function syncAlbums(force = process.argv.slice(2).includes("force")) {
@@ -99,10 +99,11 @@ async function runAlbums(force: boolean) {
                 musicSearchConfig,
                 searchApproaches
             };
-            const result = await searchAlbum(plexConfig, data.tracks);
+            const searched = await searchAlbum(plexConfig, data.tracks);
 
             //@ts-ignore
-            const { add } = await getCachedPlexTracks(plexConfig, data);
+            const { add, manual } = await getCachedPlexTracks(plexConfig, data);
+            const result = searched.map((item: SearchResponse) => manual.find(pick => pick.id == item.id) ?? item);
 
             const missingTracks = data.tracks.filter(item => {
                 const { title: trackTitle, artists: trackArtists } = item;

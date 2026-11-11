@@ -37,6 +37,27 @@ export async function missingAlbumListsFor(albumId: string, tracks: Track[]): Pr
     return { spotify: [albumId], tidal: await findMissingTidalAlbums(tracks), lidarr, slskd };
 }
 
+/** One item's lists without a hand-matched track; undefined when the item did not list it. */
+export function withoutTrack(lists: MissingLists, kind: 'track' | 'album', spotifyId: string, tidalIds: string[]): MissingLists | undefined {
+    const removed = lists.slskd.find(track => track.spotify_id == spotifyId);
+    if (!removed)
+        return;
+
+    const slskd = lists.slskd.filter(track => track !== removed);
+    // An album entry goes only once none of the item's listed tracks still needs it
+    if (kind == 'album')
+        return slskd.length == 0 ? emptyMissingLists() : { ...lists, slskd };
+
+    const albumStillNeeded = slskd.some(track => track.album_name == removed.album_name);
+
+    return {
+        spotify: lists.spotify.filter(id => id != spotifyId),
+        tidal: lists.tidal.filter(id => !tidalIds.includes(id)),
+        lidarr: albumStillNeeded ? lists.lidarr : lists.lidarr.filter(album => album.album_name != removed.album_name),
+        slskd
+    };
+}
+
 /** Every item's lists as one, each entry once, at its first listing. */
 export function mergeMissingLists(lists: MissingLists[]): MissingLists {
     return {

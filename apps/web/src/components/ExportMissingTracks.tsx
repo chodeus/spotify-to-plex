@@ -7,17 +7,18 @@ import axios from "axios";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PlexPlaylistProps } from "./PlexPlaylist";
 import LidarrAlbumDialog from './LidarrAlbumDialog';
-import MissingTrack, { MissingTrackHandle } from './MissingTrack';
+import MissingTrack, { MissingTrackHandle, MissingTrackProps } from './MissingTrack';
 
 type Props = {
     readonly onClose: () => void,
     readonly tracks: Track[]
     readonly playlist: PlexPlaylistProps["playlist"]
+    readonly onManualSelect?: MissingTrackProps["onManualSelect"]
 }
 
 export default function ExportMissingTracks(props: Props) {
 
-    const { onClose, tracks, playlist } = props;
+    const { onClose, tracks, playlist, onManualSelect } = props;
     const { type } = playlist;
 
     ///////////////////////////////////////////////
@@ -381,7 +382,16 @@ export default function ExportMissingTracks(props: Props) {
                                 {visibleTracks.map((item, index) => {
                                     const tidalTrack = tidalTracks.find(tidalTrack => tidalTrack.id === item.id);
 
-                                    return <MissingTrack key={item.id} ref={setTrackRefs(index)} track={item} tidalTrack={tidalTrack} slskdEnabled={slskdEnabled} slskdBusy={sendingToSlskd} />;
+                                    return (
+                                        <MissingTrack
+                                            key={item.id}
+                                            ref={setTrackRefs(index)}
+                                            track={item}
+                                            tidalTrack={tidalTrack}
+                                            slskdEnabled={slskdEnabled}
+                                            slskdBusy={sendingToSlskd}
+                                            onManualSelect={onManualSelect} />
+                                    );
                                 })}
 
                                 {totalPages > 1 &&

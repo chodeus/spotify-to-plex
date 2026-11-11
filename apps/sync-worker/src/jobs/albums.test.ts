@@ -13,12 +13,12 @@ const albumData = (uri: string) => {
     return { type: 'spotify-album', id, title: id, image: '', tracks: albumTracks[id] ?? [] };
 };
 
-const { loadSpotifyData } = vi.hoisted(() => ({ loadSpotifyData: vi.fn() }));
+const { loadSpotifyData, manualPicks } = vi.hoisted(() => ({ loadSpotifyData: vi.fn(), manualPicks: [] as object[] }));
 
 vi.mock('@spotify-to-plex/plex-config/functions/getSettings', () => ({ getSettings: async () => ({ uri: 'http://plex.test:32400', token: 'token' }) }));
 vi.mock('@spotify-to-plex/music-search/functions/getMusicSearchConfig', () => ({ getMusicSearchConfig: async () => ({ searchApproaches: [{ id: 'normal' }] }) }));
 vi.mock('../utils/loadSpotifyData', () => ({ loadSpotifyData }));
-vi.mock('../utils/getCachedPlexTracks', () => ({ getCachedPlexTracks: async () => ({ add: vi.fn() }) }));
+vi.mock('../utils/getCachedPlexTracks', () => ({ getCachedPlexTracks: async () => ({ add: vi.fn(), manual: manualPicks }) }));
 vi.mock('../utils/findMissingTidalAlbums', () => ({ findMissingTidalAlbums: async () => [] }));
 vi.mock('@spotify-to-plex/plex-music-search/functions/searchAlbum', () => ({
     searchAlbum: async (_config: unknown, tracks: { id: string; title: string; artists: string[]; album: string }[]) => tracks.map(track => ({
@@ -48,6 +48,7 @@ beforeEach(() => {
     process.env.STORAGE_DIR = dir;
     enrol({ id: 'a1', interval: '0' }, { id: 'a2', interval: '0' });
     loadSpotifyData.mockReset().mockImplementation(async (uri: string) => albumData(uri));
+    manualPicks.length = 0;
     vi.spyOn(console, 'log').mockImplementation(() => { /* expected */ });
 });
 
@@ -60,6 +61,16 @@ describe('syncAlbums missing lists', () => {
         expect(albumList()).toEqual(['a1']);
         expect(JSON.parse(read('missing_albums_slskd.json')).map((track: { spotify_id: string }) => track.spotify_id)).toEqual(['t1']);
         expect(readState().a2.missing.spotify).toEqual([]);
+    });
+
+    // Otherwise the album search finds nothing again and the track goes back to Lidarr and slskd
+    it('counts a track matched by hand as found', async () => {
+        manualPicks.push({ id: 't1', title: 'Song t1', artist: 'Artist', album: 'Album', result: [{ id: '/library/metadata/9' }] });
+
+        await syncAlbums(false);
+
+        expect(read('missing_albums_spotify.txt')).toBe('');
+        expect(readState().a1.missing.slskd).toEqual([]);
     });
 
     it('drops an album that is complete now from the lists', async () => {

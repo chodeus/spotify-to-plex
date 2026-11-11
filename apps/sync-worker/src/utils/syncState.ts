@@ -6,6 +6,9 @@ import { mergeMissingLists, MissingLists } from "./missingLists";
 
 export type SyncState = { synced_at: number; missing: MissingLists };
 
+export const PLAYLISTS_STATE_FILE = 'playlists_sync_state.json';
+export const ALBUMS_STATE_FILE = 'albums_sync_state.json';
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 // A nightly run that starts a few minutes earlier than the last one still counts as a day later
 const SLACK_MS = DAY_MS / 2;
@@ -33,6 +36,26 @@ export function openSyncState(file: string) {
             return mergeMissingLists(kept.map(([, entry]) => entry.missing));
         }
     };
+}
+
+/** Passes every stored sync's lists through change; returns them merged when any changed, as settle() would. */
+export function rewriteSyncState(file: string, change: (missing: MissingLists) => MissingLists | undefined) {
+    let changed = false;
+    const entries = Object.entries(readSyncState(file)).map(([id, entry]) => {
+        const missing = change(entry.missing);
+        if (!missing)
+            return [id, entry] as const;
+
+        changed = true;
+
+        return [id, { ...entry, missing }] as const;
+    });
+    if (!changed)
+        return;
+
+    writeJsonFileAtomic(join(getStorageDir(), file), Object.fromEntries(entries), 2);
+
+    return mergeMissingLists(entries.map(([, entry]) => entry.missing));
 }
 
 export function clearSyncState(file: string) {

@@ -1,8 +1,10 @@
 import { GetTidalTracksResponse } from "@/pages/api/tidal";
 import { Alert, Box, Button, Divider, Typography } from "@mui/material";
 import { Track } from "@spotify-to-plex/shared-types/spotify/Track";
+import type { PlexTrack } from "@spotify-to-plex/plex-music-search/types/PlexTrack";
 import axios from "axios";
 import { forwardRef, useCallback, useImperativeHandle, useMemo, useRef, useState } from "react";
+import ManualSearchPopup from "./popups/ManualSearchPopup";
 
 type SlskdSearchResult = {
     success: boolean;
@@ -23,11 +25,12 @@ type SlskdSearchResult = {
     };
 };
 
-type MissingTrackProps = {
+export type MissingTrackProps = {
     readonly track: Track;
     readonly tidalTrack?: GetTidalTracksResponse;
     readonly slskdEnabled: boolean;
     readonly slskdBusy?: boolean;
+    readonly onManualSelect?: (track: Track, plexTrack: PlexTrack) => void;
 }
 
 export type MissingTrackHandle = {
@@ -36,7 +39,20 @@ export type MissingTrackHandle = {
 }
 
 const MissingTrack = forwardRef<MissingTrackHandle, MissingTrackProps>((props, ref) => {
-    const { track, tidalTrack, slskdEnabled, slskdBusy = false } = props;
+    const { track, tidalTrack, slskdEnabled, slskdBusy = false, onManualSelect } = props;
+
+    // Already in Plex under another name: picking it stops the track being sent for download again
+    const [showManualSearch, setShowManualSearch] = useState(false);
+    const onShowManualSearchClick = useCallback(() => {
+        setShowManualSearch(true);
+    }, []);
+    const onCloseManualSearch = useCallback(() => {
+        setShowManualSearch(false);
+    }, []);
+    const onManualSelectTrack = useCallback((selected: PlexTrack) => {
+        setShowManualSearch(false);
+        onManualSelect?.(track, selected);
+    }, [onManualSelect, track]);
 
     // Local state for SLSKD operations
     const [isSending, setIsSending] = useState(false);
@@ -243,6 +259,21 @@ const MissingTrack = forwardRef<MissingTrackHandle, MissingTrackProps>((props, r
                 </Box>
 
                 <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                    {!!onManualSelect &&
+                        <Box>
+                            <Button
+                                onClick={onShowManualSearchClick}
+                                className="btn"
+                                color="inherit"
+                                variant="outlined"
+                                size="small"
+                                sx={{ fontSize: '.8em' }}
+                                disabled={isSending}>
+                                Match in Plex
+                            </Button>
+                        </Box>
+                    }
+
                     {/* SLSKD Button */}
                     {!!slskdEnabled && (
                         <Box>
@@ -384,6 +415,10 @@ const MissingTrack = forwardRef<MissingTrackHandle, MissingTrackProps>((props, r
             ) : null}
 
             <Divider sx={{ mt: 1, mb: 1 }} />
+
+            {!!showManualSearch &&
+                <ManualSearchPopup title={track.title} artist={track.artists[0] ?? ''} onClose={onCloseManualSearch} onSelect={onManualSelectTrack} />
+            }
         </>
     );
 });

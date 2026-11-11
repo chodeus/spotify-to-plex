@@ -1,30 +1,11 @@
 import { generateError } from '@/helpers/errors/generateError';
-import { getCachedTrackLinks } from '@spotify-to-plex/shared-utils/cache/getCachedTrackLink';
-import { getById } from '@spotify-to-plex/plex-music-search/functions/getById';
+import { getCachedMatches } from '@/helpers/plex/getCachedMatches';
 import { PlexMusicSearchTrack } from '@spotify-to-plex/plex-music-search/types/PlexMusicSearchTrack';
-import { PlexTrack } from '@spotify-to-plex/plex-music-search/types/PlexTrack';
 import { getMusicSearchConfig } from "@spotify-to-plex/music-search/functions/getMusicSearchConfig";
 
-import { SearchResponse } from '@spotify-to-plex/plex-music-search/types/SearchResponse';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createRouter } from 'next-connect';
 import { getSettings } from '@spotify-to-plex/plex-config/functions/getSettings';
-
-async function getPlexTracks(plexIds: string[], plexConfig: any) {
-    const foundTracks: PlexTrack[] = []
-    
-    for (const plexId of plexIds.filter(Boolean)) {
-        try {
-            const metaData = await getById(plexConfig, plexId)
-            if (metaData)
-                foundTracks.push(metaData)
-        } catch (_e) {
-        }
-    }
-    
-    return foundTracks
-}
-
 
 // Large playlists ship thousands of tracks in one request/response (issue #94)
 export const config = {
@@ -60,40 +41,7 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
                     musicSearchConfig
                 };
 
-                //////////////////////////////////////
-                // Handeling cached links
-                //////////////////////////////////////
-                const { found: cachedTrackLinks } = getCachedTrackLinks(searchItems, 'plex')
-
-                const result: SearchResponse[] = []
-
-                for (let i = 0; i < searchItems.length; i++) {
-                    const searchItem = searchItems[i];
-                    if (!searchItem)
-                        continue;
-
-                    // Process if no cached link has been found
-                    const trackLink = cachedTrackLinks.find(item => item.spotify_id === searchItem.id)
-                    if (!trackLink?.plex_id || trackLink.plex_id?.length === 0)
-                        continue;
-
-                    // Load the plex tracks data
-                    const foundTracks = await getPlexTracks(trackLink.plex_id, plexConfig)
-
-                    // Try searching again if no tracks are found
-                    if (foundTracks.length === 0)
-                        continue;
-
-                    // Add the result
-                    result.push({
-                        id: searchItem.id,
-                        title: searchItem.title,
-                        artist: searchItem.artists?.[0] || '',
-                        album: searchItem.album || "",
-                        result: foundTracks
-                    })
-
-                }
+                const result = await getCachedMatches(searchItems, plexConfig)
 
                 res.status(200).json(result);
             } catch (error) {
