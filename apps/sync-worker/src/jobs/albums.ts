@@ -14,11 +14,17 @@ import { loadSpotifyData } from "../utils/loadSpotifyData";
 import { getSettings } from "@spotify-to-plex/plex-config/functions/getSettings";
 import { emptyMissingLists, missingAlbumListsFor, writeMissingLists } from "../utils/missingLists";
 import { clearSyncState, openSyncState } from "../utils/syncState";
+import { runExclusive } from "@spotify-to-plex/shared-utils/utils/syncLock";
 
 const STATE_FILE = 'albums_sync_state.json';
 
 /** Syncs every enrolled album that is due; force syncs them all, whatever their interval. */
 export async function syncAlbums(force = process.argv.slice(2).includes("force")) {
+    // A second start while a run is going - two clicks, or by hand during the scheduled run - ends at once
+    return runExclusive('albums', () => runAlbums(force));
+}
+
+async function runAlbums(force: boolean) {
     // Start sync type logging
     startSyncType('albums');
     clearSyncTypeLogs('albums');

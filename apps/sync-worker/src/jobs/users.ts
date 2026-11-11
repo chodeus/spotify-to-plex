@@ -15,9 +15,15 @@ import { completeSyncType } from "../utils/completeSyncType";
 import { errorSyncType } from "../utils/errorSyncType";
 import { updateSyncTypeProgress } from "../utils/updateSyncTypeProgress";
 import { clearSyncTypeLogs } from "../utils/clearSyncTypeLogs";
+import { runExclusive } from "@spotify-to-plex/shared-utils/utils/syncLock";
 
 
 export async function syncUsers() {
+    // A second start while a run is going - two clicks, or by hand during the scheduled run - ends at once
+    return runExclusive('users', () => runUsers());
+}
+
+async function runUsers() {
     const credentialsPath = join(getStorageDir(), 'spotify.json')
     if (!existsSync(credentialsPath))
         throw new Error("No users are currently connected.")

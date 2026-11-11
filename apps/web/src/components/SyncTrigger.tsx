@@ -1,4 +1,5 @@
 import { errorBoundary } from "@/helpers/errors/errorBoundary";
+import { getErrorMessage } from "@/helpers/errors/getErrorMessage";
 import { Alert, Box, Button, CircularProgress, Grid, Paper, Typography } from "@mui/material";
 import axios from "axios";
 import { useCallback, useEffect, useState } from "react";
@@ -91,7 +92,8 @@ export default function SyncTrigger() {
             // Clear success message after 3 seconds
             setTimeout(() => setSuccess(null), 3000);
         }, (err: unknown) => {
-            const message = err instanceof Error ? err.message : 'Unknown error';
+            // The server's reason (such as the sync already running), not axios's "status code 409"
+            const message = getErrorMessage(err);
             setError(`Failed to start ${type} sync: ${message}`);
             setSyncing(prev => ({ ...prev, [type]: false }));
         });

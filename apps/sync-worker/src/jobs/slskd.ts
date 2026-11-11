@@ -10,6 +10,7 @@ import { clearSyncTypeLogs } from "../utils/clearSyncTypeLogs";
 import { completeSyncType } from "../utils/completeSyncType";
 import { errorSyncType } from "../utils/errorSyncType";
 import { updateSyncTypeProgress } from "../utils/updateSyncTypeProgress";
+import { runExclusive } from "@spotify-to-plex/shared-utils/utils/syncLock";
 
 import { newTrackSearch, setState, clearState, queueDownload } from "@spotify-to-plex/slskd-music-search";
 import type { SlskdMusicSearchConfig, SlskdTrack } from "@spotify-to-plex/slskd-music-search";
@@ -17,6 +18,11 @@ import { getMusicSearchConfig } from "@spotify-to-plex/music-search/functions/ge
 import { setMusicSearchConfig as setMusicSearchMatchFilters } from "@spotify-to-plex/music-search/functions/setMusicSearchConfig";
 
 export async function syncSlskd() {
+    // A second start while a run is going - two clicks, or by hand during the scheduled run - ends at once
+    return runExclusive('slskd', () => runSlskd());
+}
+
+async function runSlskd() {
     console.log('Starting SLSKD sync...');
 
     // Check SLSKD settings
