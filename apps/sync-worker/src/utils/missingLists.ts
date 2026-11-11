@@ -77,7 +77,7 @@ function lidarrAndSlskdEntries(tracks: Track[], albumId?: string) {
         // A local file has no spotify id to export - splitting its uri would yield the artist name
         const id = track.id && !isLocalTrack(track.id) ? spotifyTrackId(track.id) : undefined;
         if (id)
-            slskd.push({ spotify_id: id, artist_name: artist, track_name: track.title || 'Unknown Track', album_name: album });
+            slskd.push({ spotify_id: id, artist_name: artist, track_name: track.title || 'Unknown Track', album_name: album, duration_ms: track.duration_ms });
     }
 
     return { lidarr, slskd };

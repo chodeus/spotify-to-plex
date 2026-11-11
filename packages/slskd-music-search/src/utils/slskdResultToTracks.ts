@@ -15,7 +15,9 @@ export function slskdResultToTracks(slskdTracks: SlskdTrack[]) {
             id: track.filename, // Use filename as unique ID
             artist,
             title,
-            album
+            album,
+            // slskd reports seconds; without it every duration-guarded match filter row fails
+            duration_ms: track.length ? track.length * 1000 : undefined
         };
     });
 }

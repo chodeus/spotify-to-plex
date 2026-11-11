@@ -10,5 +10,9 @@ export type SlskdFile = {
     bitDepth?: number;
     length?: number;
     isLocked: boolean;
+    // The peer sharing it, as slskd reports them with the search response
+    uploadSpeed?: number;
+    queueLength?: number;
+    hasFreeUploadSlot?: boolean;
     attributes?: SlskdFileAttribute[];
 };

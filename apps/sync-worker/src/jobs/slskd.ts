@@ -138,6 +138,7 @@ async function runSlskd() {
                         artists: [track.artist_name],
                         title: track.track_name,
                         album: track.album_name || '',
+                        duration_ms: track.duration_ms,
                     },
                     false // analyze=false for first match only
                 );

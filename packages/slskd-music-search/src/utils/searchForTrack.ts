@@ -66,14 +66,17 @@ function normalizeAccents(str: string): string {
  */
 function sanitizeSearchQuery(query: string) {
     let result = query
-        // Smart substitutions for common special char letter replacements in artist names
-        .replace(/!/g, 'i')      // P!nk -> Pink
-        .replace(/\$/g, 's')     // Ke$ha -> Kesha
-        .replace(/@/g, 'a')      // @liya -> Aliya
+        // Typographic dashes and quotes search as their plain forms
+        .replace(/[\u2010-\u2015\u2212]/g, '-')
+        .replace(/[\u2018\u2019\u201C\u201D]/g, "'")
+        // A symbol standing in for a letter (P!nk, Ke$ha, @liya) needs a letter after it; "Help!" does not
+        .replace(/!(?=\p{L})/gu, 'i')
+        .replace(/\$(?=\p{L})/gu, 's')
+        .replace(/@(?=\p{L})/gu, 'a')
         // Remove parentheses (but keep content) - they can break SLSKD searches
         .replace(/[()[\]]/g, ' ')
-        // Remove other characters that break SLSKD searches
-        .replace(/[#%&*+<=>\\^`{|}~]/g, '')
+        // The rest break SLSKD searches. A space, not nothing: "R&B" must not become one word "RB"
+        .replace(/[!#$%&*+<=>@\\^`{|}~]/g, ' ')
         // Replace apostrophes/quotes with space (allows word-based matching)
         // "Cherlene's" -> "Cherlene s" matches both "Cherlene's" and "Cherlenes"
         .replace(/["']/g, ' ')
@@ -158,7 +161,8 @@ export async function searchForTrack(
         }
 
         // Wait for completion
-        const response = await waitForSearch(state.credentials, searchId);
+        // slskd keeps collecting for the whole search timeout, so give up only some time after it
+        const response = await waitForSearch(state.credentials, searchId, { maxWaitTime: (state.config.searchTimeout || 30_000) + 15_000 });
 
         console.log(`[searchForTrack] Processing ${response.files.length} files for query: "${query}"`);
 
@@ -205,6 +209,9 @@ export async function searchForTrack(
                 bitDepth: file.bitDepth,
                 length: file.length,
                 isLocked: file.isLocked,
+                uploadSpeed: file.uploadSpeed,
+                queueLength: file.queueLength,
+                hasFreeUploadSlot: file.hasFreeUploadSlot,
                 metadata: meta
             };
 

@@ -36,7 +36,8 @@ export async function submitSearch(credentials: SlskdCredentials, request: Slskd
                 minimumPeerUploadSpeed: 0,
                 minimumResponseFileCount: 1,
                 responseLimit: request.limit || 100,
-                timeout: request.timeout || 30_000
+                // slskd reads searchTimeout (ms); it ignored the old "timeout" and ran its own 15 s
+                searchTimeout: request.timeout || 30_000
             });
 
             if (!response.data?.id)
@@ -222,6 +223,9 @@ async function getSearchResponses(credentials: SlskdCredentials, searchId: strin
                 (userResponse.files || []).map(file => ({
                     ...file,
                     username: userResponse.username,
+                    uploadSpeed: userResponse.uploadSpeed,
+                    queueLength: userResponse.queueLength,
+                    hasFreeUploadSlot: userResponse.hasFreeUploadSlot,
                     isLocked: file.isLocked ?? false
                 }))
             );

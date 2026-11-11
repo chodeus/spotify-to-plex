@@ -75,7 +75,8 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
                 id: track.id,
                 artists: track.artists || [],
                 title: track.title,
-                album: track.album
+                album: track.album,
+                duration_ms: track.duration_ms
             }));
 
             searchResult = await slskdMusicSearch(slskdConfig, slskdSearchItems);
