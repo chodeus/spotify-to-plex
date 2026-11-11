@@ -8,6 +8,7 @@ type Peer = { username: string; uploadSpeed?: number; queueLength?: number; hasF
 
 const post = vi.fn();
 let peers: Peer[] = [];
+let searchState = 'Completed, TimedOut';
 
 // slskd itself, at the HTTP layer: everything above it is the real search
 function fakeSlskd() {
@@ -17,7 +18,7 @@ function fakeSlskd() {
         delete: vi.fn(async () => ({})),
         get: vi.fn(async (url: string) => {
             if (!url.endsWith('/responses'))
-                return { data: { state: 'Completed, TimedOut' } };
+                return { data: { state: searchState } };
 
             return { data: peers.map(peer => ({ ...peer, files: peer.files.map(file => ({ size: 1, extension: '', ...file })) })) };
         })
@@ -49,6 +50,7 @@ const found = async (track = wanted) => {
 describe('slskd track search', () => {
     beforeEach(() => {
         peers = [];
+        searchState = 'Completed, TimedOut';
         post.mockReset();
         fakeSlskd();
         vi.spyOn(console, 'log').mockImplementation(() => { /* expected */ });
@@ -56,6 +58,7 @@ describe('slskd track search', () => {
     });
 
     afterEach(() => {
+        vi.useRealTimers();
         clearSearchCache();
         clearState();
         vi.restoreAllMocks();
@@ -68,7 +71,7 @@ describe('slskd track search', () => {
         expect(post.mock.calls[0]?.[1]).not.toHaveProperty('timeout');
     });
 
-    // With no length on either side every duration-guarded row failed, so such a config found nothing on slskd
+    // A duration-guarded row fails when either side has no length
     it('checks a file against the wanted length under a duration filter', async () => {
         configure(['artist:match AND title:match AND duration:similarity>=0.65']);
         peers = [
@@ -91,9 +94,42 @@ describe('slskd track search', () => {
         await expect(found()).resolves.toEqual(['free', 'slow', 'no-slot', 'busy', 'free-mp3']);
     });
 
+    // A fast peer with a queue starts later than an idle one whose speed was never measured
+    it('ranks an idle peer of unknown speed ahead of a fast one with a queue', async () => {
+        peers = [
+            { username: 'queued', uploadSpeed: 9_000_000, queueLength: 80, hasFreeUploadSlot: true, files: [{ filename: file('a') }] },
+            { username: 'idle', uploadSpeed: 0, queueLength: 0, hasFreeUploadSlot: true, files: [{ filename: file('b') }] }
+        ];
+
+        await expect(found()).resolves.toEqual(['idle', 'queued']);
+    });
+
+    it('keeps the wanted edit ahead of another version from a better peer', async () => {
+        configure(['artist:match AND title:contains']);
+        peers = [
+            { username: 'idle', hasFreeUploadSlot: true, files: [{ filename: 'Music\\a\\Some Band - Some Song (Live).flac', length: 200 }] },
+            { username: 'queued', queueLength: 10, files: [{ filename: file('b'), length: 200 }] }
+        ];
+
+        await expect(found()).resolves.toEqual(['queued', 'idle']);
+    });
+
+    it('takes what slskd has collected when the search outlasts the wait', async () => {
+        vi.useFakeTimers();
+        searchState = 'InProgress';
+        peers = [{ username: 'late', files: [{ filename: file('a') }] }];
+
+        const searching = found();
+        await vi.advanceTimersByTimeAsync(30_000);
+
+        await expect(searching).resolves.toEqual(['late']);
+    });
+
     it.each([
         ['P!nk', 'So What', 'pink so what'],
         ['The Beatles', 'Help!', 'the beatles help'],
+        ['Joey Bada$$', 'Paper Trail$', 'joey badass paper trails'],
+        ['N*E*R*D', 'Lemon', 'nerd lemon'],
         ['G‐Eazy', 'No Limit', 'g-eazy no limit'],
         ['Artist', 'R&B Song', 'artist r b song']
     ])('searches %s - %s as "%s"', async (artist, title, query) => {

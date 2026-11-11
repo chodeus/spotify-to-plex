@@ -7,7 +7,7 @@ import type { SearchQuery } from '../types/SearchQuery';
 import type { SlskdTrack } from "../types/SlskdTrack";
 import { searchForTrack } from "../utils/searchForTrack";
 import { slskdResultToTracks } from "../utils/slskdResultToTracks";
-import { peerScore, type PeerFigures } from "../utils/peerScore";
+import { peerScore } from "../utils/peerScore";
 import { getConfig } from "../session/state";
 
 ////////////////////////////////////////////
@@ -92,10 +92,25 @@ function getFormatPriority(extension: string) {
     return FORMAT_PRIORITY[ext] ?? 100;
 }
 
-// Format first; within a format, the peer most likely to deliver comes first
-function sortByFormatPreference<T extends { extension: string } & PeerFigures>(tracks: T[]) {
+// Copies of one recording: same parsed names and a length within a few seconds
+function recordingKey(track: SlskdTrack) {
+    return `${track.metadata?.artist}|${track.metadata?.title}|${Math.round((track.length ?? 0) / 3)}`.toLowerCase();
+}
+
+// Format first, then the match order; among copies of one recording, the peer most likely to deliver
+function sortByFormatPreference<T extends SlskdTrack>(tracks: T[]) {
+    const matchOrder = new Map<string, number>();
+
+    for (const track of tracks) {
+        const key = recordingKey(track);
+        if (!matchOrder.has(key))
+            matchOrder.set(key, matchOrder.size);
+    }
+
+    const rank = (track: T) => matchOrder.get(recordingKey(track)) ?? 0;
+
     return [...tracks].sort((a, b) => {
-        return getFormatPriority(a.extension) - getFormatPriority(b.extension) || peerScore(b) - peerScore(a);
+        return getFormatPriority(a.extension) - getFormatPriority(b.extension) || rank(a) - rank(b) || peerScore(b) - peerScore(a);
     });
 }
 

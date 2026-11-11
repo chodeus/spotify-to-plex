@@ -12,7 +12,7 @@ import { errorSyncType } from "../utils/errorSyncType";
 import { updateSyncTypeProgress } from "../utils/updateSyncTypeProgress";
 import { runExclusive } from "@spotify-to-plex/shared-utils/utils/syncLock";
 
-import { newTrackSearch, setState, clearState, queueDownload } from "@spotify-to-plex/slskd-music-search";
+import { newTrackSearch, setState, clearState, clearSearchCache, queueDownload } from "@spotify-to-plex/slskd-music-search";
 import type { SlskdMusicSearchConfig, SlskdTrack } from "@spotify-to-plex/slskd-music-search";
 import { getMusicSearchConfig } from "@spotify-to-plex/music-search/functions/getMusicSearchConfig";
 import { setMusicSearchConfig as setMusicSearchMatchFilters } from "@spotify-to-plex/music-search/functions/setMusicSearchConfig";
@@ -91,6 +91,8 @@ async function runSlskd() {
         };
 
         setState({ baseUrl, apiKey }, slskdConfig);
+        // Peer queues and slots change between runs
+        clearSearchCache();
 
         // Process each track
         let successCount = 0;

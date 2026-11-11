@@ -62,6 +62,8 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
                 musicSearchConfig,
                 searchApproaches,
                 textProcessing,
+                searchTimeout: slskdSettings.search_timeout * 1000,
+                maxResultsPerApproach: slskdSettings.max_results,
                 allowedExtensions: slskdSettings.allowed_extensions
             };
 

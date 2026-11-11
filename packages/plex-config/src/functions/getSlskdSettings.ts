@@ -5,7 +5,7 @@ const DEFAULT_SETTINGS: SlskdSettings = {
     enabled: false,
     url: '',
     allowed_extensions: ['flac', 'mp3'],
-    search_timeout: 5,
+    search_timeout: 15,
     max_results: 30,
     download_attempts: 3,
     auto_sync: false,

@@ -69,14 +69,15 @@ function sanitizeSearchQuery(query: string) {
         // Typographic dashes and quotes search as their plain forms
         .replace(/[\u2010-\u2015\u2212]/g, '-')
         .replace(/[\u2018\u2019\u201C\u201D]/g, "'")
-        // A symbol standing in for a letter (P!nk, Ke$ha, @liya) needs a letter after it; "Help!" does not
+        // A symbol standing in for a letter: P!nk, Ke$ha, Bada$$, @liya. "Help!" ends in punctuation, not a letter
         .replace(/!(?=\p{L})/gu, 'i')
-        .replace(/\$(?=\p{L})/gu, 's')
+        .replace(/(?<=[\p{L}$])\$|\$(?=\p{L})/gu, 's')
         .replace(/@(?=\p{L})/gu, 'a')
         // Remove parentheses (but keep content) - they can break SLSKD searches
         .replace(/[()[\]]/g, ' ')
-        // The rest break SLSKD searches. A space, not nothing: "R&B" must not become one word "RB"
-        .replace(/[!#$%&*+<=>@\\^`{|}~]/g, ' ')
+        // The rest break SLSKD searches. "N*E*R*D" is shared as NERD; "R&B" must not become one word "RB"
+        .replace(/\*/g, '')
+        .replace(/[!#$%&+<=>@\\^`{|}~]/g, ' ')
         // Replace apostrophes/quotes with space (allows word-based matching)
         // "Cherlene's" -> "Cherlene s" matches both "Cherlene's" and "Cherlenes"
         .replace(/["']/g, ' ')
