@@ -4,7 +4,8 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const published: { topic: string; message: string; retain?: boolean }[] = [];
-const publish = vi.fn(async (topic: string, message: string, options?: { retain?: boolean }) => { published.push({ topic, message, retain: options?.retain }) });
+const record = async (topic: string, message: string, options?: { retain?: boolean }) => { published.push({ topic, message, retain: options?.retain }) };
+const publish = vi.fn(record);
 vi.mock('../services/mqtt/createMQTTClient', () => ({
     createMQTTClient: () => ({ connect: vi.fn(), disconnect: vi.fn(), publish, isConnected: () => true })
 }));
@@ -51,7 +52,9 @@ describe('syncMQTT cleanup', () => {
         vi.stubEnv('MQTT_DRY_RUN', 'false');
         vi.stubEnv('MQTT_TOPIC_PREFIX', PREFIX);
         published.length = 0;
-        publish.mockClear();
+        // A test that makes publishing fail must not carry that into the next one
+        publish.mockReset();
+        publish.mockImplementation(record);
         getById.mockReset();
         getById.mockResolvedValue({ image: '/thumb' });
 
@@ -92,7 +95,7 @@ describe('syncMQTT cleanup', () => {
             if (topic.includes('flaky') && message !== '')
                 throw new Error('publish timed out');
 
-            published.push({ topic, message, retain: options?.retain });
+            await record(topic, message, options);
         });
 
         await syncMQTT();
