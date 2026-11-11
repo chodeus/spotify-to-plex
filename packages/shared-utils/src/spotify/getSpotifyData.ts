@@ -16,13 +16,23 @@ export async function getSpotifyData(api: SpotifyApi, id: string, simplified: bo
         const albumId = id.slice(Math.max(0, id.indexOf('spotify:album:') + 'spotify:album:'.length)).trim();
         try {
             const result = await api.albums.get(albumId)
+            // The album answer holds only its first 50 tracks; any failed page fails the album, never a short one
+            const items = [...result.tracks.items]
+            while (items.length < result.tracks.total) {
+                const page = await api.albums.tracks(albumId, undefined, 50, items.length)
+                // An empty page short of the total would end the loop on part of the album
+                if (page.items.length == 0)
+                    throw new Error(`Spotify returned ${items.length} of ${result.tracks.total} tracks for album ${albumId}`);
+
+                items.push(...page.items)
+            }
 
             return {
                 type: "spotify-album",
                 id: result.id,
                 title: result.name,
                 image: result.images[0]?.url || '',
-                tracks: result.tracks.items.map(item => ({
+                tracks: items.map(item => ({
                     artist: item.artists[0]?.name,
                     id: item.id,
                     artists: item.artists.map(artist => artist.name),
