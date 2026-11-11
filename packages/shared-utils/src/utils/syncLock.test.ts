@@ -1,8 +1,45 @@
-import { mkdtempSync, readdirSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdtempSync, readdirSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { isSyncRunning, runExclusive } from './syncLock';
+
+// beforeClear: what another run does just before this one clears the lock at that path (fires once).
+// touchFails: every heartbeat touch throws
+const fsHooks = vi.hoisted(() => ({
+    beforeClear: undefined as { path: string; act: () => void } | undefined,
+    touchFails: false
+}));
+
+vi.mock('node:fs', async importOriginal => {
+    const actual = await importOriginal<typeof import('node:fs')>();
+    const clearing = (path: unknown) => {
+        const pending = fsHooks.beforeClear;
+        if (pending?.path !== path)
+            return;
+
+        fsHooks.beforeClear = undefined;
+        pending.act();
+    };
+
+    return {
+        ...actual,
+        renameSync: (...args: Parameters<typeof actual.renameSync>) => {
+            clearing(args[0]);
+            actual.renameSync(...args);
+        },
+        rmSync: (...args: Parameters<typeof actual.rmSync>) => {
+            clearing(args[0]);
+            actual.rmSync(...args);
+        },
+        utimesSync: (...args: Parameters<typeof actual.utimesSync>) => {
+            if (fsHooks.touchFails)
+                throw Object.assign(new Error('EACCES: touch refused'), { code: 'EACCES' });
+
+            actual.utimesSync(...args);
+        }
+    };
+});
 
 // No process has this pid: Linux caps them far lower
 const DEAD_PID = 2_147_483_647;
@@ -26,6 +63,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+    fsHooks.beforeClear = undefined;
+    fsHooks.touchFails = false;
     vi.useRealTimers();
     vi.unstubAllEnvs();
     vi.restoreAllMocks();
@@ -102,6 +141,42 @@ describe('runExclusive', () => {
         await expect(runExclusive('lidarr', async () => 'took over')).resolves.toBe('took over');
     });
 
+    // Two runs judge the same lock stale: the one clearing it second must not delete the lock the first just took
+    it('leaves a lock another run took after this one judged the old one stale', async () => {
+        await runExclusive('lidarr', async () => { /* a run that ends at once */ });
+        const path = lockFile('lidarr');
+        writeFileSync(path, JSON.stringify({ pid: DEAD_PID, token: 'gone' }));
+        fsHooks.beforeClear = {
+            path,
+            act: () => {
+                rmSync(path);
+                writeFileSync(path, JSON.stringify({ pid: process.pid, token: 'other run' }), { flag: 'wx' });
+            }
+        };
+        const run = vi.fn(async () => 'second');
+
+        await expect(runExclusive('lidarr', run)).resolves.toBeUndefined();
+        expect(run).not.toHaveBeenCalled();
+        expect(JSON.parse(readFileSync(path, 'utf8'))).toMatchObject({ token: 'other run' });
+        expect(readdirSync(dirname(path))).toEqual(['lidarr.lock']);
+    });
+
+    // Root reads any file, so it cannot meet an unreadable lock
+    it.skipIf(process.getuid?.() === 0)('stops on a lock it cannot read rather than taking it over', async () => {
+        await runExclusive('lidarr', async () => { /* a run that ends at once */ });
+        const path = lockFile('lidarr');
+        writeFileSync(path, JSON.stringify({ pid: process.pid, token: 'unreadable' }));
+        // Past the half-written wait: the holder cannot read it either, so its heartbeat stopped
+        const minutesAgo = new Date(Date.now() - 2 * 60_000);
+        utimesSync(path, minutesAgo, minutesAgo);
+        chmodSync(path, 0o000);
+        const run = vi.fn(async () => 'took over');
+
+        await expect(runExclusive('lidarr', run)).rejects.toThrow(/EACCES/);
+        expect(() => isSyncRunning('lidarr')).toThrow(/EACCES/);
+        expect(run).not.toHaveBeenCalled();
+    });
+
     it('keeps a long run holding its lock', async () => {
         vi.useFakeTimers();
         const first = heldRun();
@@ -113,6 +188,18 @@ describe('runExclusive', () => {
 
         first.finish();
         await running;
+    });
+
+    it('keeps a run going when its heartbeat cannot touch the lock', async () => {
+        vi.useFakeTimers();
+        const first = heldRun();
+        const running = runExclusive('lidarr', first.run);
+        fsHooks.touchFails = true;
+
+        await vi.advanceTimersByTimeAsync(2 * 60_000);
+
+        first.finish();
+        await expect(running).resolves.toBe('first');
     });
 
     it('waits on a lock still being written, but not on one left half-written long ago', async () => {
