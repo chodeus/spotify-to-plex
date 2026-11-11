@@ -31,6 +31,13 @@ describe('missingListsFor', () => {
         expect(result.slskd[0]).toMatchObject({ artist_name: 'Above' });
     });
 
+    // The slskd job checks a file's length against it, where the match filters ask for that
+    it('keeps the track length for slskd', async () => {
+        const result = await missingListsFor([track('a', { duration_ms: 200_000 })]);
+
+        expect(result.slskd[0]).toMatchObject({ duration_ms: 200_000 });
+    });
+
     it('sends a local file to Lidarr only, and a track with no known album to the track lists only', async () => {
         vi.spyOn(console, 'log').mockImplementation(() => { /* expected */ });
 

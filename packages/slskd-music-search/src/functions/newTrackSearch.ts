@@ -7,6 +7,7 @@ import type { SearchQuery } from '../types/SearchQuery';
 import type { SlskdTrack } from "../types/SlskdTrack";
 import { searchForTrack } from "../utils/searchForTrack";
 import { slskdResultToTracks } from "../utils/slskdResultToTracks";
+import { peerScore } from "../utils/peerScore";
 import { getConfig } from "../session/state";
 
 ////////////////////////////////////////////
@@ -33,7 +34,7 @@ const FORMAT_PRIORITY: Record<string, number> = {
 // Functions
 ////////////////////////////////////////////
 export async function newTrackSearch(approaches: SlskdMusicSearchApproach[], searchTrack: SlskdMusicSearchTrack, analyze: boolean = false) {
-    const { id, artists, title, album = '' } = searchTrack;
+    const { id, artists, title, album = '', duration_ms } = searchTrack;
 
     const executedQueries = new Set<string>();
 
@@ -54,7 +55,7 @@ export async function newTrackSearch(approaches: SlskdMusicSearchApproach[], sea
 
             const searchResult = await tryApproachWithArtist(
                 approach,
-                { id, artist, title, album, artists, originalTitle: title },
+                { id, artist, title, album, artists, originalTitle: title, duration_ms },
                 analyze,
                 executedQueries
             );
@@ -91,9 +92,25 @@ function getFormatPriority(extension: string) {
     return FORMAT_PRIORITY[ext] ?? 100;
 }
 
-function sortByFormatPreference<T extends { extension: string }>(tracks: T[]) {
+// Copies of one recording: same parsed names and a length within a few seconds
+function recordingKey(track: SlskdTrack) {
+    return `${track.metadata?.artist}|${track.metadata?.title}|${Math.round((track.length ?? 0) / 3)}`.toLowerCase();
+}
+
+// Format first, then the match order; among copies of one recording, the peer most likely to deliver
+function sortByFormatPreference<T extends SlskdTrack>(tracks: T[]) {
+    const matchOrder = new Map<string, number>();
+
+    for (const track of tracks) {
+        const key = recordingKey(track);
+        if (!matchOrder.has(key))
+            matchOrder.set(key, matchOrder.size);
+    }
+
+    const rank = (track: T) => matchOrder.get(recordingKey(track)) ?? 0;
+
     return [...tracks].sort((a, b) => {
-        return getFormatPriority(a.extension) - getFormatPriority(b.extension);
+        return getFormatPriority(a.extension) - getFormatPriority(b.extension) || rank(a) - rank(b) || peerScore(b) - peerScore(a);
     });
 }
 
@@ -122,7 +139,7 @@ async function tryApproachWithArtist(approach: SlskdMusicSearchApproach, searchP
 }
 
 async function performApproachSearch(approach: SlskdMusicSearchApproach, searchParams: SearchParams, analyze: boolean, executedQueries: Set<string>) {
-    const { id, artist, title, album, artists, originalTitle } = searchParams;
+    const { id, artist, title, album, artists, originalTitle, duration_ms } = searchParams;
     const config = getConfig();
 
     if (!config)
@@ -154,7 +171,7 @@ async function performApproachSearch(approach: SlskdMusicSearchApproach, searchP
     const performSearch = async (approach: string, artist: string, title: string, album: string) => {
         const searchResults = await searchForTrack(artist, title, album);
         const convertedTracks = slskdResultToTracks(searchResults);
-        const musicSearchResult = musicSearch({ id, artist, title, album, artists, originalTitle }, convertedTracks, analyze);
+        const musicSearchResult = musicSearch({ id, artist, title, album, artists, originalTitle, duration_ms }, convertedTracks, analyze);
 
         console.log(`[performSearch] approach=${approach}, analyze=${analyze}:`, {
             searchResultsCount: searchResults.length,
@@ -208,4 +225,4 @@ async function performApproachSearch(approach: SlskdMusicSearchApproach, searchP
 ////////////////////////////////////////////
 // Types
 ////////////////////////////////////////////
-type SearchParams = { id: string; artist: string; title: string; album: string; artists: string[]; originalTitle: string };
+type SearchParams = { id: string; artist: string; title: string; album: string; artists: string[]; originalTitle: string; duration_ms?: number };

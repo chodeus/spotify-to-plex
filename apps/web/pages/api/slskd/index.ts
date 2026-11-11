@@ -62,6 +62,8 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
                 musicSearchConfig,
                 searchApproaches,
                 textProcessing,
+                searchTimeout: slskdSettings.search_timeout * 1000,
+                maxResultsPerApproach: slskdSettings.max_results,
                 allowedExtensions: slskdSettings.allowed_extensions
             };
 
@@ -75,7 +77,8 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
                 id: track.id,
                 artists: track.artists || [],
                 title: track.title,
-                album: track.album
+                album: track.album,
+                duration_ms: track.duration_ms
             }));
 
             searchResult = await slskdMusicSearch(slskdConfig, slskdSearchItems);

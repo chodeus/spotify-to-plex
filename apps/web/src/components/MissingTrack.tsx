@@ -81,7 +81,8 @@ const MissingTrack = forwardRef<MissingTrackHandle, MissingTrackProps>((props, r
                         id: track.id,
                         artists: track.artists,
                         title: track.title,
-                        album: track.album
+                        album: track.album,
+                        duration_ms: track.duration_ms
                     }]
                 },
                 { signal: abortControllerRef.current.signal }

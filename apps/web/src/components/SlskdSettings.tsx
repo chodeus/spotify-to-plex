@@ -25,7 +25,7 @@ export default function SlskdSettings() {
         enabled: false,
         url: '',
         allowed_extensions: ['flac', 'mp3', 'wav', 'ogg', 'm4a'],
-        search_timeout: 5,
+        search_timeout: 15,
         max_results: 50,
         download_attempts: 3,
         auto_sync: false,

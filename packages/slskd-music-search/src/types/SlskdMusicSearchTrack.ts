@@ -6,4 +6,5 @@ export type SlskdMusicSearchTrack = {
     artists: string[];
     title: string;
     album?: string;
+    duration_ms?: number;
 };

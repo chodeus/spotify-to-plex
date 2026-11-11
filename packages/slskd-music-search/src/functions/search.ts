@@ -4,6 +4,7 @@ import type { SearchResponse } from '../types/SearchResponse';
 import { setState, setMusicSearchConfig, resetCache } from '../session/state';
 import { testConnection } from '../actions/api';
 import { newTrackSearch } from './newTrackSearch';
+import { clearSearchCache } from '../utils/searchForTrack';
 
 export async function search(config: SlskdMusicSearchConfig, tracks: SlskdMusicSearchTrack[]) {
     const { searchApproaches: approaches } = config;
@@ -20,6 +21,8 @@ export async function search(config: SlskdMusicSearchConfig, tracks: SlskdMusicS
         throw new Error('Failed to connect to SLSKD API. Please check your credentials.');
 
     resetCache();
+    // Peer queues and slots change between runs
+    clearSearchCache();
 
     const result: SearchResponse[] = [];
 

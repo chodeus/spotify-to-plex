@@ -36,7 +36,8 @@ export async function submitSearch(credentials: SlskdCredentials, request: Slskd
                 minimumPeerUploadSpeed: 0,
                 minimumResponseFileCount: 1,
                 responseLimit: request.limit || 100,
-                timeout: request.timeout || 30_000
+                // In ms. slskd ignores any other name for it
+                searchTimeout: request.timeout || 30_000
             });
 
             if (!response.data?.id)
@@ -105,7 +106,10 @@ export async function waitForSearch(credentials: SlskdCredentials, searchId: str
         currentInterval = Math.min(currentInterval * config.backoffMultiplier, config.maxInterval);
     }
 
-    throw new Error(`Search ${searchId} timed out after ${config.maxWaitTime}ms (${pollCount} polls)`);
+    // slskd's timeout restarts with each response, so a busy search can outlast the wait: take what it has
+    console.log(`[SLSKD API] Search ${searchId} still running after ${config.maxWaitTime}ms (${pollCount} polls); using its responses so far`);
+
+    return getSearchResponses(credentials, searchId, retryConfig);
 }
 
 export async function cancelSearch(credentials: SlskdCredentials, searchId: string, retryConfig?: Partial<RetryConfig>) {
@@ -222,6 +226,9 @@ async function getSearchResponses(credentials: SlskdCredentials, searchId: strin
                 (userResponse.files || []).map(file => ({
                     ...file,
                     username: userResponse.username,
+                    uploadSpeed: userResponse.uploadSpeed,
+                    queueLength: userResponse.queueLength,
+                    hasFreeUploadSlot: userResponse.hasFreeUploadSlot,
                     isLocked: file.isLocked ?? false
                 }))
             );
