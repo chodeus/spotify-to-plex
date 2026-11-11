@@ -22,11 +22,14 @@ export function openSyncState(file: string) {
         notDueUntil: (id: string, days: number) => notDueUntil(stored[id], days),
         record: (id: string, missing: MissingLists) => { synced.set(id, { synced_at: Date.now(), missing }) },
         /** Keeps each enrolled item's latest sync and returns their lists merged; undefined until one has synced. */
-        settle(enrolled: { id: string }[]) {
+        // clean runs over the items not synced now too, so a change made since their sync reaches them
+        settle(enrolled: { id: string }[], clean?: (missing: MissingLists) => MissingLists | undefined) {
             const kept = enrolled.flatMap(({ id }) => {
                 const entry = synced.get(id) ?? stored[id];
+                if (!entry)
+                    return [];
 
-                return entry ? [[id, entry] as const] : [];
+                return [[id, { ...entry, missing: clean?.(entry.missing) ?? entry.missing }] as const];
             });
             if (kept.length == 0)
                 return;

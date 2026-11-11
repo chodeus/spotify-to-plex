@@ -8,6 +8,7 @@ import { PlexMusicSearchTrack } from '@spotify-to-plex/plex-music-search/types/P
 import { getMusicSearchConfig } from "@spotify-to-plex/music-search/functions/getMusicSearchConfig";
 
 import { SearchResponse } from '@spotify-to-plex/plex-music-search/types/SearchResponse';
+import { preferHandPicks } from '@spotify-to-plex/plex-music-search/utils/preferHandPicks';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createRouter } from 'next-connect';
 import { getSettings } from '@spotify-to-plex/plex-config/functions/getSettings';
@@ -59,20 +60,12 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
                     searchApproaches
                 };
 
-                let searchResult: SearchResponse[] = []
-                switch (type) {
-                    case "spotify-album": {
-                        // A track matched by hand keeps that match, whatever the album search found
-                        const manual = await getCachedMatches(searchItems, plexConfig, true)
-                        const searched = await searchAlbum(plexConfig, searchItems)
-                        searchResult = searched.map(item => manual.find(pick => pick.id === item.id) ?? item)
-                        break;
-                    }
-
-                    default:
-                        searchResult = await search(plexConfig, searchItems)
-                        break;
-                }
+                // A track matched by hand keeps that match, whatever the search finds
+                const [picks, searched] = await Promise.all([
+                    getCachedMatches(searchItems, plexConfig, true),
+                    type === "spotify-album" ? searchAlbum(plexConfig, searchItems) : search(plexConfig, searchItems)
+                ])
+                const searchResult: SearchResponse[] = preferHandPicks(searched, picks)
 
                 ///////////////////////////
                 // Update track links

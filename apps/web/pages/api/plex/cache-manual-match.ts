@@ -1,6 +1,6 @@
 import { generateError } from '@/helpers/errors/generateError';
 import { setManualTrackLink } from '@spotify-to-plex/shared-utils/cache/setManualTrackLink';
-import { forgetMissingTrack } from 'cronjob/forgetMissingTrack';
+import { forgetHandMatchedTracks } from 'cronjob/forgetHandMatchedTracks';
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createRouter } from 'next-connect';
@@ -21,9 +21,9 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
                 return res.status(500).json({ error: 'Failed to save the manual match' });
             }
 
-            // The match is saved either way: the lists catch up at the next sync
+            // The match is saved either way: any later playlists or albums sync takes the track off the lists
             try {
-                await forgetMissingTrack(spotifyId);
+                forgetHandMatchedTracks();
             } catch (error) {
                 console.error('Error taking a hand-matched track off the missing lists:', error);
             }

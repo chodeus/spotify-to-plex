@@ -27,8 +27,8 @@ import { readMissingSpotifyTrackIds } from "../utils/readMissingSpotifyTrackIds"
 import { emptyMissingLists, missingListsFor, writeMissingLists } from "../utils/missingLists";
 import { PLAYLISTS_STATE_FILE, clearSyncState, openSyncState } from "../utils/syncState";
 import { runExclusive } from "@spotify-to-plex/shared-utils/utils/syncLock";
+import { withoutHandMatched } from "../utils/handMatches";
 
-const STATE_FILE = PLAYLISTS_STATE_FILE;
 
 
 /** Syncs every enrolled playlist that is due; force syncs them all, whatever their interval. */
@@ -50,7 +50,7 @@ async function runPlaylists(force: boolean) {
             // keep feeding the Lidarr and slskd queues after the last playlist
             // was removed
             writeMissingLists('track', emptyMissingLists())
-            clearSyncState(STATE_FILE)
+            clearSyncState(PLAYLISTS_STATE_FILE)
 
             return;
         }
@@ -65,7 +65,7 @@ async function runPlaylists(force: boolean) {
 
         // Read before this run rewrites them
         const lastMissing = readMissingSpotifyTrackIds()
-        const syncState = openSyncState(STATE_FILE)
+        const syncState = openSyncState(PLAYLISTS_STATE_FILE)
 
         for (let i = 0; i < toSyncPlaylists.length; i++) {
             const item = toSyncPlaylists[i];
@@ -188,7 +188,7 @@ async function runPlaylists(force: boolean) {
 
         // Built from every enrolled playlist's last sync, so one skipped or failed this run keeps its
         // missing tracks; until any playlist has synced, the last lists stand
-        const lists = syncState.settle(toSyncPlaylists)
+        const lists = syncState.settle(toSyncPlaylists, withoutHandMatched('track'))
         if (lists)
             writeMissingLists('track', lists)
 

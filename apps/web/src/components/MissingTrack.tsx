@@ -268,7 +268,7 @@ const MissingTrack = forwardRef<MissingTrackHandle, MissingTrackProps>((props, r
                                 variant="outlined"
                                 size="small"
                                 sx={{ fontSize: '.8em' }}
-                                disabled={isSending}>
+                                disabled={isSending || slskdBusy}>
                                 Match in Plex
                             </Button>
                         </Box>

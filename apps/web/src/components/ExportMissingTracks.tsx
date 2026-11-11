@@ -60,6 +60,12 @@ export default function ExportMissingTracks(props: Props) {
     }, [])
 
     const visibleTracks = tracks.slice(page * pageSize, (page * pageSize) + pageSize)
+
+    // A hand match shortens the list: the last page can empty
+    useEffect(() => {
+        if (page > 0 && page >= totalPages)
+            setPage(totalPages - 1)
+    }, [page, totalPages])
     let curEnd = (page * pageSize) + pageSize;
     if (curEnd > tracks.length)
         curEnd = tracks.length;
@@ -231,6 +237,8 @@ export default function ExportMissingTracks(props: Props) {
     ///////////////////////////////////////////////
     const [loading, setLoading] = useState(true)
     const [canUseTidal, setCanUseTidal] = useState(false)
+    // Fetched once for the list the dialog opened with: a hand match only removes tracks from it
+    const [openedWith] = useState(tracks)
     useEffect(() => {
 
         errorBoundary(async () => {
@@ -246,7 +254,7 @@ export default function ExportMissingTracks(props: Props) {
 
             // Load cached tracks
             const cachedResult = await axios.post<GetTidalTracksResponse[]>('/api/tidal/cached', {
-                items: tracks,
+                items: openedWith,
             })
             const cachedTracks = cachedResult.data;
             if (cachedTracks && cachedTracks.length > 0)
@@ -257,7 +265,7 @@ export default function ExportMissingTracks(props: Props) {
             setLoading(false)
         })
 
-    }, [tracks])
+    }, [openedWith])
 
     // Check if Lidarr is enabled
     useEffect(() => {
