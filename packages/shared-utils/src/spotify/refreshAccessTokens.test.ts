@@ -9,7 +9,7 @@ vi.mock('axios', () => ({ default: { post: vi.fn() } }));
 vi.mock('../security/encrypt', () => ({ encrypt: (text: string) => `enc:${text}` }));
 vi.mock('../security/decrypt', () => ({ decrypt: (text: string) => text.replace(/^enc:/, '') }));
 
-const { refreshAccessTokens } = await import('./refreshAccessTokens');
+const { refreshAccessTokens, REFRESH_MARGIN_MS } = await import('./refreshAccessTokens');
 const postMock = axios.post as unknown as Mock;
 
 function credential(id: string, expiresAt: number): SpotifyCredentials {
@@ -40,7 +40,7 @@ describe('refreshAccessTokens', () => {
 
     // The web app edits spotify.json while the refresh waits on Spotify
     it('keeps changes made to spotify.json during the refresh', async () => {
-        writeFileSync(path(), JSON.stringify([credential('expired', 0), credential('removed', 0), credential('fresh', Date.now() + 60_000)]));
+        writeFileSync(path(), JSON.stringify([credential('expired', 0), credential('removed', 0), credential('fresh', Date.now() + REFRESH_MARGIN_MS + 60_000)]));
         postMock.mockImplementation(async () => {
             const during = stored().filter(item => item.user.id !== 'removed');
             during[0]!.user.label = 'Relabelled';
@@ -76,12 +76,25 @@ describe('refreshAccessTokens', () => {
     });
 
     it('leaves the file alone when no token needed refreshing', async () => {
-        writeFileSync(path(), JSON.stringify([credential('fresh', Date.now() + 60_000)]));
+        writeFileSync(path(), JSON.stringify([credential('fresh', Date.now() + REFRESH_MARGIN_MS + 60_000)]));
 
         await refreshAccessTokens();
 
         expect(postMock).not.toHaveBeenCalled();
         expect(stored()[0]?.access_token.access_token).toBe('enc:old');
+    });
+
+    // A token that expires within the margin would run out partway through the sync that reads it
+    it('refreshes a token that expires within the margin', async () => {
+        writeFileSync(path(), JSON.stringify([credential('expiring', Date.now() + 60_000), credential('fresh', Date.now() + REFRESH_MARGIN_MS + 60_000)]));
+        postMock.mockResolvedValue({ data: { access_token: 'new', expires_in: 3600, token_type: 'Bearer' } });
+
+        await refreshAccessTokens();
+
+        expect(postMock).toHaveBeenCalledTimes(1);
+        expect(stored()[0]?.access_token.access_token).toBe('enc:new');
+        expect(stored()[0]?.expires_at).toBeGreaterThan(Date.now() + 3_500_000);
+        expect(stored()[1]?.access_token.access_token).toBe('enc:old');
     });
 
     // Every playlist load waits on the refresh, so it must give up
