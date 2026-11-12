@@ -242,31 +242,46 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
     ///////////////////////////////////
     // Set selected track index
     ///////////////////////////////////
+    // Decided from the current selections: a hand match's save can land after another pick for the same track
     const onSetSongIndex = useCallback((artist: string, track: string, trackId: string, idx: number) => {
-        if (trackSelections.some(item => item.trackId === trackId)) {
-            setTrackSelections(items => items.map(item => {
-                if (item.trackId === trackId)
-                    return { ...item, idx }
+        setTrackSelections(prev => {
+            if (!prev.some(item => item.trackId === trackId))
+                return [...prev, { artist, title: track, trackId, idx }]
 
-                return item;
-            }))
-        } else {
-            setTrackSelections(prev => [...prev, { artist, title: track, trackId, idx }])
-        }
-    }, [trackSelections])
+            return prev.map(item => (item.trackId === trackId ? { ...item, idx } : item))
+        })
+    }, [])
 
+    // One save at a time per track, in the order picked, so the last pick is the one kept here and in the cache
+    const manualSaves = useRef(new Map<string, Promise<unknown>>())
+    // Writing or refreshing the playlist meanwhile would leave out, or overwrite, a match not saved yet
+    const [pendingManualSaves, setPendingManualSaves] = useState(0)
     const onManualTrackSelect = useCallback((spotifyId: string, title: string, artist: string, plexTrack: SearchResponse['result'][0]) => {
-        setTracks(prev => prev.map(item => item.id === spotifyId
-            ? { ...item, result: [plexTrack] }
-            : item))
-
-        onSetSongIndex(artist, title, spotifyId, 0)
-
         errorBoundary(async () => {
-            await axios.post('/api/plex/cache-manual-match', { spotifyId, plexId: plexTrack.id })
-            enqueueSnackbar(`${title} matched manually`)
-        }, undefined, true)
+            setPendingManualSaves(count => count + 1)
+            try {
+                const previous = manualSaves.current.get(spotifyId) ?? Promise.resolve()
+                // After the previous save whether or not it worked
+                const post = async () => axios.post('/api/plex/cache-manual-match', { spotifyId, plexId: plexTrack.id })
+                const save = previous.then(post, post)
+                manualSaves.current.set(spotifyId, save)
+
+                // Shown only once saved: a failed save leaves the track as it was
+                await save
+                setTracks(prev => prev.map(item => item.id === spotifyId
+                    ? { ...item, result: [plexTrack] }
+                    : item))
+                onSetSongIndex(artist, title, spotifyId, 0)
+                enqueueSnackbar(`${title} matched manually`)
+            } finally {
+                setPendingManualSaves(count => count - 1)
+            }
+        }, () => enqueueSnackbar(`Couldn't save the match for ${title}`, { variant: 'error' }), true)
     }, [onSetSongIndex])
+
+    const onMissingTrackManualSelect = useCallback((track: Track, plexTrack: SearchResponse['result'][0]) => {
+        onManualTrackSelect(track.id, track.title, track.artists[0] ?? 'Unknown', plexTrack)
+    }, [onManualTrackSelect])
 
     ///////////////////////////////////////////////
     // Modify Playlist name
@@ -522,12 +537,12 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
 
                 {!loadingTracks &&
                     <Tooltip title='Refresh all songs (ignoring cache).'>
-                        <IconButton size="small" sx={{ position: 'absolute', right: 2, top: 2 }} onClick={onForceRefreshClick}><Refresh /></IconButton>
+                        <IconButton size="small" sx={{ position: 'absolute', right: 2, top: 2 }} disabled={pendingManualSaves > 0} onClick={onForceRefreshClick}><Refresh /></IconButton>
                     </Tooltip>
                 }
 
                 <Box sx={{ display: 'flex', gap: 1 }}>
-                    <Button disabled={loadingTracks || saving || notLoaded.length > 0} onClick={onPutPlaylistClick}>{plexPlaylist ? "Update" : "Create"} playlist</Button>
+                    <Button disabled={loadingTracks || saving || notLoaded.length > 0 || pendingManualSaves > 0} onClick={onPutPlaylistClick}>{plexPlaylist ? "Update" : "Create"} playlist</Button>
                     <Button component="a" disabled={!plexPlaylist} href={plexPlaylist?.link} target='_blank'>Open playlist</Button>
                 </Box>
             </Paper>
@@ -711,7 +726,7 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
             }
 
             {!!showExportMissingTracks && missingTracks.length > 0 &&
-                <ExportMissingTracks onClose={onExportMissingClick} tracks={missingTracks} playlist={playlist} />
+                <ExportMissingTracks onClose={onExportMissingClick} tracks={missingTracks} playlist={playlist} onManualSelect={onMissingTrackManualSelect} />
             }
 
         </>

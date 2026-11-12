@@ -7,17 +7,18 @@ import axios from "axios";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PlexPlaylistProps } from "./PlexPlaylist";
 import LidarrAlbumDialog from './LidarrAlbumDialog';
-import MissingTrack, { MissingTrackHandle } from './MissingTrack';
+import MissingTrack, { MissingTrackHandle, MissingTrackProps } from './MissingTrack';
 
 type Props = {
     readonly onClose: () => void,
     readonly tracks: Track[]
     readonly playlist: PlexPlaylistProps["playlist"]
+    readonly onManualSelect?: MissingTrackProps["onManualSelect"]
 }
 
 export default function ExportMissingTracks(props: Props) {
 
-    const { onClose, tracks, playlist } = props;
+    const { onClose, tracks, playlist, onManualSelect } = props;
     const { type } = playlist;
 
     ///////////////////////////////////////////////
@@ -38,11 +39,16 @@ export default function ExportMissingTracks(props: Props) {
     const [sendingToSlskd, setSendingToSlskd] = useState(false);
     const [slskdProgress, setSlskdProgress] = useState<{ current: number; total: number } | null>(null);
     const slskdAbortRef = useRef(false);
-    const currentTrackIndexRef = useRef(-1);
-    const trackRefs = useRef<(MissingTrackHandle | null)[]>([]);
+    const currentRowKeyRef = useRef<string | null>(null);
+    const pageKeysRef = useRef<string[]>([]);
 
-    const setTrackRefs = useCallback((index: number) => (ref: MissingTrackHandle | null) => {
-        trackRefs.current[index] = ref;
+    // By row key: each render hands a row a new handle, and a hand match can remove a row mid-batch
+    const rowHandles = useRef(new Map<string, MissingTrackHandle>());
+    const setRowHandle = useCallback((key: string) => (handle: MissingTrackHandle | null) => {
+        if (handle)
+            rowHandles.current.set(key, handle);
+        else
+            rowHandles.current.delete(key);
     }, []);
 
     ///////////////////////////////////////////////
@@ -59,6 +65,25 @@ export default function ExportMissingTracks(props: Props) {
     }, [])
 
     const visibleTracks = tracks.slice(page * pageSize, (page * pageSize) + pageSize)
+
+    // By occurrence over the whole list, so a hand match removing another row leaves this one mounted
+    const rowKeys = useMemo(() => {
+        const seen = new Map<string, number>()
+
+        return tracks.map(track => {
+            const occurrence = seen.get(track.id) ?? 0
+            seen.set(track.id, occurrence + 1)
+
+            return `${track.id}#${occurrence}`
+        })
+    }, [tracks])
+    pageKeysRef.current = rowKeys.slice(page * pageSize, (page * pageSize) + pageSize)
+
+    // A hand match shortens the list: the last page can empty
+    useEffect(() => {
+        if (page > 0 && page >= totalPages)
+            setPage(totalPages - 1)
+    }, [page, totalPages])
     let curEnd = (page * pageSize) + pageSize;
     if (curEnd > tracks.length)
         curEnd = tracks.length;
@@ -166,24 +191,29 @@ export default function ExportMissingTracks(props: Props) {
     const handleSendPageToSlskd = useCallback(async () => {
         setSendingToSlskd(true);
         slskdAbortRef.current = false;
-        const total = trackRefs.current.length;
+        // The page's rows as the batch begins, each handle looked up when its turn comes
+        const batch = [...pageKeysRef.current];
+        const total = batch.length;
         setSlskdProgress({ current: 0, total });
 
-        // Sequential processing through refs
-        for (let i = 0; i < trackRefs.current.length; i++) {
+        for (let i = 0; i < batch.length; i++) {
             // Check if user requested stop
             if (slskdAbortRef.current) {
                 break;
             }
 
-            currentTrackIndexRef.current = i;
             setSlskdProgress({ current: i + 1, total });
-            const ref = trackRefs.current[i];
-            if (ref)
-                await ref.sendToSlskd();
+            // A row matched by hand since the batch began is gone: it isn't missing now
+            const key = batch[i] ?? '';
+            const handle = rowHandles.current.get(key);
+            if (!handle)
+                continue;
+
+            currentRowKeyRef.current = key;
+            await handle.sendToSlskd();
         }
 
-        currentTrackIndexRef.current = -1;
+        currentRowKeyRef.current = null;
         setSendingToSlskd(false);
         setSlskdProgress(null);
     }, []);
@@ -192,10 +222,9 @@ export default function ExportMissingTracks(props: Props) {
         slskdAbortRef.current = true;
 
         // Stop the current track request
-        const currentIndex = currentTrackIndexRef.current;
-        if (currentIndex >= 0 && trackRefs.current[currentIndex]) {
-            trackRefs.current[currentIndex]?.stopSlskd();
-        }
+        const currentKey = currentRowKeyRef.current;
+        if (currentKey)
+            rowHandles.current.get(currentKey)?.stopSlskd();
     }, []);
 
     // Extract unique albums for Lidarr
@@ -230,6 +259,8 @@ export default function ExportMissingTracks(props: Props) {
     ///////////////////////////////////////////////
     const [loading, setLoading] = useState(true)
     const [canUseTidal, setCanUseTidal] = useState(false)
+    // Fetched once for the list the dialog opened with: a hand match only removes tracks from it
+    const [openedWith] = useState(tracks)
     useEffect(() => {
 
         errorBoundary(async () => {
@@ -245,7 +276,7 @@ export default function ExportMissingTracks(props: Props) {
 
             // Load cached tracks
             const cachedResult = await axios.post<GetTidalTracksResponse[]>('/api/tidal/cached', {
-                items: tracks,
+                items: openedWith,
             })
             const cachedTracks = cachedResult.data;
             if (cachedTracks && cachedTracks.length > 0)
@@ -256,7 +287,7 @@ export default function ExportMissingTracks(props: Props) {
             setLoading(false)
         })
 
-    }, [tracks])
+    }, [openedWith])
 
     // Check if Lidarr is enabled
     useEffect(() => {
@@ -381,7 +412,16 @@ export default function ExportMissingTracks(props: Props) {
                                 {visibleTracks.map((item, index) => {
                                     const tidalTrack = tidalTracks.find(tidalTrack => tidalTrack.id === item.id);
 
-                                    return <MissingTrack key={item.id} ref={setTrackRefs(index)} track={item} tidalTrack={tidalTrack} slskdEnabled={slskdEnabled} slskdBusy={sendingToSlskd} />;
+                                    return (
+                                        <MissingTrack
+                                            key={rowKeys[(page * pageSize) + index]}
+                                            ref={setRowHandle(rowKeys[(page * pageSize) + index] ?? '')}
+                                            track={item}
+                                            tidalTrack={tidalTrack}
+                                            slskdEnabled={slskdEnabled}
+                                            slskdBusy={sendingToSlskd}
+                                            onManualSelect={onManualSelect} />
+                                    );
                                 })}
 
                                 {totalPages > 1 &&

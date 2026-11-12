@@ -13,10 +13,11 @@ import { updateSyncTypeProgress } from "../utils/updateSyncTypeProgress";
 import { loadSpotifyData } from "../utils/loadSpotifyData";
 import { getSettings } from "@spotify-to-plex/plex-config/functions/getSettings";
 import { emptyMissingLists, missingAlbumListsFor, writeMissingLists } from "../utils/missingLists";
-import { clearSyncState, openSyncState } from "../utils/syncState";
+import { ALBUMS_STATE_FILE, clearSyncState, openSyncState } from "../utils/syncState";
 import { runExclusive } from "@spotify-to-plex/shared-utils/utils/syncLock";
+import { withoutHandMatched } from "../utils/handMatches";
+import { preferHandPicks } from "@spotify-to-plex/plex-music-search/utils/preferHandPicks";
 
-const STATE_FILE = 'albums_sync_state.json';
 
 /** Syncs every enrolled album that is due; force syncs them all, whatever their interval. */
 export async function syncAlbums(force = process.argv.slice(2).includes("force")) {
@@ -37,7 +38,7 @@ async function runAlbums(force: boolean) {
             // outputs, or a deleted album sits in the Lidarr queue forever -
             // the Lidarr and SLSKD jobs merge these files with the playlist ones every run.
             writeMissingLists('album', emptyMissingLists())
-            clearSyncState(STATE_FILE)
+            clearSyncState(ALBUMS_STATE_FILE)
 
             return;
         }
@@ -48,7 +49,7 @@ async function runAlbums(force: boolean) {
         if (!settings.uri || !settings.token)
             throw new Error("No plex connection found")
 
-        const syncState = openSyncState(STATE_FILE)
+        const syncState = openSyncState(ALBUMS_STATE_FILE)
 
         for (let i = 0; i < toSyncAlbums.length; i++) {
             const item = toSyncAlbums[i];
@@ -99,10 +100,18 @@ async function runAlbums(force: boolean) {
                 musicSearchConfig,
                 searchApproaches
             };
-            const result = await searchAlbum(plexConfig, data.tracks);
+            const searched = await searchAlbum(plexConfig, data.tracks);
 
             //@ts-ignore
-            const { add } = await getCachedPlexTracks(plexConfig, data);
+            const { add, manual, manualUnanswered } = await getCachedPlexTracks(plexConfig, data);
+
+            // Without the hand pick the search's own match would be saved as the album's: keep the last sync until Plex answers
+            if (manualUnanswered) {
+                logError(itemLog, `Plex did not answer for a track matched by hand; the album syncs next time`)
+                continue;
+            }
+
+            const result = preferHandPicks(searched, manual);
 
             const missingTracks = data.tracks.filter(item => {
                 const { title: trackTitle, artists: trackArtists } = item;
@@ -129,7 +138,7 @@ async function runAlbums(force: boolean) {
 
         // Built from every enrolled album's last sync, so one skipped or failed this run stays on the
         // lists; until any album has synced, the last lists stand
-        const lists = syncState.settle(toSyncAlbums)
+        const lists = syncState.settle(toSyncAlbums, withoutHandMatched('album'))
         if (lists)
             writeMissingLists('album', lists)
 

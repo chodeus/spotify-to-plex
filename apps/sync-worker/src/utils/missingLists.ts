@@ -37,6 +37,30 @@ export async function missingAlbumListsFor(albumId: string, tracks: Track[]): Pr
     return { spotify: [albumId], tidal: await findMissingTidalAlbums(tracks), lidarr, slskd };
 }
 
+/** One item's lists without a hand-matched track; undefined when the item did not list it. */
+export function withoutTrack(lists: MissingLists, kind: 'track' | 'album', spotifyId: string, tidalIds: string[]): MissingLists | undefined {
+    const removed = lists.slskd.find(track => track.spotify_id == spotifyId);
+    if (!removed)
+        return;
+
+    // A playlist can hold the same song twice
+    const slskd = lists.slskd.filter(track => track.spotify_id != spotifyId);
+    // An album entry goes only once none of the item's listed tracks still needs it
+    if (kind == 'album')
+        return slskd.length == 0 ? emptyMissingLists() : { ...lists, slskd };
+
+    // By album id, as two albums can share a name. A track listed before the id was added has none, so no album goes
+    const albumId = removed.spotify_album_id;
+    const albumStillNeeded = slskd.some(track => track.spotify_album_id == albumId);
+
+    return {
+        spotify: lists.spotify.filter(id => id != spotifyId),
+        tidal: lists.tidal.filter(id => !tidalIds.includes(id)),
+        lidarr: albumStillNeeded ? lists.lidarr : lists.lidarr.filter(album => album.spotify_album_id != albumId),
+        slskd
+    };
+}
+
 /** Every item's lists as one, each entry once, at its first listing. */
 export function mergeMissingLists(lists: MissingLists[]): MissingLists {
     return {
@@ -77,7 +101,7 @@ function lidarrAndSlskdEntries(tracks: Track[], albumId?: string) {
         // A local file has no spotify id to export - splitting its uri would yield the artist name
         const id = track.id && !isLocalTrack(track.id) ? spotifyTrackId(track.id) : undefined;
         if (id)
-            slskd.push({ spotify_id: id, artist_name: artist, track_name: track.title || 'Unknown Track', album_name: album, duration_ms: track.duration_ms });
+            slskd.push({ spotify_id: id, artist_name: artist, track_name: track.title || 'Unknown Track', album_name: album, spotify_album_id: albumId ?? track.album_id, duration_ms: track.duration_ms });
     }
 
     return { lidarr, slskd };

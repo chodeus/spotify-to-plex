@@ -4,6 +4,8 @@ export type SlskdTrackData = {
     artist_name: string;
     track_name: string;
     album_name?: string;
+    // Ties the track to its Lidarr album entry; absent in lists written before it was added
+    spotify_album_id?: string;
     // What a candidate file's length is checked against; absent in lists written before it was added
     duration_ms?: number;
 };

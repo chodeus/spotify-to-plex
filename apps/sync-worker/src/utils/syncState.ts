@@ -6,6 +6,9 @@ import { mergeMissingLists, MissingLists } from "./missingLists";
 
 export type SyncState = { synced_at: number; missing: MissingLists };
 
+export const PLAYLISTS_STATE_FILE = 'playlists_sync_state.json';
+export const ALBUMS_STATE_FILE = 'albums_sync_state.json';
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 // A nightly run that starts a few minutes earlier than the last one still counts as a day later
 const SLACK_MS = DAY_MS / 2;
@@ -19,11 +22,14 @@ export function openSyncState(file: string) {
         notDueUntil: (id: string, days: number) => notDueUntil(stored[id], days),
         record: (id: string, missing: MissingLists) => { synced.set(id, { synced_at: Date.now(), missing }) },
         /** Keeps each enrolled item's latest sync and returns their lists merged; undefined until one has synced. */
-        settle(enrolled: { id: string }[]) {
+        // clean runs over the items not synced now too, so a change made since their sync reaches them
+        settle(enrolled: { id: string }[], clean?: (missing: MissingLists) => MissingLists | undefined) {
             const kept = enrolled.flatMap(({ id }) => {
                 const entry = synced.get(id) ?? stored[id];
+                if (!entry)
+                    return [];
 
-                return entry ? [[id, entry] as const] : [];
+                return [[id, { ...entry, missing: clean?.(entry.missing) ?? entry.missing }] as const];
             });
             if (kept.length == 0)
                 return;
@@ -33,6 +39,28 @@ export function openSyncState(file: string) {
             return mergeMissingLists(kept.map(([, entry]) => entry.missing));
         }
     };
+}
+
+/** Passes every stored sync's lists through change and returns them merged, as settle() would; undefined when none is stored. */
+export function rewriteSyncState(file: string, change: (missing: MissingLists) => MissingLists | undefined) {
+    let changed = false;
+    const entries = Object.entries(readSyncState(file)).map(([id, entry]) => {
+        const missing = change(entry.missing);
+        if (!missing)
+            return [id, entry] as const;
+
+        changed = true;
+
+        return [id, { ...entry, missing }] as const;
+    });
+    if (entries.length == 0)
+        return;
+
+    if (changed)
+        writeJsonFileAtomic(join(getStorageDir(), file), Object.fromEntries(entries), 2);
+
+    // Even unchanged: rewriting the lists from the state repairs a list write that failed last time
+    return mergeMissingLists(entries.map(([, entry]) => entry.missing));
 }
 
 export function clearSyncState(file: string) {

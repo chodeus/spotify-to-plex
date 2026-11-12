@@ -72,6 +72,10 @@ async function loadLinkedTracks(config: PlexMusicSearchConfig, trackLink: TrackL
 export async function getCachedPlexTracks(plexSearchConfig: PlexMusicSearchConfig, data: GetSpotifyPlaylist | GetSpotifyAlbum) {
     const { add, save, markChecked, found: cachedTrackLinks } = getCachedTrackLinks(data.tracks, 'plex');
     const result: SearchResponse[] = [];
+    // Hand picks on their own: a search that ran anyway must not replace them
+    const manual: SearchResponse[] = [];
+    // A hand pick Plex didn't answer for this run: the caller can't tell what it matched
+    let manualUnanswered = false;
     // Links due a fresh search: the caller searches them, and a better match replaces the cached one
     const recheck: SpotifyTrack[] = [];
     const now = Date.now();
@@ -104,22 +108,30 @@ export async function getCachedPlexTracks(plexSearchConfig: PlexMusicSearchConfi
 
         // A manual pick whose lookups all failed is not evidence of a bad link.
         // Keep it out of the automatic re-search so a plex hiccup cannot replace it
+        if (trackLink.manual && failed && tracks.length == 0)
+            manualUnanswered = true;
+
         if (tracks.length == 0 && !(trackLink.manual && failed))
             continue;
 
-        // Add the result
-        result.push({
+        const response: SearchResponse = {
             id: searchItem.id,
             title: searchItem.title,
             artist: searchItem.artists?.[0] || 'Unknown',
             album: searchItem.album || "",
             result: tracks,
             matched_by: trackLink.plex_matched_by
-        });
+        };
+        result.push(response);
 
         // A person's pick is never second-guessed
-        if (trackLink.manual)
+        if (trackLink.manual) {
+            // One whose lookups all failed this run has no track to stand in with
+            if (tracks.length > 0)
+                manual.push(response);
+
             continue;
+        }
 
         // A stamp ahead of this clock (skew, a restored backup) would never come due
         if (trackLink.plex_checked_at === undefined || trackLink.plex_checked_at > now) {
@@ -135,5 +147,5 @@ export async function getCachedPlexTracks(plexSearchConfig: PlexMusicSearchConfi
     if (changed)
         save();
 
-    return { add, markChecked, result, recheck };
+    return { add, markChecked, result, recheck, manual, manualUnanswered };
 }

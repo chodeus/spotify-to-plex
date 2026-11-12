@@ -11,7 +11,7 @@ const { mergeMissingLists, missingAlbumListsFor, missingListsFor, writeMissingLi
 const track = (id: string, extra: object = {}) => ({ id, title: 'Song', album: 'Album', album_id: 'al1', artists: ['Artist'], ...extra });
 const lists = (extra: object = {}) => ({ spotify: [], tidal: [], lidarr: [], slskd: [], ...extra });
 const album = (name: string, id = 'al1') => ({ artist_name: 'Artist', album_name: name, spotify_album_id: id });
-const slskd = (id: string, name = 'Song') => ({ spotify_id: id, artist_name: 'Artist', track_name: name, album_name: 'Album' });
+const slskd = (id: string, name = 'Song', albumId = 'al1') => ({ spotify_id: id, artist_name: 'Artist', track_name: name, album_name: 'Album', spotify_album_id: albumId });
 
 describe('missingListsFor', () => {
     it('lists a missing track for each destination, by its bare spotify id', async () => {
@@ -45,7 +45,7 @@ describe('missingListsFor', () => {
 
         expect(result.spotify).toEqual(['b']);
         expect(result.lidarr).toEqual([album('Album')]);
-        expect(result.slskd).toEqual([slskd('b')]);
+        expect(result.slskd).toEqual([slskd('b', 'Song', 'unknown')]);
     });
 });
 
@@ -55,7 +55,7 @@ describe('missingAlbumListsFor', () => {
             spotify: ['al7'],
             tidal: ['tidal-album'],
             lidarr: [album('Album', 'al7'), album('Album', 'al7')],
-            slskd: [slskd('a'), slskd('b')]
+            slskd: [slskd('a', 'Song', 'al7'), slskd('b', 'Song', 'al7')]
         });
     });
 });
