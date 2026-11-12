@@ -7,6 +7,7 @@ import { createRouter } from 'next-connect';
 import { existsSync, readFileSync } from 'node:fs';
 import { writeJsonFileAtomic } from '@spotify-to-plex/shared-utils/utils/writeJsonFileAtomic';
 import { join } from 'node:path';
+import { findPickableHomeUser } from '@spotify-to-plex/plex-helpers/utils/plexSettingsFor';
 
 export type GetSpotifyUserResponse = SpotifyUser
 const router = createRouter<NextApiRequest, NextApiResponse>()
@@ -29,9 +30,14 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
             if (!existsSync(credentialsPath))
                 return res.status(400).json({ error: "No users are currently connected." })
 
-            const credentials: SpotifyCredentials[] = JSON.parse(readFileSync(credentialsPath, 'utf8'))
+            const { id, sync, label, recent_context, plex_home_user } = req.body;
 
-            const { id, sync, label, recent_context } = req.body;
+            // Asked before the file is read: a token refresh written meanwhile must not be overwritten
+            const homeUser = typeof plex_home_user === 'string' ? await findPickableHomeUser(plex_home_user) : undefined
+            if (typeof plex_home_user === 'string' && !homeUser)
+                return res.status(400).json({ error: "Unknown Plex Home user, or one with a PIN." })
+
+            const credentials: SpotifyCredentials[] = JSON.parse(readFileSync(credentialsPath, 'utf8'))
             const credential = credentials.find(item => item.user.id === id)
             if (!credential)
                 return res.status(404).json({ error: "User is not found." })
@@ -46,6 +52,12 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
 
             if (typeof label === 'string')
                 user.label = label;
+
+            // null goes back to the owner's account
+            if (plex_home_user === null)
+                delete user.plex_home_user;
+            else if (homeUser)
+                user.plex_home_user = { uuid: homeUser.uuid, title: homeUser.title };
 
             // Change the imtes
             writeJsonFileAtomic(credentialsPath, credentials)

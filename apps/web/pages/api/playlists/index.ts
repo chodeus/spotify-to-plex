@@ -3,6 +3,7 @@ import { describeHttpError } from '@spotify-to-plex/http-client/describeHttpErro
 import { generateError } from '@/helpers/errors/generateError';
 import { getAPIUrl } from '@spotify-to-plex/shared-utils/utils/getAPIUrl';
 import { putPlaylistPoster } from '@spotify-to-plex/plex-helpers/playlist/putPlaylistPoster';
+import { plexSettingsForItem } from '@spotify-to-plex/plex-helpers/utils/plexSettingsFor';
 import { addItemsToPlaylist } from '@spotify-to-plex/plex-helpers/playlist/addItemsToPlaylist';
 import { storePlaylist } from '@spotify-to-plex/plex-helpers/playlist/storePlaylist';
 import { getPlexUri } from '@spotify-to-plex/plex-helpers/utils/getPlexUri';
@@ -76,16 +77,18 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
                 if (!firstItem)
                     return res.status(400).json({ msg: "No items given" });
 
-                const uri = getPlexUri(settings, firstItem.key, firstItem.source);
-                const playlistId = await storePlaylist(settings, name, uri)
+                // Made as the item's Plex Home user when its Spotify user has one, as the sync does
+                const plex = await plexSettingsForItem(id)
+                const uri = getPlexUri(plex, firstItem.key, firstItem.source);
+                const playlistId = await storePlaylist(plex, name, uri)
                 // Recorded before the adds, so a failed add cannot leave a playlist that is created again
                 await addPlaylist({ type, id, plex: playlistId })
-                const refused = await addItemsToPlaylist(settings, playlistId, items)
+                const refused = await addItemsToPlaylist(plex, playlistId, items)
 
                 // Update thumbnail of playlist
                 if (typeof thumb === 'string') {
                     try {
-                        await putPlaylistPoster(playlistId, thumb)
+                        await putPlaylistPoster(plex, playlistId, thumb)
                     } catch (_e) {
                     }
                 }

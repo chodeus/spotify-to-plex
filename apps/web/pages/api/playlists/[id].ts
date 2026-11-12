@@ -4,6 +4,7 @@ import { generateError } from '@/helpers/errors/generateError';
 import { getAPIUrl } from '@spotify-to-plex/shared-utils/utils/getAPIUrl';
 import { addItemsToPlaylist } from '@spotify-to-plex/plex-helpers/playlist/addItemsToPlaylist';
 import { putPlaylistPoster } from '@spotify-to-plex/plex-helpers/playlist/putPlaylistPoster';
+import { plexSettingsForItem } from '@spotify-to-plex/plex-helpers/utils/plexSettingsFor';
 import { removeItemsFromPlaylist } from '@spotify-to-plex/plex-helpers/playlist/removeItemsFromPlaylist';
 import { updatePlaylist } from '@spotify-to-plex/plex-helpers/playlist/updatePlaylist';
 import type { PlexPlaylists } from '@spotify-to-plex/plex-config/types/PlexPlaylists';
@@ -52,9 +53,10 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
                 if (!playlistIds)
                     return res.status(404).json({ error: `Playlist not found connected to ${id}` })
 
-                // Check the existence
-                const url = getAPIUrl(settings.uri, `/playlists`);
-                const result = await AxiosRequest.get<GetPlaylistResponse>(url, settings.token);
+                // Looked up as the item's Plex Home user when its Spotify user has one, as the sync does
+                const plex = await plexSettingsForItem(id)
+                const url = getAPIUrl(plex.uri, `/playlists`);
+                const result = await AxiosRequest.get<GetPlaylistResponse>(url, plex.token);
                 const playlist = result.data.MediaContainer.Metadata.find(item => item.ratingKey === playlistIds.plex)
                 if (!playlist)
                     return res.status(404).json({ error: `Playlist not found with id ${playlistIds.plex}` })
@@ -89,26 +91,27 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
                 if (!playlistIds)
                     return res.status(404).json({ error: `Playlist not found connected to ${id}` })
 
-                // Check the existence
-                const url = getAPIUrl(settings.uri, `/playlists`);
-                const result = await AxiosRequest.get<GetPlaylistResponse>(url, settings.token);
+                // Looked up as the item's Plex Home user when its Spotify user has one, as the sync does
+                const plex = await plexSettingsForItem(id)
+                const url = getAPIUrl(plex.uri, `/playlists`);
+                const result = await AxiosRequest.get<GetPlaylistResponse>(url, plex.token);
                 const playlist = result.data.MediaContainer.Metadata.find(item => item.ratingKey === playlistIds.plex);
                 if (!playlist)
                     return res.status(404).json({ error: `Playlist not found with id ${playlistIds.plex}` })
 
                 // Clear items from playlist
-                await removeItemsFromPlaylist(settings, playlist.ratingKey, []);
+                await removeItemsFromPlaylist(plex, playlist.ratingKey, []);
 
                 // Add all items
-                const refused = await addItemsToPlaylist(settings, playlist.ratingKey, items)
+                const refused = await addItemsToPlaylist(plex, playlist.ratingKey, items)
 
                 if (playlist.title !== name && name)
-                    await updatePlaylist(settings, playlist.ratingKey, { title: name })
+                    await updatePlaylist(plex, playlist.ratingKey, { title: name })
 
                 // Update thumbnail of playlist
                 if (typeof thumb === 'string') {
                     try {
-                        await putPlaylistPoster(playlist.ratingKey, thumb)
+                        await putPlaylistPoster(plex, playlist.ratingKey, thumb)
                     } catch (_e) {
                     }
                 }

@@ -21,6 +21,7 @@ import { updateSyncTypeProgress } from "../utils/updateSyncTypeProgress";
 import { loadSpotifyData } from "../utils/loadSpotifyData";
 import { matchByIsrc } from "../utils/matchByIsrc";
 import { putPlexPlaylist } from "../utils/putPlexTracks";
+import { plexSettingsForUser } from "@spotify-to-plex/plex-helpers/utils/plexSettingsFor";
 import { getSettings } from "@spotify-to-plex/plex-config/functions/getSettings";
 import { findMissingTracks } from "../utils/findMissingTracks";
 import { readMissingSpotifyTrackIds } from "../utils/readMissingSpotifyTrackIds";
@@ -107,15 +108,13 @@ async function runPlaylists(force: boolean) {
                 //////////////////////////////////
                 // Load Plex Playlists if it exists
                 //////////////////////////////////
+                // The Spotify user's Plex Home user, when one is set: playlists are per Plex account
+                const plexConnection = await plexSettingsForUser(user)
                 const foundPlaylist = playlists.find(item => item.id == id)
                 let plexPlaylist: Playlist | undefined | null = null
                 if (foundPlaylist) {
-                    if (!settings.uri || !settings.token) {
-                        throw new Error('Plex settings not configured properly');
-                    }
-
-                    const url = getAPIUrl(settings.uri, `/playlists`);
-                    const result = await handleOneRetryAttempt<GetPlaylistResponse>(() => AxiosRequest.get(url, settings.token));
+                    const url = getAPIUrl(plexConnection.uri, `/playlists`);
+                    const result = await handleOneRetryAttempt<GetPlaylistResponse>(() => AxiosRequest.get(url, plexConnection.token));
                 
                     plexPlaylist = result.data.MediaContainer.Metadata.find((item: Playlist) => item.ratingKey == foundPlaylist.plex)
                 }
@@ -157,7 +156,7 @@ async function runPlaylists(force: boolean) {
                 ////////////
                 // Put plex playlist
                 ////////////
-                await putPlexPlaylist(id, plexPlaylist, result, title, data.image)
+                await putPlexPlaylist(plexConnection, id, plexPlaylist, result, title, data.image)
 
                 ////////////
                 // Handle missing tracks

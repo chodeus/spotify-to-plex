@@ -7,10 +7,10 @@ import { updatePlaylist } from "@spotify-to-plex/plex-helpers/playlist/updatePla
 import { getPlexUri } from "@spotify-to-plex/plex-helpers/utils/getPlexUri";
 import { Playlist } from "@spotify-to-plex/shared-types/plex/Playlist";
 import { SearchResponse } from "@spotify-to-plex/plex-music-search/types/SearchResponse";
-import { getSettings } from "@spotify-to-plex/plex-config/functions/getSettings";
+import { PlexConnection } from "@spotify-to-plex/plex-helpers/utils/plexSettingsFor";
 import { addPlaylist } from "@spotify-to-plex/plex-config/functions/addPlaylist";
 
-export async function putPlexPlaylist(id: string, plexPlaylist: Playlist | undefined | null, result: SearchResponse[], title: string, thumb: string) {
+export async function putPlexPlaylist(settings: PlexConnection, id: string, plexPlaylist: Playlist | undefined | null, result: SearchResponse[], title: string, thumb: string) {
     const plexTracks = result.map(item => {
         if (item.result.length == 0)
             return null;
@@ -26,15 +26,6 @@ export async function putPlexPlaylist(id: string, plexPlaylist: Playlist | undef
 
     const [firstItem] = plexTracks;
     if (firstItem) {
-        // Get settings once at the start
-        const rawSettings = await getSettings();
-        if (!rawSettings.uri || !rawSettings.token || !rawSettings.id) {
-            throw new Error('Plex settings not configured properly');
-        }
-
-        // Cast to required type since we've verified all required fields exist
-        const settings = rawSettings as Required<typeof rawSettings>;
-
         if (plexPlaylist) {
             console.log(`Update existing playlist`);
             // Rewriting empties the playlist until every add lands, so skip it when nothing changed
@@ -49,7 +40,7 @@ export async function putPlexPlaylist(id: string, plexPlaylist: Playlist | undef
                 await updatePlaylist(settings, plexPlaylist.ratingKey, { title });
 
             try {
-                await putPlaylistPoster(plexPlaylist.ratingKey, thumb)
+                await putPlaylistPoster(settings, plexPlaylist.ratingKey, thumb)
             } catch (_e) {
                 console.log(`* Could not update poster image`)
             }
@@ -63,7 +54,7 @@ export async function putPlexPlaylist(id: string, plexPlaylist: Playlist | undef
             logRefused(await addItemsToPlaylist(settings, playlistId, plexTracks.slice(1)));
 
             try {
-                await putPlaylistPoster(playlistId, thumb)
+                await putPlaylistPoster(settings, playlistId, thumb)
             } catch (_e) {
                 console.log(`** Could not update poster image`)
             }
