@@ -55,7 +55,8 @@ export default function UserSyncSettings(props: Props) {
                 sync: autoSync,
                 label,
                 recent_context: recentContext,
-                plex_home_user: plexHomeUser || null
+                // Only when changed: checking it needs plex.tv, which must not block saving the rest
+                ...((user.plex_home_user?.uuid || '') === plexHomeUser ? {} : { plex_home_user: plexHomeUser || null })
             })
 
             enqueueSnackbar(`[${user.name}] Changes saved`)
