@@ -392,7 +392,8 @@ export default function ExportMissingTracks(props: Props) {
 
                                     return (
                                         <MissingTrack
-                                            key={item.id}
+                                            // A playlist can list the same song twice
+                                            key={`${item.id}-${index}`}
                                             ref={setTrackRefs(index)}
                                             track={item}
                                             tidalTrack={tidalTrack}
