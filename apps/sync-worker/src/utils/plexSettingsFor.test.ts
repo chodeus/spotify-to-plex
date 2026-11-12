@@ -3,11 +3,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { plexTv } = vi.hoisted(() => ({ plexTv: { get: vi.fn(), post: vi.fn() } }));
+const { plexTv, account } = vi.hoisted(() => ({ plexTv: { get: vi.fn(), post: vi.fn() }, account: { token: 'owner-account' } }));
 vi.mock('@spotify-to-plex/http-client/plexTvClient', () => ({ plexTvClient: plexTv }));
 // getSettings(true) is the account as saved; without it the token is the owner's server token
 vi.mock('@spotify-to-plex/plex-config/functions/getSettings', () => ({
-    getSettings: async (raw?: boolean) => ({ id: 'machine', uri: 'http://plex.test:32400', token: raw ? 'owner-account' : 'owner-server' })
+    getSettings: async (raw?: boolean) => ({ id: 'machine', uri: 'http://plex.test:32400', token: raw ? account.token : 'owner-server' })
 }));
 
 const { plexSettingsForUser, plexSettingsForItem, findPickableHomeUser } = await import('@spotify-to-plex/plex-helpers/utils/plexSettingsFor');
@@ -26,6 +26,7 @@ beforeEach(() => {
     process.env.STORAGE_DIR = dir;
     plexTv.get.mockReset();
     plexTv.post.mockReset();
+    account.token = 'owner-account';
 });
 
 afterEach(() => { rmSync(dir, { recursive: true, force: true }) });
@@ -71,6 +72,19 @@ describe('plexSettingsForUser', () => {
         expect(plexTv.post).toHaveBeenCalledTimes(2);
     });
 
+    it('asks plex.tv again after signing in as another Plex account', async () => {
+        mapTo('faye-spotify', 'uuid-f');
+        switchesTo('faye-account');
+        resourcesAre([{ clientIdentifier: 'machine', accessToken: 'faye-server' }]);
+
+        await plexSettingsForUser('faye-spotify');
+        account.token = 'other-account';
+        await plexSettingsForUser('faye-spotify');
+
+        expect(plexTv.post).toHaveBeenCalledTimes(2);
+        expect(plexTv.post).toHaveBeenLastCalledWith(expect.any(String), undefined, { params: expect.objectContaining({ 'X-Plex-Token': 'other-account' }) });
+    });
+
     // Falling back to the owner would put the playlist in the wrong account
     it("fails rather than use the owner's token when the Home user can't reach this server", async () => {
         mapTo('faye-spotify', 'uuid-c');
@@ -104,11 +118,12 @@ describe('plexSettingsForItem', () => {
 
 describe('findPickableHomeUser', () => {
     it('offers only Home users that are not the owner and have no PIN', async () => {
-        resourcesAre([
+        // The shape plex.tv sends: the account's own fields around a users array
+        plexTv.get.mockResolvedValue({ data: { id: 1, name: 'Home', guestEnabled: false, users: [
             { uuid: 'owner', title: 'Dean', admin: true, protected: false },
             { uuid: 'faye', title: 'Faye', admin: false, protected: false },
             { uuid: 'kid', title: 'Kid', admin: false, protected: true }
-        ] as never);
+        ] } });
 
         expect(await findPickableHomeUser('faye')).toEqual({ uuid: 'faye', title: 'Faye', admin: false, protected: false });
         expect(await findPickableHomeUser('owner')).toBeUndefined();

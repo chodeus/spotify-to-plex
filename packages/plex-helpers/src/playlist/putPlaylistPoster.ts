@@ -1,8 +1,9 @@
 import { AxiosRequest } from '@spotify-to-plex/http-client/AxiosRequest';
 import { handleOneRetryAttempt } from '../retry';
 import { getAPIUrl } from '@spotify-to-plex/shared-utils/utils/getAPIUrl';
+import type { PlexConnection as FullPlexConnection } from '../utils/plexSettingsFor';
 
-type PlexConnection = { readonly uri: string, readonly token: string }
+type PlexConnection = Pick<FullPlexConnection, 'uri' | 'token'>
 
 // Takes the connection: a Plex Home user's playlist is only reachable with that user's token
 export async function putPlaylistPoster(settings: PlexConnection, id: string, image: string) {
