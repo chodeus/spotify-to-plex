@@ -148,8 +148,9 @@ describe('forgetHandMatchedTracks', () => {
     it('repairs the lists a failed write left behind', async () => {
         await storePlaylists({ p1: [song('t1', 'A'), song('t2', 'B')] });
         mkdirSync(join(dir, 'missing_tracks_lidarr.json'));
+        vi.spyOn(console, 'error').mockImplementation(() => { /* expected */ });
 
-        expect(() => { match('t1') }).toThrow();
+        match('t1');
         rmSync(join(dir, 'missing_tracks_lidarr.json'), { recursive: true });
         forgetHandMatchedTracks();
 
@@ -170,6 +171,30 @@ describe('forgetHandMatchedTracks', () => {
         await running;
 
         await expect(vi.advanceTimersByTimeAsync(15_000)).resolves.not.toThrow();
+    });
+
+    it('still cleans the album lists when the playlist lists cannot be written', async () => {
+        await storePlaylists({ p1: [song('t1', 'A')] });
+        await storeAlbum('a1', [song('t1', 'A'), song('t2', 'A')]);
+        mkdirSync(join(dir, 'missing_tracks_lidarr.json'));
+        vi.spyOn(console, 'error').mockImplementation(() => { /* expected */ });
+
+        match('t1');
+
+        expect(slskdIds('missing_albums_slskd.json')).toEqual(['t2']);
+    });
+
+    // setManualTrackLink matches ids exactly, so a uri-form pick adds a second entry beside the bare one
+    it('takes off the Tidal link of a track cached under its bare id and its uri', async () => {
+        await storePlaylists({ p1: [song('t1', 'A'), song('t2', 'B')] });
+        const stored = state('playlists_sync_state.json');
+        stored.p1.missing.tidal = ['T', 'T2'];
+        write('playlists_sync_state.json', stored);
+        write('track_links.json', [{ spotify_id: 't1', tidal_id: ['T'] }, { spotify_id: 't2', tidal_id: ['T2'] }]);
+
+        match('spotify:track:t1');
+
+        expect(read('missing_tracks_tidal.txt')).toBe('https://tidal.com/browse/track/T2');
     });
 
     // The same recording can sit in a playlist as a single and as an album track

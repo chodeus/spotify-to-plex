@@ -261,14 +261,7 @@ const MissingTrack = forwardRef<MissingTrackHandle, MissingTrackProps>((props, r
                 <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
                     {!!onManualSelect &&
                         <Box>
-                            <Button
-                                onClick={onShowManualSearchClick}
-                                className="btn"
-                                color="inherit"
-                                variant="outlined"
-                                size="small"
-                                sx={{ fontSize: '.8em' }}
-                                disabled={isSending || slskdBusy}>
+                            <Button onClick={onShowManualSearchClick} color="inherit" variant="outlined" size="small" sx={{ fontSize: '.8em' }} disabled={isSending || slskdBusy}>
                                 Match in Plex
                             </Button>
                         </Box>

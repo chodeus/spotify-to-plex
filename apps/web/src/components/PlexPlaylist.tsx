@@ -256,14 +256,13 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
     }, [trackSelections])
 
     const onManualTrackSelect = useCallback((spotifyId: string, title: string, artist: string, plexTrack: SearchResponse['result'][0]) => {
-        setTracks(prev => prev.map(item => item.id === spotifyId
-            ? { ...item, result: [plexTrack] }
-            : item))
-
-        onSetSongIndex(artist, title, spotifyId, 0)
-
         errorBoundary(async () => {
+            // Shown only once saved: a failed save leaves the track as it was
             await axios.post('/api/plex/cache-manual-match', { spotifyId, plexId: plexTrack.id })
+            setTracks(prev => prev.map(item => item.id === spotifyId
+                ? { ...item, result: [plexTrack] }
+                : item))
+            onSetSongIndex(artist, title, spotifyId, 0)
             enqueueSnackbar(`${title} matched manually`)
         }, undefined, true)
     }, [onSetSongIndex])

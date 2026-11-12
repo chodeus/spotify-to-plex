@@ -15,10 +15,13 @@ function readHandMatches() {
         const links = JSON.parse(readFileSync(path, 'utf8')) as TrackLink[];
         const bareId = (link: TrackLink) => spotifyTrackId(link.spotify_id) ?? link.spotify_id;
 
-        return {
-            matched: links.filter(link => link.manual && link.plex_id && link.plex_id.length > 0).map(bareId),
-            tidalOf: new Map(links.map(link => [bareId(link), link.tidal_id ?? []]))
-        };
+        // One track can be cached under its bare id and its uri: their Tidal ids add up
+        const tidalOf = new Map<string, string[]>();
+
+        for (const link of links)
+            tidalOf.set(bareId(link), [...tidalOf.get(bareId(link)) ?? [], ...link.tidal_id ?? []]);
+
+        return { matched: links.filter(link => link.manual && link.plex_id && link.plex_id.length > 0).map(bareId), tidalOf };
     } catch (e) {
         // The lists stay as they are; the next readable run takes the matches off
         console.error('Error reading track_links.json for hand matches:', e);

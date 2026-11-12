@@ -17,7 +17,7 @@ function rewriteLists(target: typeof JOBS[number], deadline: number) {
     // A running sync writes over an edit made now, and may have read the hand matches before this one was saved
     if (isSyncRunning(job)) {
         if (Date.now() < deadline)
-            setTimeout(() => retry(target, deadline), RETRY_MS).unref();
+            setTimeout(() => attempt(target, deadline), RETRY_MS).unref();
 
         return;
     }
@@ -27,8 +27,8 @@ function rewriteLists(target: typeof JOBS[number], deadline: number) {
         writeMissingLists(kind, lists);
 }
 
-// A throw in a timer would end the web server: a failed retry leaves the lists to the next sync
-function retry(target: typeof JOBS[number], deadline: number) {
+// A throw in a timer would end the web server: a failed attempt leaves the lists to the next sync
+function attempt(target: typeof JOBS[number], deadline: number) {
     try {
         rewriteLists(target, deadline);
     } catch (e) {
@@ -40,6 +40,7 @@ function retry(target: typeof JOBS[number], deadline: number) {
 export function forgetHandMatchedTracks() {
     const deadline = Date.now() + GIVE_UP_AFTER_MS;
 
+    // Each job on its own: a failed playlists rewrite must not cost the albums one its attempt
     for (const job of JOBS)
-        rewriteLists(job, deadline);
+        attempt(job, deadline);
 }
