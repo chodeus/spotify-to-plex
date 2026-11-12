@@ -74,6 +74,8 @@ export async function getCachedPlexTracks(plexSearchConfig: PlexMusicSearchConfi
     const result: SearchResponse[] = [];
     // Hand picks on their own: a search that ran anyway must not replace them
     const manual: SearchResponse[] = [];
+    // A hand pick Plex didn't answer for this run: the caller can't tell what it matched
+    let manualUnanswered = false;
     // Links due a fresh search: the caller searches them, and a better match replaces the cached one
     const recheck: SpotifyTrack[] = [];
     const now = Date.now();
@@ -106,6 +108,9 @@ export async function getCachedPlexTracks(plexSearchConfig: PlexMusicSearchConfi
 
         // A manual pick whose lookups all failed is not evidence of a bad link.
         // Keep it out of the automatic re-search so a plex hiccup cannot replace it
+        if (trackLink.manual && failed && tracks.length == 0)
+            manualUnanswered = true;
+
         if (tracks.length == 0 && !(trackLink.manual && failed))
             continue;
 
@@ -142,5 +147,5 @@ export async function getCachedPlexTracks(plexSearchConfig: PlexMusicSearchConfi
     if (changed)
         save();
 
-    return { add, markChecked, result, recheck, manual };
+    return { add, markChecked, result, recheck, manual, manualUnanswered };
 }

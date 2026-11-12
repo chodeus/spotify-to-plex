@@ -39,12 +39,16 @@ export default function ExportMissingTracks(props: Props) {
     const [sendingToSlskd, setSendingToSlskd] = useState(false);
     const [slskdProgress, setSlskdProgress] = useState<{ current: number; total: number } | null>(null);
     const slskdAbortRef = useRef(false);
-    const currentTrackIndexRef = useRef(-1);
-    const batchRef = useRef<(MissingTrackHandle | null)[]>([]);
-    const trackRefs = useRef<(MissingTrackHandle | null)[]>([]);
+    const currentRowKeyRef = useRef<string | null>(null);
+    const pageKeysRef = useRef<string[]>([]);
 
-    const setTrackRefs = useCallback((index: number) => (ref: MissingTrackHandle | null) => {
-        trackRefs.current[index] = ref;
+    // By row key: each render hands a row a new handle, and a hand match can remove a row mid-batch
+    const rowHandles = useRef(new Map<string, MissingTrackHandle>());
+    const setRowHandle = useCallback((key: string) => (handle: MissingTrackHandle | null) => {
+        if (handle)
+            rowHandles.current.set(key, handle);
+        else
+            rowHandles.current.delete(key);
     }, []);
 
     ///////////////////////////////////////////////
@@ -73,6 +77,7 @@ export default function ExportMissingTracks(props: Props) {
             return `${track.id}#${occurrence}`
         })
     }, [tracks])
+    pageKeysRef.current = rowKeys.slice(page * pageSize, (page * pageSize) + pageSize)
 
     // A hand match shortens the list: the last page can empty
     useEffect(() => {
@@ -186,28 +191,29 @@ export default function ExportMissingTracks(props: Props) {
     const handleSendPageToSlskd = useCallback(async () => {
         setSendingToSlskd(true);
         slskdAbortRef.current = false;
-        // Taken before the first send: a hand match saved meanwhile removes a row and shifts trackRefs
-        const batch = [...trackRefs.current];
-        batchRef.current = batch;
+        // The page's rows as the batch begins, each handle looked up when its turn comes
+        const batch = [...pageKeysRef.current];
         const total = batch.length;
         setSlskdProgress({ current: 0, total });
 
-        // Sequential processing through refs
         for (let i = 0; i < batch.length; i++) {
             // Check if user requested stop
             if (slskdAbortRef.current) {
                 break;
             }
 
-            currentTrackIndexRef.current = i;
             setSlskdProgress({ current: i + 1, total });
-            // A row matched by hand since the batch began is no longer mounted: it isn't missing now
-            const ref = batch[i];
-            if (ref && trackRefs.current.includes(ref))
-                await ref.sendToSlskd();
+            // A row matched by hand since the batch began is gone: it isn't missing now
+            const key = batch[i] ?? '';
+            const handle = rowHandles.current.get(key);
+            if (!handle)
+                continue;
+
+            currentRowKeyRef.current = key;
+            await handle.sendToSlskd();
         }
 
-        currentTrackIndexRef.current = -1;
+        currentRowKeyRef.current = null;
         setSendingToSlskd(false);
         setSlskdProgress(null);
     }, []);
@@ -216,10 +222,9 @@ export default function ExportMissingTracks(props: Props) {
         slskdAbortRef.current = true;
 
         // Stop the current track request
-        const currentIndex = currentTrackIndexRef.current;
-        if (currentIndex >= 0 && batchRef.current[currentIndex]) {
-            batchRef.current[currentIndex]?.stopSlskd();
-        }
+        const currentKey = currentRowKeyRef.current;
+        if (currentKey)
+            rowHandles.current.get(currentKey)?.stopSlskd();
     }, []);
 
     // Extract unique albums for Lidarr
@@ -410,7 +415,7 @@ export default function ExportMissingTracks(props: Props) {
                                     return (
                                         <MissingTrack
                                             key={rowKeys[(page * pageSize) + index]}
-                                            ref={setTrackRefs(index)}
+                                            ref={setRowHandle(rowKeys[(page * pageSize) + index] ?? '')}
                                             track={item}
                                             tidalTrack={tidalTrack}
                                             slskdEnabled={slskdEnabled}

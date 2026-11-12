@@ -103,7 +103,14 @@ async function runAlbums(force: boolean) {
             const searched = await searchAlbum(plexConfig, data.tracks);
 
             //@ts-ignore
-            const { add, manual } = await getCachedPlexTracks(plexConfig, data);
+            const { add, manual, manualUnanswered } = await getCachedPlexTracks(plexConfig, data);
+
+            // Without the hand pick the search's own match would be saved as the album's: keep the last sync until Plex answers
+            if (manualUnanswered) {
+                logError(itemLog, `Plex did not answer for a track matched by hand; the album syncs next time`)
+                continue;
+            }
+
             const result = preferHandPicks(searched, manual);
 
             const missingTracks = data.tracks.filter(item => {

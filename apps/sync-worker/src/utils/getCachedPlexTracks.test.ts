@@ -92,6 +92,7 @@ describe('getCachedPlexTracks', () => {
 
         expect(manual.map(item => item.result[0]?.id)).toEqual(['/library/metadata/1']);
         expect(automatic).toEqual([]);
+        expect((await getCachedPlexTracks(config, playlist)).manualUnanswered).toBe(false);
     });
 
     // Kept so a Plex hiccup cannot replace it, but it has no track to stand in with this run
@@ -99,10 +100,11 @@ describe('getCachedPlexTracks', () => {
         writeLink({ manual: true });
         getByIdMock.mockRejectedValue(new Error('connect ECONNREFUSED'));
 
-        const { result, manual } = await getCachedPlexTracks(config, playlist);
+        const { result, manual, manualUnanswered } = await getCachedPlexTracks(config, playlist);
 
         expect(result).toHaveLength(1);
         expect(manual).toEqual([]);
+        expect(manualUnanswered).toBe(true);
     });
 
     it('keeps a manual link while Plex is unreachable', async () => {
