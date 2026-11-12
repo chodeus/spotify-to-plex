@@ -92,7 +92,8 @@ describe('getCachedPlexTracks', () => {
 
         expect(manual.map(item => item.result[0]?.id)).toEqual(['/library/metadata/1']);
         expect(automatic).toEqual([]);
-        expect((await getCachedPlexTracks(config, playlist)).manualUnanswered).toBe(false);
+        const { manualUnanswered } = await getCachedPlexTracks(config, playlist);
+        expect(manualUnanswered).toBe(false);
     });
 
     // Kept so a Plex hiccup cannot replace it, but it has no track to stand in with this run
