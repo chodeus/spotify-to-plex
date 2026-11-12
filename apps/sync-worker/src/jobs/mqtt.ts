@@ -1,6 +1,6 @@
 import { getSettings } from '@spotify-to-plex/plex-config/functions/getSettings';
 import { getById } from '@spotify-to-plex/plex-music-search/functions/getById';
-import { plexSettingsForUser } from '@spotify-to-plex/plex-helpers/utils/plexSettingsFor';
+import { plexHomeUserOf } from '@spotify-to-plex/plex-helpers/utils/plexSettingsFor';
 import { PlexMusicSearchConfig } from '@spotify-to-plex/plex-music-search/types/PlexMusicSearchConfig';
 import { SavedItem } from '@spotify-to-plex/shared-types/spotify/SavedItem';
 import { PlaylistData } from '@spotify-to-plex/shared-types/dashboard/PlaylistData';
@@ -139,6 +139,14 @@ async function runMQTT() {
                 if (previous)
                     currentPublished.push(previous);
             };
+
+            // Home Assistant plays as the Plex owner, who can't see a playlist made as a Home user;
+            // not publishing it, nor its label, also drops the entity it had before
+            if (item.type === 'spotify-playlist' && await plexHomeUserOf(item.user)) {
+                logComplete(itemLog);
+                continue;
+            }
+
             categories.add(item.label);
 
             try {
@@ -157,10 +165,7 @@ async function runMQTT() {
 
                 let plexMetadata;
                 try {
-                    // A playlist made as a Plex Home user is only reachable with that user's token
-                    const itemConnection = isPlaylist ? await plexSettingsForUser(item.user) : undefined;
-                    const itemConfig = itemConnection ? { ...plexConfig, token: itemConnection.token } : plexConfig;
-                    plexMetadata = await getById(itemConfig, plexEndpoint);
+                    plexMetadata = await getById(plexConfig, plexEndpoint);
                 } catch (error) {
                     console.warn(`[MQTT] Warning: Failed to fetch Plex metadata for "${item.title}": ${error instanceof Error ? error.message : 'Unknown error'}`);
                     logError(itemLog, `Failed to fetch Plex metadata`);

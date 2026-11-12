@@ -169,7 +169,17 @@ describe('syncPlaylists Plex Home user', () => {
         await syncPlaylists(false);
 
         expect(putPlexPlaylist).toHaveBeenCalledTimes(1);
-        expect(vi.mocked(putPlexPlaylist).mock.calls[0]?.[0]).toEqual({ id: 'machine', uri: 'http://plex.test:32400', token: 'faye-server' });
+        expect(vi.mocked(putPlexPlaylist).mock.calls[0]?.[0]).toEqual({ id: 'machine', uri: 'http://plex.test:32400', token: 'faye-server', homeUser: 'uuid-faye-1' });
+    });
+
+    it('fetches a fresh token and writes once more when Plex rejects the cached one', async () => {
+        enrolFor('faye-3');
+        plexTv.get.mockResolvedValueOnce({ data: [{ clientIdentifier: 'machine', accessToken: 'stale-server' }] });
+        vi.mocked(putPlexPlaylist).mockRejectedValueOnce(Object.assign(new Error('Unauthorized'), { response: { status: 401 } }));
+
+        await syncPlaylists(false);
+
+        expect(vi.mocked(putPlexPlaylist).mock.calls.map(call => call[0].token)).toEqual(['stale-server', 'faye-server']);
     });
 
     // The owner's account would get a copy the Home user never sees

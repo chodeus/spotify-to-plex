@@ -1,10 +1,12 @@
+import { httpStatusOf } from '@spotify-to-plex/http-client/httpStatusOf';
 import { plexTvClient } from '@spotify-to-plex/http-client/plexTvClient';
 import { getSettings } from '@spotify-to-plex/plex-config/functions/getSettings';
 import { SavedItem } from '@spotify-to-plex/shared-types/spotify/SavedItem';
 import { SpotifyCredentials } from '@spotify-to-plex/shared-types/spotify/SpotifyCredentials';
 import { readJSON } from '@spotify-to-plex/plex-config/utils/fileUtils';
 
-export type PlexConnection = { id: string, uri: string, token: string }
+// homeUser is the Plex Home user's uuid when the token is theirs, not the owner's
+export type PlexConnection = { id: string, uri: string, token: string, homeUser?: string }
 export type PlexHomeUser = { uuid: string, title: string, admin: boolean, protected: boolean }
 
 const TOKEN_TTL_MS = 60 * 60 * 1000;
@@ -24,13 +26,44 @@ export async function plexSettingsForUser(spotifyUserId?: string): Promise<PlexC
     if (!settings.uri || !settings.token || !settings.id)
         throw new Error('Plex settings not configured properly');
 
-    const credentials = spotifyUserId ? await readJSON<SpotifyCredentials[]>('spotify.json') : null;
-    const homeUser = credentials?.find(item => item.user.id === spotifyUserId)?.user.plex_home_user;
+    const homeUser = await plexHomeUserOf(spotifyUserId);
     if (!homeUser)
         return { id: settings.id, uri: settings.uri, token: settings.token };
 
     // Never the owner's token instead: that would put the playlist in the wrong account
-    return { id: settings.id, uri: settings.uri, token: await homeUserServerToken(homeUser.uuid, settings.id) };
+    return { id: settings.id, uri: settings.uri, token: await homeUserServerToken(homeUser.uuid, settings.id), homeUser: homeUser.uuid };
+}
+
+/** The Plex Home user a Spotify user's playlists are made as, if one is set. */
+export async function plexHomeUserOf(spotifyUserId?: string) {
+    if (!spotifyUserId)
+        return undefined;
+
+    const credentials = await readJSON<SpotifyCredentials[]>('spotify.json');
+
+    return credentials?.find(item => item.user.id === spotifyUserId)?.user.plex_home_user;
+}
+
+/** Runs Plex calls with a connection; a Home user's token Plex rejects is fetched again and the calls run once more. */
+export async function withPlexConnection<T>(connect: () => Promise<PlexConnection>, run: (connection: PlexConnection) => Promise<T>) {
+    const connection = await connect();
+    try {
+        return await run(connection);
+    } catch (error) {
+        if (!connection.homeUser || httpStatusOf(error) !== 401)
+            throw error;
+
+        forgetHomeUserToken(connection.homeUser);
+
+        return run(await connect());
+    }
+}
+
+function forgetHomeUserToken(uuid: string) {
+    for (const key of homeUserTokens.keys()) {
+        if (key.startsWith(`${uuid}@`))
+            homeUserTokens.delete(key);
+    }
 }
 
 /** plexSettingsForUser for the Spotify user a saved item came from. */

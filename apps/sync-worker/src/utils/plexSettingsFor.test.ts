@@ -10,7 +10,7 @@ vi.mock('@spotify-to-plex/plex-config/functions/getSettings', () => ({
     getSettings: async (raw?: boolean) => ({ id: 'machine', uri: 'http://plex.test:32400', token: raw ? account.token : 'owner-server' })
 }));
 
-const { plexSettingsForUser, plexSettingsForItem, findPickableHomeUser } = await import('@spotify-to-plex/plex-helpers/utils/plexSettingsFor');
+const { plexSettingsForUser, plexSettingsForItem, findPickableHomeUser, withPlexConnection } = await import('@spotify-to-plex/plex-helpers/utils/plexSettingsFor');
 
 let dir: string;
 const write = (name: string, data: unknown) => { writeFileSync(join(dir, name), JSON.stringify(data)) };
@@ -137,5 +137,51 @@ describe('findPickableHomeUser', () => {
         expect(await findPickableHomeUser('owner')).toBeUndefined();
         expect(await findPickableHomeUser('kid')).toBeUndefined();
         expect(await findPickableHomeUser('unknown')).toBeUndefined();
+    });
+});
+
+describe('withPlexConnection', () => {
+    const rejected = (status: number) => Object.assign(new Error(`HTTP ${status}`), { response: { status } });
+
+    it("drops a Home user's token Plex rejects and runs once more with a fresh one", async () => {
+        mapTo('faye-spotify', 'uuid-g');
+        switchesTo('faye-account');
+        plexTv.get.mockResolvedValueOnce({ data: [{ clientIdentifier: 'machine', accessToken: 'stale' }] })
+            .mockResolvedValueOnce({ data: [{ clientIdentifier: 'machine', accessToken: 'fresh' }] });
+        const tokens: string[] = [];
+
+        const result = await withPlexConnection(() => plexSettingsForUser('faye-spotify'), async connection => {
+            tokens.push(connection.token);
+            if (connection.token == 'stale')
+                throw rejected(401);
+
+            return 'written';
+        });
+
+        expect(result).toBe('written');
+        expect(tokens).toEqual(['stale', 'fresh']);
+    });
+
+    it('tries only once more, so a token Plex keeps rejecting fails', async () => {
+        mapTo('faye-spotify', 'uuid-h');
+        switchesTo('faye-account');
+        resourcesAre([{ clientIdentifier: 'machine', accessToken: 'faye-server' }]);
+        const run = vi.fn().mockRejectedValue(rejected(401));
+
+        await expect(withPlexConnection(() => plexSettingsForUser('faye-spotify'), run)).rejects.toThrow('HTTP 401');
+        expect(run).toHaveBeenCalledTimes(2);
+    });
+
+    it("does not retry the owner's token, nor other failures", async () => {
+        mapTo('faye-spotify', 'uuid-i');
+        switchesTo('faye-account');
+        resourcesAre([{ clientIdentifier: 'machine', accessToken: 'faye-server' }]);
+        const owner = vi.fn().mockRejectedValue(rejected(401));
+        const notFound = vi.fn().mockRejectedValue(rejected(404));
+
+        await expect(withPlexConnection(() => plexSettingsForUser(), owner)).rejects.toThrow('HTTP 401');
+        await expect(withPlexConnection(() => plexSettingsForUser('faye-spotify'), notFound)).rejects.toThrow('HTTP 404');
+        expect(owner).toHaveBeenCalledTimes(1);
+        expect(notFound).toHaveBeenCalledTimes(1);
     });
 });

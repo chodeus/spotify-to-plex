@@ -3,7 +3,7 @@ import { describeHttpError } from '@spotify-to-plex/http-client/describeHttpErro
 import { generateError } from '@/helpers/errors/generateError';
 import { getAPIUrl } from '@spotify-to-plex/shared-utils/utils/getAPIUrl';
 import { putPlaylistPoster } from '@spotify-to-plex/plex-helpers/playlist/putPlaylistPoster';
-import { plexSettingsForItem } from '@spotify-to-plex/plex-helpers/utils/plexSettingsFor';
+import { plexSettingsForItem, withPlexConnection } from '@spotify-to-plex/plex-helpers/utils/plexSettingsFor';
 import { addItemsToPlaylist } from '@spotify-to-plex/plex-helpers/playlist/addItemsToPlaylist';
 import { storePlaylist } from '@spotify-to-plex/plex-helpers/playlist/storePlaylist';
 import { getPlexUri } from '@spotify-to-plex/plex-helpers/utils/getPlexUri';
@@ -78,22 +78,26 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
                     return res.status(400).json({ msg: "No items given" });
 
                 // Made as the item's Plex Home user when its Spotify user has one, as the sync does
-                const plex = await plexSettingsForItem(id)
-                const uri = getPlexUri(plex, firstItem.key, firstItem.source);
-                const playlistId = await storePlaylist(plex, name, uri)
-                // Recorded before the adds, so a failed add cannot leave a playlist that is created again
-                await addPlaylist({ type, id, plex: playlistId })
-                const refused = await addItemsToPlaylist(plex, playlistId, items)
+                const { playlistId, refused, homeUser } = await withPlexConnection(() => plexSettingsForItem(id), async plex => {
+                    const uri = getPlexUri(plex, firstItem.key, firstItem.source);
+                    const createdId = await storePlaylist(plex, name, uri)
+                    // Recorded before the adds, so a failed add cannot leave a playlist that is created again
+                    await addPlaylist({ type, id, plex: createdId })
+                    const refusedKeys = await addItemsToPlaylist(plex, createdId, items)
 
-                // Update thumbnail of playlist
-                if (typeof thumb === 'string') {
-                    try {
-                        await putPlaylistPoster(plex, playlistId, thumb)
-                    } catch (_e) {
+                    // Update thumbnail of playlist
+                    if (typeof thumb === 'string') {
+                        try {
+                            await putPlaylistPoster(plex, createdId, thumb)
+                        } catch (_e) {
+                        }
                     }
-                }
 
-                const link = getAPIUrl(settings.uri, `/web/index.html#!/server/${settings.id}/playlist?key=${encodeURIComponent(`/playlists/${playlistId}`)}`)
+                    return { playlistId: createdId, refused: refusedKeys, homeUser: plex.homeUser }
+                })
+
+                // Plex Web opens as the owner, who can't see a Home user's playlist
+                const link = homeUser ? undefined : getAPIUrl(settings.uri, `/web/index.html#!/server/${settings.id}/playlist?key=${encodeURIComponent(`/playlists/${playlistId}`)}`)
                 const saved: SavePlexPlaylistResponse = { id: playlistId, link, refused }
                 res.json(saved)
             } catch (error) {

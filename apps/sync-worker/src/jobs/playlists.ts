@@ -21,7 +21,7 @@ import { updateSyncTypeProgress } from "../utils/updateSyncTypeProgress";
 import { loadSpotifyData } from "../utils/loadSpotifyData";
 import { matchByIsrc } from "../utils/matchByIsrc";
 import { putPlexPlaylist } from "../utils/putPlexTracks";
-import { plexSettingsForUser } from "@spotify-to-plex/plex-helpers/utils/plexSettingsFor";
+import { PlexConnection, plexSettingsForUser, withPlexConnection } from "@spotify-to-plex/plex-helpers/utils/plexSettingsFor";
 import { getSettings } from "@spotify-to-plex/plex-config/functions/getSettings";
 import { findMissingTracks } from "../utils/findMissingTracks";
 import { readMissingSpotifyTrackIds } from "../utils/readMissingSpotifyTrackIds";
@@ -105,19 +105,6 @@ async function runPlaylists(force: boolean) {
                 }
 
                 console.log(`---- Syncing ${data.title} ----`)
-                //////////////////////////////////
-                // Load Plex Playlists if it exists
-                //////////////////////////////////
-                // The Spotify user's Plex Home user, when one is set: playlists are per Plex account
-                const plexConnection = await plexSettingsForUser(user)
-                const foundPlaylist = playlists.find(item => item.id == id)
-                let plexPlaylist: Playlist | undefined | null = null
-                if (foundPlaylist) {
-                    const url = getAPIUrl(plexConnection.uri, `/playlists`);
-                    const result = await handleOneRetryAttempt<GetPlaylistResponse>(() => AxiosRequest.get(url, plexConnection.token));
-                
-                    plexPlaylist = result.data.MediaContainer.Metadata.find((item: Playlist) => item.ratingKey == foundPlaylist.plex)
-                }
 
                 //////////////////////////////////////
                 // Load music search configuration
@@ -156,7 +143,12 @@ async function runPlaylists(force: boolean) {
                 ////////////
                 // Put plex playlist
                 ////////////
-                await putPlexPlaylist(plexConnection, id, plexPlaylist, result, title, data.image)
+                // As the Spotify user's Plex Home user when one is set: playlists are per Plex account
+                const plexKey = playlists.find(item => item.id == id)?.plex
+                await withPlexConnection(() => plexSettingsForUser(user), async plexConnection => {
+                    const plexPlaylist = await findPlexPlaylist(plexConnection, plexKey)
+                    await putPlexPlaylist(plexConnection, id, plexPlaylist, result, title, data.image)
+                })
 
                 ////////////
                 // Handle missing tracks
@@ -200,6 +192,16 @@ async function runPlaylists(force: boolean) {
     }
 }
 
+
+async function findPlexPlaylist(plexConnection: PlexConnection, plexKey?: string): Promise<Playlist | undefined> {
+    if (!plexKey)
+        return undefined;
+
+    const url = getAPIUrl(plexConnection.uri, `/playlists`);
+    const result = await handleOneRetryAttempt<GetPlaylistResponse>(() => AxiosRequest.get(url, plexConnection.token));
+
+    return result.data.MediaContainer.Metadata.find((item: Playlist) => item.ratingKey == plexKey)
+}
 
 function run() {
     console.log(`Start syncing items`)
