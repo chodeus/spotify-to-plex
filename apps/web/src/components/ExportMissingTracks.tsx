@@ -40,6 +40,7 @@ export default function ExportMissingTracks(props: Props) {
     const [slskdProgress, setSlskdProgress] = useState<{ current: number; total: number } | null>(null);
     const slskdAbortRef = useRef(false);
     const currentTrackIndexRef = useRef(-1);
+    const batchRef = useRef<(MissingTrackHandle | null)[]>([]);
     const trackRefs = useRef<(MissingTrackHandle | null)[]>([]);
 
     const setTrackRefs = useCallback((index: number) => (ref: MissingTrackHandle | null) => {
@@ -185,11 +186,14 @@ export default function ExportMissingTracks(props: Props) {
     const handleSendPageToSlskd = useCallback(async () => {
         setSendingToSlskd(true);
         slskdAbortRef.current = false;
-        const total = trackRefs.current.length;
+        // Taken before the first send: a hand match saved meanwhile removes a row and shifts trackRefs
+        const batch = [...trackRefs.current];
+        batchRef.current = batch;
+        const total = batch.length;
         setSlskdProgress({ current: 0, total });
 
         // Sequential processing through refs
-        for (let i = 0; i < trackRefs.current.length; i++) {
+        for (let i = 0; i < batch.length; i++) {
             // Check if user requested stop
             if (slskdAbortRef.current) {
                 break;
@@ -197,8 +201,9 @@ export default function ExportMissingTracks(props: Props) {
 
             currentTrackIndexRef.current = i;
             setSlskdProgress({ current: i + 1, total });
-            const ref = trackRefs.current[i];
-            if (ref)
+            // A row matched by hand since the batch began is no longer mounted: it isn't missing now
+            const ref = batch[i];
+            if (ref && trackRefs.current.includes(ref))
                 await ref.sendToSlskd();
         }
 
@@ -212,8 +217,8 @@ export default function ExportMissingTracks(props: Props) {
 
         // Stop the current track request
         const currentIndex = currentTrackIndexRef.current;
-        if (currentIndex >= 0 && trackRefs.current[currentIndex]) {
-            trackRefs.current[currentIndex]?.stopSlskd();
+        if (currentIndex >= 0 && batchRef.current[currentIndex]) {
+            batchRef.current[currentIndex]?.stopSlskd();
         }
     }, []);
 

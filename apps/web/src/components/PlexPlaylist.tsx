@@ -242,18 +242,15 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
     ///////////////////////////////////
     // Set selected track index
     ///////////////////////////////////
+    // Decided from the current selections: a hand match's save can land after another pick for the same track
     const onSetSongIndex = useCallback((artist: string, track: string, trackId: string, idx: number) => {
-        if (trackSelections.some(item => item.trackId === trackId)) {
-            setTrackSelections(items => items.map(item => {
-                if (item.trackId === trackId)
-                    return { ...item, idx }
+        setTrackSelections(prev => {
+            if (!prev.some(item => item.trackId === trackId))
+                return [...prev, { artist, title: track, trackId, idx }]
 
-                return item;
-            }))
-        } else {
-            setTrackSelections(prev => [...prev, { artist, title: track, trackId, idx }])
-        }
-    }, [trackSelections])
+            return prev.map(item => (item.trackId === trackId ? { ...item, idx } : item))
+        })
+    }, [])
 
     const onManualTrackSelect = useCallback((spotifyId: string, title: string, artist: string, plexTrack: SearchResponse['result'][0]) => {
         errorBoundary(async () => {
