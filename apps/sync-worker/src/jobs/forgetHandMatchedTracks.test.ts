@@ -235,6 +235,8 @@ describe('forgetHandMatchedTracks', () => {
     it('takes off a track matched during a sync at the next run, though its playlist is not due', async () => {
         write('spotify_saved_items.json', [{ type: 'spotify-playlist', id: 'p1', title: 'p1', uri: 'spotify:playlist:p1', sync: true, sync_interval: '7' }]);
         await storePlaylists({ p1: [song('t1', 'A'), song('t2', 'B')] }, Date.now() - DAY);
+        // The held lock makes the match schedule a retry: faked, so it never runs after this test's storage is gone
+        vi.useFakeTimers({ toFake: ['setTimeout'] });
         let finish!: () => void;
         const running = runExclusive('playlists', () => new Promise<void>(resolve => { finish = resolve }));
         match('t1');

@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
@@ -37,10 +37,23 @@ describe('getCachedMatches hand picks', () => {
         expect(match?.result.map(track => track.id)).toEqual(['/library/metadata/9']);
     });
 
-    it('drops a hand pick Plex no longer has, so the search can match it', async () => {
+    // Left saved as a hand pick, it would stop the search's match being saved in its place
+    it('drops a hand pick Plex no longer has, from the answer and from the cache', async () => {
         getByIdMock.mockRejectedValue(new PlexItemMissingError('/library/metadata/9'));
 
         await expect(getCachedMatches([item], config, true)).resolves.toEqual([]);
+
+        const [link] = JSON.parse(readFileSync(join(dir, 'track_links.json'), 'utf8'));
+        expect(link).toEqual({ spotify_id: 't1', plex_id: [] });
+    });
+
+    it('keeps a hand pick whose lookup only failed', async () => {
+        getByIdMock.mockRejectedValue(new Error('connect ETIMEDOUT'));
+
+        await expect(getCachedMatches([item], config, true)).rejects.toThrow();
+
+        const [link] = JSON.parse(readFileSync(join(dir, 'track_links.json'), 'utf8'));
+        expect(link).toMatchObject({ plex_id: ['/library/metadata/9'], manual: true });
     });
 
     // An automatic match would take the hand pick's place in the refresh

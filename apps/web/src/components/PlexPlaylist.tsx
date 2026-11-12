@@ -264,7 +264,7 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
                 : item))
             onSetSongIndex(artist, title, spotifyId, 0)
             enqueueSnackbar(`${title} matched manually`)
-        }, undefined, true)
+        }, () => enqueueSnackbar(`Couldn't save the match for ${title}`, { variant: 'error' }), true)
     }, [onSetSongIndex])
 
     const onMissingTrackManualSelect = useCallback((track: Track, plexTrack: SearchResponse['result'][0]) => {

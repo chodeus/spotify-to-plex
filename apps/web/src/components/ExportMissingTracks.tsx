@@ -61,6 +61,18 @@ export default function ExportMissingTracks(props: Props) {
 
     const visibleTracks = tracks.slice(page * pageSize, (page * pageSize) + pageSize)
 
+    // By occurrence over the whole list, so a hand match removing another row leaves this one mounted
+    const rowKeys = useMemo(() => {
+        const seen = new Map<string, number>()
+
+        return tracks.map(track => {
+            const occurrence = seen.get(track.id) ?? 0
+            seen.set(track.id, occurrence + 1)
+
+            return `${track.id}#${occurrence}`
+        })
+    }, [tracks])
+
     // A hand match shortens the list: the last page can empty
     useEffect(() => {
         if (page > 0 && page >= totalPages)
@@ -392,8 +404,7 @@ export default function ExportMissingTracks(props: Props) {
 
                                     return (
                                         <MissingTrack
-                                            // A playlist can list the same song twice
-                                            key={`${item.id}-${index}`}
+                                            key={rowKeys[(page * pageSize) + index]}
                                             ref={setTrackRefs(index)}
                                             track={item}
                                             tidalTrack={tidalTrack}
