@@ -254,21 +254,28 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
 
     // One save at a time per track, in the order picked, so the last pick is the one kept here and in the cache
     const manualSaves = useRef(new Map<string, Promise<unknown>>())
+    // Writing the playlist meanwhile would leave out a track whose match isn't in yet
+    const [pendingManualSaves, setPendingManualSaves] = useState(0)
     const onManualTrackSelect = useCallback((spotifyId: string, title: string, artist: string, plexTrack: SearchResponse['result'][0]) => {
         errorBoundary(async () => {
-            const previous = manualSaves.current.get(spotifyId) ?? Promise.resolve()
-            // After the previous save whether or not it worked
-            const post = async () => axios.post('/api/plex/cache-manual-match', { spotifyId, plexId: plexTrack.id })
-            const save = previous.then(post, post)
-            manualSaves.current.set(spotifyId, save)
+            setPendingManualSaves(count => count + 1)
+            try {
+                const previous = manualSaves.current.get(spotifyId) ?? Promise.resolve()
+                // After the previous save whether or not it worked
+                const post = async () => axios.post('/api/plex/cache-manual-match', { spotifyId, plexId: plexTrack.id })
+                const save = previous.then(post, post)
+                manualSaves.current.set(spotifyId, save)
 
-            // Shown only once saved: a failed save leaves the track as it was
-            await save
-            setTracks(prev => prev.map(item => item.id === spotifyId
-                ? { ...item, result: [plexTrack] }
-                : item))
-            onSetSongIndex(artist, title, spotifyId, 0)
-            enqueueSnackbar(`${title} matched manually`)
+                // Shown only once saved: a failed save leaves the track as it was
+                await save
+                setTracks(prev => prev.map(item => item.id === spotifyId
+                    ? { ...item, result: [plexTrack] }
+                    : item))
+                onSetSongIndex(artist, title, spotifyId, 0)
+                enqueueSnackbar(`${title} matched manually`)
+            } finally {
+                setPendingManualSaves(count => count - 1)
+            }
         }, () => enqueueSnackbar(`Couldn't save the match for ${title}`, { variant: 'error' }), true)
     }, [onSetSongIndex])
 
@@ -535,7 +542,7 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
                 }
 
                 <Box sx={{ display: 'flex', gap: 1 }}>
-                    <Button disabled={loadingTracks || saving || notLoaded.length > 0} onClick={onPutPlaylistClick}>{plexPlaylist ? "Update" : "Create"} playlist</Button>
+                    <Button disabled={loadingTracks || saving || notLoaded.length > 0 || pendingManualSaves > 0} onClick={onPutPlaylistClick}>{plexPlaylist ? "Update" : "Create"} playlist</Button>
                     <Button component="a" disabled={!plexPlaylist} href={plexPlaylist?.link} target='_blank'>Open playlist</Button>
                 </Box>
             </Paper>
