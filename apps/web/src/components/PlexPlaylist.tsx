@@ -254,7 +254,7 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
 
     // One save at a time per track, in the order picked, so the last pick is the one kept here and in the cache
     const manualSaves = useRef(new Map<string, Promise<unknown>>())
-    // Writing the playlist meanwhile would leave out a track whose match isn't in yet
+    // Writing or refreshing the playlist meanwhile would leave out, or overwrite, a match not saved yet
     const [pendingManualSaves, setPendingManualSaves] = useState(0)
     const onManualTrackSelect = useCallback((spotifyId: string, title: string, artist: string, plexTrack: SearchResponse['result'][0]) => {
         errorBoundary(async () => {
@@ -537,7 +537,7 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
 
                 {!loadingTracks &&
                     <Tooltip title='Refresh all songs (ignoring cache).'>
-                        <IconButton size="small" sx={{ position: 'absolute', right: 2, top: 2 }} onClick={onForceRefreshClick}><Refresh /></IconButton>
+                        <IconButton size="small" sx={{ position: 'absolute', right: 2, top: 2 }} disabled={pendingManualSaves > 0} onClick={onForceRefreshClick}><Refresh /></IconButton>
                     </Tooltip>
                 }
 
