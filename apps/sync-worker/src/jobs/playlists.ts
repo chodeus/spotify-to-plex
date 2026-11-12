@@ -1,9 +1,4 @@
 /* eslint-disable max-depth */
-import { AxiosRequest } from "@spotify-to-plex/http-client/AxiosRequest";
-import { getAPIUrl } from "@spotify-to-plex/shared-utils/utils/getAPIUrl";
-import { handleOneRetryAttempt } from "@spotify-to-plex/plex-helpers/retry";
-import { Playlist } from "@spotify-to-plex/shared-types/plex/Playlist";
-import { GetPlaylistResponse } from "@spotify-to-plex/shared-types/plex/GetPlaylistResponse";
 import { SearchResponse } from "@spotify-to-plex/plex-music-search/types/SearchResponse";
 import { search as plexMusicSearch } from "@spotify-to-plex/plex-music-search/functions/search";
 import { getMusicSearchConfig } from "@spotify-to-plex/music-search/functions/getMusicSearchConfig";
@@ -21,7 +16,8 @@ import { updateSyncTypeProgress } from "../utils/updateSyncTypeProgress";
 import { loadSpotifyData } from "../utils/loadSpotifyData";
 import { matchByIsrc } from "../utils/matchByIsrc";
 import { putPlexPlaylist } from "../utils/putPlexTracks";
-import { PlexConnection, plexSettingsForUser, withPlexConnection } from "@spotify-to-plex/plex-helpers/utils/plexSettingsFor";
+import { plexSettingsForUser, withPlexConnection } from "@spotify-to-plex/plex-helpers/utils/plexSettingsFor";
+import { findPlaylist } from "@spotify-to-plex/plex-helpers/playlist/findPlaylist";
 import { getSettings } from "@spotify-to-plex/plex-config/functions/getSettings";
 import { findMissingTracks } from "../utils/findMissingTracks";
 import { readMissingSpotifyTrackIds } from "../utils/readMissingSpotifyTrackIds";
@@ -146,7 +142,7 @@ async function runPlaylists(force: boolean) {
                 // As the Spotify user's Plex Home user when one is set: playlists are per Plex account
                 const plexKey = playlists.find(item => item.id == id)?.plex
                 await withPlexConnection(() => plexSettingsForUser(user), async plexConnection => {
-                    const plexPlaylist = await findPlexPlaylist(plexConnection, plexKey)
+                    const plexPlaylist = await findPlaylist(plexConnection, plexKey)
                     await putPlexPlaylist(plexConnection, id, plexPlaylist, result, title, data.image)
                 })
 
@@ -193,15 +189,6 @@ async function runPlaylists(force: boolean) {
 }
 
 
-async function findPlexPlaylist(plexConnection: PlexConnection, plexKey?: string): Promise<Playlist | undefined> {
-    if (!plexKey)
-        return undefined;
-
-    const url = getAPIUrl(plexConnection.uri, `/playlists`);
-    const result = await handleOneRetryAttempt<GetPlaylistResponse>(() => AxiosRequest.get(url, plexConnection.token));
-
-    return result.data.MediaContainer.Metadata.find((item: Playlist) => item.ratingKey == plexKey)
-}
 
 function run() {
     console.log(`Start syncing items`)

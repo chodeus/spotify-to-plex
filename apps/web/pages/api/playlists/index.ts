@@ -1,6 +1,7 @@
 import { AxiosRequest } from '@spotify-to-plex/http-client/AxiosRequest';
 import { describeHttpError } from '@spotify-to-plex/http-client/describeHttpError';
 import { generateError } from '@/helpers/errors/generateError';
+import { getPlaylistLink } from '@/helpers/plex/getPlaylistLink';
 import { getAPIUrl } from '@spotify-to-plex/shared-utils/utils/getAPIUrl';
 import { putPlaylistPoster } from '@spotify-to-plex/plex-helpers/playlist/putPlaylistPoster';
 import { plexSettingsForItem, withPlexConnection } from '@spotify-to-plex/plex-helpers/utils/plexSettingsFor';
@@ -97,7 +98,7 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
                 })
 
                 // Plex Web opens as the owner, who can't see a Home user's playlist
-                const link = homeUser ? undefined : getAPIUrl(settings.uri, `/web/index.html#!/server/${settings.id}/playlist?key=${encodeURIComponent(`/playlists/${playlistId}`)}`)
+                const link = getPlaylistLink(settings, playlistId, homeUser)
                 const saved: SavePlexPlaylistResponse = { id: playlistId, link, refused }
                 res.json(saved)
             } catch (error) {

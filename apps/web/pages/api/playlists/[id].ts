@@ -1,15 +1,14 @@
-import { AxiosRequest } from '@spotify-to-plex/http-client/AxiosRequest';
 import { describeHttpError } from '@spotify-to-plex/http-client/describeHttpError';
 import { generateError } from '@/helpers/errors/generateError';
-import { getAPIUrl } from '@spotify-to-plex/shared-utils/utils/getAPIUrl';
+import { getPlaylistLink } from '@/helpers/plex/getPlaylistLink';
 import { addItemsToPlaylist } from '@spotify-to-plex/plex-helpers/playlist/addItemsToPlaylist';
 import { putPlaylistPoster } from '@spotify-to-plex/plex-helpers/playlist/putPlaylistPoster';
-import { PlexConnection, plexSettingsForItem, withPlexConnection } from '@spotify-to-plex/plex-helpers/utils/plexSettingsFor';
+import { plexSettingsForItem, withPlexConnection } from '@spotify-to-plex/plex-helpers/utils/plexSettingsFor';
+import { findPlaylist } from '@spotify-to-plex/plex-helpers/playlist/findPlaylist';
 import { removeItemsFromPlaylist } from '@spotify-to-plex/plex-helpers/playlist/removeItemsFromPlaylist';
 import { updatePlaylist } from '@spotify-to-plex/plex-helpers/playlist/updatePlaylist';
 import type { PlexPlaylists } from '@spotify-to-plex/plex-config/types/PlexPlaylists';
 import type { PlaylistItem } from '@spotify-to-plex/plex-config/types/PlaylistItem';
-import { GetPlaylistResponse } from '@spotify-to-plex/shared-types/plex/GetPlaylistResponse';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createRouter } from 'next-connect';
 import { getPlaylists } from '@spotify-to-plex/plex-config/functions/getPlaylists';
@@ -32,12 +31,6 @@ export const config = {
     },
 }
 
-async function findPlaylist(plex: PlexConnection, ratingKey: string) {
-    const url = getAPIUrl(plex.uri, `/playlists`);
-    const result = await AxiosRequest.get<GetPlaylistResponse>(url, plex.token);
-
-    return result.data.MediaContainer.Metadata.find(item => item.ratingKey === ratingKey);
-}
 
 const router = createRouter<NextApiRequest, NextApiResponse>()
     .get(
@@ -69,7 +62,7 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
                 if (!found.playlist)
                     return res.status(404).json({ error: `Playlist not found with id ${playlistIds.plex}` })
 
-                const link = found.homeUser ? undefined : getAPIUrl(settings.uri, `/web/index.html#!/server/${settings.id}/playlist?key=${encodeURIComponent(`/playlists/${found.playlist.ratingKey}`)}`)
+                const link = getPlaylistLink(settings, found.playlist.ratingKey, found.homeUser)
                 const response: GetPlexPlaylistIdResponse = { id: playlistIds.plex, link }
                 res.json(response)
 
@@ -128,7 +121,7 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
                 if (!written)
                     return res.status(404).json({ error: `Playlist not found with id ${playlistIds.plex}` })
 
-                const link = written.homeUser ? undefined : getAPIUrl(settings.uri, `/web/index.html#!/server/${settings.id}/playlist?key=${encodeURIComponent(`/playlists/${written.ratingKey}`)}`)
+                const link = getPlaylistLink(settings, written.ratingKey, written.homeUser)
                 const saved: SavePlexPlaylistResponse = { id: written.ratingKey, link, refused: written.refused }
                 res.json(saved)
             } catch (error) {
