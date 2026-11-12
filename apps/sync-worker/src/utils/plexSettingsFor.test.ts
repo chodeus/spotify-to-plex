@@ -40,7 +40,9 @@ describe('plexSettingsForUser', () => {
     it("uses the owner's server token for a Spotify user with no Plex Home user", async () => {
         mapTo('faye-spotify');
 
-        expect((await plexSettingsForUser('faye-spotify')).token).toBe('owner-server');
+        const connection1 = await plexSettingsForUser('faye-spotify');
+
+        expect(connection1.token).toBe('owner-server');
         expect(plexTv.post).not.toHaveBeenCalled();
     });
 
@@ -49,7 +51,9 @@ describe('plexSettingsForUser', () => {
         switchesTo('faye-account');
         resourcesAre([{ clientIdentifier: 'other', accessToken: 'other-server' }, { clientIdentifier: 'machine', accessToken: 'faye-server' }]);
 
-        expect((await plexSettingsForUser('faye-spotify')).token).toBe('faye-server');
+        const connection2 = await plexSettingsForUser('faye-spotify');
+
+        expect(connection2.token).toBe('faye-server');
         expect(plexTv.post).toHaveBeenCalledWith('https://plex.tv/api/v2/home/users/uuid-a/switch', undefined, { params: expect.objectContaining({ 'X-Plex-Token': 'owner-account' }) });
         expect(plexTv.get).toHaveBeenCalledWith('https://plex.tv/api/v2/resources', { params: expect.objectContaining({ 'X-Plex-Token': 'faye-account' }) });
     });
@@ -110,9 +114,13 @@ describe('plexSettingsForItem', () => {
         switchesTo('faye-account');
         resourcesAre([{ clientIdentifier: 'machine', accessToken: 'faye-server' }]);
 
-        expect((await plexSettingsForItem('p-faye')).token).toBe('faye-server');
-        expect((await plexSettingsForItem('p-owner')).token).toBe('owner-server');
-        expect((await plexSettingsForItem('not-saved')).token).toBe('owner-server');
+        const connection3 = await plexSettingsForItem('p-faye');
+
+        expect(connection3.token).toBe('faye-server');
+        const connection4 = await plexSettingsForItem('p-owner');
+        expect(connection4.token).toBe('owner-server');
+        const connection5 = await plexSettingsForItem('not-saved');
+        expect(connection5.token).toBe('owner-server');
     });
 });
 
