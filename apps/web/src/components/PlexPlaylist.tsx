@@ -252,10 +252,18 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
         })
     }, [])
 
+    // One save at a time per track, in the order picked, so the last pick is the one kept here and in the cache
+    const manualSaves = useRef(new Map<string, Promise<unknown>>())
     const onManualTrackSelect = useCallback((spotifyId: string, title: string, artist: string, plexTrack: SearchResponse['result'][0]) => {
         errorBoundary(async () => {
+            const previous = manualSaves.current.get(spotifyId) ?? Promise.resolve()
+            // After the previous save whether or not it worked
+            const post = async () => axios.post('/api/plex/cache-manual-match', { spotifyId, plexId: plexTrack.id })
+            const save = previous.then(post, post)
+            manualSaves.current.set(spotifyId, save)
+
             // Shown only once saved: a failed save leaves the track as it was
-            await axios.post('/api/plex/cache-manual-match', { spotifyId, plexId: plexTrack.id })
+            await save
             setTracks(prev => prev.map(item => item.id === spotifyId
                 ? { ...item, result: [plexTrack] }
                 : item))
