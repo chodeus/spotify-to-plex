@@ -40,7 +40,8 @@ type PlaylistToWrite = { id: string, type: string, name: string, items: { key: s
 
 // Refills the playlist recorded for this item when this account sees it, else creates one: a retry or a second Create never duplicates it
 async function fillPlaylist(plex: PlexConnection, playlist: PlaylistToWrite) {
-    const recorded = (await getPlaylists()).data?.find(item => item.id === playlist.id)?.plex
+    const stored = await getPlaylists()
+    const recorded = stored.data?.find(item => item.id === playlist.id)?.plex
     const existing = await findPlaylist(plex, recorded)
     if (existing) {
         await removeItemsFromPlaylist(plex, existing.ratingKey, [])
