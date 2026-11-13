@@ -8,6 +8,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { writeJsonFileAtomic } from '@spotify-to-plex/shared-utils/utils/writeJsonFileAtomic';
 import { join } from 'node:path';
 import { findPickableHomeUser } from '@spotify-to-plex/plex-helpers/utils/plexSettingsFor';
+import { describeHttpError } from '@spotify-to-plex/http-client/describeHttpError';
 
 export type GetSpotifyUserResponse = SpotifyUser
 const router = createRouter<NextApiRequest, NextApiResponse>()
@@ -36,7 +37,15 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
                 return res.status(400).json({ error: "plex_home_user must be a Home user's uuid, or null for the owner." })
 
             // Asked before the file is read: a token refresh written meanwhile must not be overwritten
-            const homeUser = typeof plex_home_user === 'string' ? await findPickableHomeUser(plex_home_user) : undefined
+            let homeUser: Awaited<ReturnType<typeof findPickableHomeUser>>
+            try {
+                homeUser = typeof plex_home_user === 'string' ? await findPickableHomeUser(plex_home_user) : undefined
+            } catch (error) {
+                console.error(`Error fetching Plex Home users: ${describeHttpError(error)}`);
+
+                return res.status(502).json({ error: 'Plex Home users could not be loaded' })
+            }
+
             if (typeof plex_home_user === 'string' && !homeUser)
                 return res.status(400).json({ error: "That Plex Home user can't be picked: it isn't in this Plex Home, or it's the owner or has a PIN." })
 

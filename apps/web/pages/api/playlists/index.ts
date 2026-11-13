@@ -15,6 +15,10 @@ import { createRouter } from 'next-connect';
 import type { SavePlexPlaylistResponse } from './[id]';
 import { addPlaylist } from '@spotify-to-plex/plex-config/functions/addPlaylist';
 import { getSettings } from '@spotify-to-plex/plex-config/functions/getSettings';
+import { getPlaylists } from '@spotify-to-plex/plex-config/functions/getPlaylists';
+import { findPlaylist } from '@spotify-to-plex/plex-helpers/playlist/findPlaylist';
+import { removeItemsFromPlaylist } from '@spotify-to-plex/plex-helpers/playlist/removeItemsFromPlaylist';
+import { updatePlaylist } from '@spotify-to-plex/plex-helpers/playlist/updatePlaylist';
 
 export type GetPlexPlaylistResponse = {
     key: Playlist["key"],
@@ -30,6 +34,32 @@ export const config = {
         },
         responseLimit: false,
     },
+}
+
+type PlaylistToWrite = { id: string, type: string, name: string, items: { key: string, source?: string }[] }
+
+// Refills the playlist recorded for this item when this account sees it, else creates one: a retry or a second Create never duplicates it
+async function fillPlaylist(plex: PlexConnection, playlist: PlaylistToWrite) {
+    const recorded = (await getPlaylists()).data?.find(item => item.id === playlist.id)?.plex
+    const existing = await findPlaylist(plex, recorded)
+    if (existing) {
+        await removeItemsFromPlaylist(plex, existing.ratingKey, [])
+        const refused = await addItemsToPlaylist(plex, existing.ratingKey, playlist.items)
+        if (existing.title !== playlist.name)
+            await updatePlaylist(plex, existing.ratingKey, { title: playlist.name })
+
+        return { playlistId: existing.ratingKey, refused }
+    }
+
+    const [first, ...rest] = playlist.items
+    if (!first)
+        throw new Error('No items given')
+
+    const playlistId = await storePlaylist(plex, playlist.name, getPlexUri(plex, first.key, first.source))
+    // Recorded before the adds, so a retry or the next Create finds and refills it
+    await addPlaylist({ type: playlist.type, id: playlist.id, plex: playlistId })
+
+    return { playlistId, refused: await addItemsToPlaylist(plex, playlistId, rest) }
 }
 
 const router = createRouter<NextApiRequest, NextApiResponse>()
@@ -75,38 +105,19 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
                 if (!settings.uri || !settings.token || !settings.id)
                     return res.status(400).json({ msg: "No plex connection found" });
 
-                const firstItem = items.shift();
-                if (!firstItem)
-                    return res.status(400).json({ msg: "No items given" });
-
                 // Made as the item's Plex Home user when its Spotify user has one, as the sync does
-                // Kept outside the retried calls: a retry after a rejected token adds to the playlist, never creates
-                // another; cleared when creating failed, so that retry creates it
-                let creating: Promise<string> | undefined
-                const create = async (plex: PlexConnection) => {
-                    const newId = await storePlaylist(plex, name, getPlexUri(plex, firstItem.key, firstItem.source))
-                    // Recorded before the adds, so a failed add cannot leave a playlist that is created again
-                    await addPlaylist({ type, id, plex: newId })
-
-                    return newId
-                }
                 const { playlistId, refused, homeUser } = await withPlexConnection(() => plexSettingsForItem(id), async plex => {
-                    creating ??= create(plex).catch((error: unknown) => {
-                        creating = undefined
-                        throw error
-                    })
-                    const createdId = await creating
-                    const refusedKeys = await addItemsToPlaylist(plex, createdId, items)
+                    const written = await fillPlaylist(plex, { id, type, name, items })
 
                     // Update thumbnail of playlist
                     if (typeof thumb === 'string') {
                         try {
-                            await putPlaylistPoster(plex, createdId, thumb)
+                            await putPlaylistPoster(plex, written.playlistId, thumb)
                         } catch (_e) {
                         }
                     }
 
-                    return { playlistId: createdId, refused: refusedKeys, homeUser: plex.homeUser }
+                    return { ...written, homeUser: plex.homeUser }
                 })
 
                 // Plex Web opens as the owner, who can't see a Home user's playlist

@@ -44,7 +44,7 @@ export async function plexHomeUserOf(spotifyUserId?: string) {
     return credentials?.find(item => item.user.id === spotifyUserId)?.user.plex_home_user;
 }
 
-/** Runs Plex calls with a connection; a Home user's token Plex rejects is fetched again and the calls run once more. */
+/** Runs Plex calls with a connection; when Plex answers 401 to a Home user's token, it is fetched again and the calls run once more. */
 export async function withPlexConnection<T>(connect: () => Promise<PlexConnection>, run: (connection: PlexConnection) => Promise<T>) {
     const connection = await connect();
     try {
