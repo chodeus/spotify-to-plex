@@ -1,0 +1,191 @@
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+const { plexTv, account } = vi.hoisted(() => ({ plexTv: { get: vi.fn(), post: vi.fn() }, account: { token: 'owner-account' } }));
+vi.mock('@spotify-to-plex/http-client/plexTvClient', () => ({ plexTvClient: plexTv }));
+// getSettings(true) is the account as saved; without it the token is the owner's server token
+vi.mock('@spotify-to-plex/plex-config/functions/getSettings', () => ({
+    getSettings: async (raw?: boolean) => ({ id: 'machine', uri: 'http://plex.test:32400', token: raw ? account.token : 'owner-server' })
+}));
+
+const { plexSettingsForUser, plexSettingsForItem, findPickableHomeUser, withPlexConnection } = await import('@spotify-to-plex/plex-helpers/utils/plexSettingsFor');
+
+let dir: string;
+const write = (name: string, data: unknown) => { writeFileSync(join(dir, name), JSON.stringify(data)) };
+const mapTo = (spotifyId: string, uuid?: string) => write('spotify.json', [
+    { user: { id: 'owner-spotify', name: 'Dean' } },
+    { user: { id: spotifyId, name: 'Faye', ...(uuid ? { plex_home_user: { uuid, title: 'Faye' } } : {}) } }
+]);
+const switchesTo = (userToken?: string) => plexTv.post.mockResolvedValue({ data: userToken ? { authToken: userToken } : {} });
+const resourcesAre = (resources: { clientIdentifier: string, accessToken?: string }[]) => plexTv.get.mockResolvedValue({ data: resources });
+
+beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'plex-settings-for-'));
+    process.env.STORAGE_DIR = dir;
+    plexTv.get.mockReset();
+    plexTv.post.mockReset();
+    account.token = 'owner-account';
+});
+
+afterEach(() => { rmSync(dir, { recursive: true, force: true }) });
+
+describe('plexSettingsForUser', () => {
+    it("uses the owner's server token for an item with no Spotify user", async () => {
+        expect(await plexSettingsForUser()).toEqual({ id: 'machine', uri: 'http://plex.test:32400', token: 'owner-server' });
+        expect(plexTv.post).not.toHaveBeenCalled();
+    });
+
+    it("uses the owner's server token for a Spotify user with no Plex Home user", async () => {
+        mapTo('faye-spotify');
+
+        const connection1 = await plexSettingsForUser('faye-spotify');
+
+        expect(connection1.token).toBe('owner-server');
+        expect(plexTv.post).not.toHaveBeenCalled();
+    });
+
+    it("switches to the Home user with the owner's account token and uses that user's token for this server", async () => {
+        mapTo('faye-spotify', 'uuid-a');
+        switchesTo('faye-account');
+        resourcesAre([{ clientIdentifier: 'other', accessToken: 'other-server' }, { clientIdentifier: 'machine', accessToken: 'faye-server' }]);
+
+        const connection2 = await plexSettingsForUser('faye-spotify');
+
+        expect(connection2.token).toBe('faye-server');
+        expect(plexTv.post).toHaveBeenCalledWith('https://plex.tv/api/v2/home/users/uuid-a/switch', undefined, expect.objectContaining({ headers: { 'X-Plex-Token': 'owner-account' } }));
+        expect(plexTv.get).toHaveBeenCalledWith('https://plex.tv/api/v2/resources', expect.objectContaining({ headers: { 'X-Plex-Token': 'faye-account' } }));
+
+        // Never in the URL, where request logs would keep it
+        for (const call of [...plexTv.post.mock.calls, ...plexTv.get.mock.calls])
+            expect(JSON.stringify(call.at(-1).params ?? {})).not.toContain('X-Plex-Token');
+    });
+
+    it('asks plex.tv once an hour, not on every playlist', async () => {
+        mapTo('faye-spotify', 'uuid-b');
+        switchesTo('faye-account');
+        resourcesAre([{ clientIdentifier: 'machine', accessToken: 'faye-server' }]);
+
+        await plexSettingsForUser('faye-spotify');
+        await plexSettingsForUser('faye-spotify');
+        expect(plexTv.post).toHaveBeenCalledTimes(1);
+
+        vi.useFakeTimers({ now: Date.now() + 61 * 60 * 1000 });
+        try {
+            await plexSettingsForUser('faye-spotify');
+        } finally {
+            vi.useRealTimers();
+        }
+        expect(plexTv.post).toHaveBeenCalledTimes(2);
+    });
+
+    it('asks plex.tv again after signing in as another Plex account', async () => {
+        mapTo('faye-spotify', 'uuid-f');
+        switchesTo('faye-account');
+        resourcesAre([{ clientIdentifier: 'machine', accessToken: 'faye-server' }]);
+
+        await plexSettingsForUser('faye-spotify');
+        account.token = 'other-account';
+        await plexSettingsForUser('faye-spotify');
+
+        expect(plexTv.post).toHaveBeenCalledTimes(2);
+        expect(plexTv.post).toHaveBeenLastCalledWith(expect.any(String), undefined, expect.objectContaining({ headers: { 'X-Plex-Token': 'other-account' } }));
+    });
+
+    // Falling back to the owner would put the playlist in the wrong account
+    it("fails rather than use the owner's token when the Home user can't reach this server", async () => {
+        mapTo('faye-spotify', 'uuid-c');
+        switchesTo('faye-account');
+        resourcesAre([{ clientIdentifier: 'other', accessToken: 'other-server' }]);
+
+        await expect(plexSettingsForUser('faye-spotify')).rejects.toThrow('no access to this Plex server');
+    });
+
+    it("fails rather than use the owner's token when plex.tv does not switch", async () => {
+        mapTo('faye-spotify', 'uuid-d');
+        switchesTo(undefined);
+
+        await expect(plexSettingsForUser('faye-spotify')).rejects.toThrow('did not switch');
+        expect(plexTv.get).not.toHaveBeenCalled();
+    });
+});
+
+describe('plexSettingsForItem', () => {
+    it("uses the Home user of the Spotify user the saved item came from", async () => {
+        mapTo('faye-spotify', 'uuid-e');
+        write('spotify_saved_items.json', [{ id: 'p-owner', type: 'spotify-playlist' }, { id: 'p-faye', type: 'spotify-playlist', user: 'faye-spotify' }]);
+        switchesTo('faye-account');
+        resourcesAre([{ clientIdentifier: 'machine', accessToken: 'faye-server' }]);
+
+        const connection3 = await plexSettingsForItem('p-faye');
+
+        expect(connection3.token).toBe('faye-server');
+        const connection4 = await plexSettingsForItem('p-owner');
+        expect(connection4.token).toBe('owner-server');
+        const connection5 = await plexSettingsForItem('not-saved');
+        expect(connection5.token).toBe('owner-server');
+    });
+});
+
+describe('findPickableHomeUser', () => {
+    it('offers only Home users that are not the owner and have no PIN', async () => {
+        // The shape plex.tv sends: the account's own fields around a users array
+        plexTv.get.mockResolvedValue({ data: { id: 1, name: 'Home', guestEnabled: false, users: [
+            { uuid: 'owner', title: 'Dean', admin: true, protected: false },
+            { uuid: 'faye', title: 'Faye', admin: false, protected: false },
+            { uuid: 'kid', title: 'Kid', admin: false, protected: true }
+        ] } });
+
+        expect(await findPickableHomeUser('faye')).toEqual({ uuid: 'faye', title: 'Faye', admin: false, protected: false, pickable: true });
+        expect(await findPickableHomeUser('owner')).toBeUndefined();
+        expect(await findPickableHomeUser('kid')).toBeUndefined();
+        expect(await findPickableHomeUser('unknown')).toBeUndefined();
+    });
+});
+
+describe('withPlexConnection', () => {
+    const rejected = (status: number) => Object.assign(new Error(`HTTP ${status}`), { response: { status } });
+
+    it("drops a Home user's token Plex rejects and runs once more with a fresh one", async () => {
+        mapTo('faye-spotify', 'uuid-g');
+        switchesTo('faye-account');
+        plexTv.get.mockResolvedValueOnce({ data: [{ clientIdentifier: 'machine', accessToken: 'stale' }] })
+            .mockResolvedValueOnce({ data: [{ clientIdentifier: 'machine', accessToken: 'fresh' }] });
+        const tokens: string[] = [];
+
+        const result = await withPlexConnection(() => plexSettingsForUser('faye-spotify'), async connection => {
+            tokens.push(connection.token);
+            if (connection.token == 'stale')
+                throw rejected(401);
+
+            return 'written';
+        });
+
+        expect(result).toBe('written');
+        expect(tokens).toEqual(['stale', 'fresh']);
+    });
+
+    it('tries only once more, so a token Plex keeps rejecting fails', async () => {
+        mapTo('faye-spotify', 'uuid-h');
+        switchesTo('faye-account');
+        resourcesAre([{ clientIdentifier: 'machine', accessToken: 'faye-server' }]);
+        const run = vi.fn().mockRejectedValue(rejected(401));
+
+        await expect(withPlexConnection(() => plexSettingsForUser('faye-spotify'), run)).rejects.toThrow('HTTP 401');
+        expect(run).toHaveBeenCalledTimes(2);
+    });
+
+    it("does not retry the owner's token, nor other failures", async () => {
+        mapTo('faye-spotify', 'uuid-i');
+        switchesTo('faye-account');
+        resourcesAre([{ clientIdentifier: 'machine', accessToken: 'faye-server' }]);
+        const owner = vi.fn().mockRejectedValue(rejected(401));
+        const notFound = vi.fn().mockRejectedValue(rejected(404));
+
+        await expect(withPlexConnection(() => plexSettingsForUser(), owner)).rejects.toThrow('HTTP 401');
+        await expect(withPlexConnection(() => plexSettingsForUser('faye-spotify'), notFound)).rejects.toThrow('HTTP 404');
+        expect(owner).toHaveBeenCalledTimes(1);
+        expect(notFound).toHaveBeenCalledTimes(1);
+    });
+});

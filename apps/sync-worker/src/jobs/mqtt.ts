@@ -1,5 +1,6 @@
 import { getSettings } from '@spotify-to-plex/plex-config/functions/getSettings';
 import { getById } from '@spotify-to-plex/plex-music-search/functions/getById';
+import { plexHomeUserOf } from '@spotify-to-plex/plex-helpers/utils/plexSettingsFor';
 import { PlexMusicSearchConfig } from '@spotify-to-plex/plex-music-search/types/PlexMusicSearchConfig';
 import { SavedItem } from '@spotify-to-plex/shared-types/spotify/SavedItem';
 import { PlaylistData } from '@spotify-to-plex/shared-types/dashboard/PlaylistData';
@@ -138,6 +139,14 @@ async function runMQTT() {
                 if (previous)
                     currentPublished.push(previous);
             };
+
+            // Home Assistant plays as the Plex owner, who can't see a playlist made as a Home user: skipped
+            // before its label is counted, and its old entity is removed by the cleanup below
+            if (item.type === 'spotify-playlist' && await plexHomeUserOf(item.user)) {
+                logComplete(itemLog);
+                continue;
+            }
+
             categories.add(item.label);
 
             try {

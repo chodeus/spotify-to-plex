@@ -543,7 +543,8 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
 
                 <Box sx={{ display: 'flex', gap: 1 }}>
                     <Button disabled={loadingTracks || saving || notLoaded.length > 0 || pendingManualSaves > 0} onClick={onPutPlaylistClick}>{plexPlaylist ? "Update" : "Create"} playlist</Button>
-                    <Button component="a" disabled={!plexPlaylist} href={plexPlaylist?.link} target='_blank'>Open playlist</Button>
+                    {/* No link for a Plex Home user's playlist: Plex Web opens as the owner, who can't see it */}
+                    {!(plexPlaylist && !plexPlaylist.link) && <Button component="a" disabled={!plexPlaylist} href={plexPlaylist?.link} target='_blank'>Open playlist</Button>}
                 </Box>
             </Paper>
 

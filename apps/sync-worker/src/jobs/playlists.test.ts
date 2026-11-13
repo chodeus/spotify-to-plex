@@ -14,11 +14,12 @@ const playlistTracks: Record<string, typeof tracks> = {
 };
 const spotifyData = (uri: string) => ({ title: 'Playlist', image: '', tracks: playlistTracks[uri] ?? [] });
 
-const { loadSpotifyData } = vi.hoisted(() => ({ loadSpotifyData: vi.fn() }));
+const { loadSpotifyData, plexTv } = vi.hoisted(() => ({ loadSpotifyData: vi.fn(), plexTv: { get: vi.fn(), post: vi.fn() } }));
+vi.mock('@spotify-to-plex/http-client/plexTvClient', () => ({ plexTvClient: plexTv }));
 
-vi.mock('@spotify-to-plex/plex-config/functions/getSettings', () => ({ getSettings: async () => ({ uri: 'http://plex.test:32400', token: 'token' }) }));
+vi.mock('@spotify-to-plex/plex-config/functions/getSettings', () => ({ getSettings: async () => ({ uri: 'http://plex.test:32400', token: 'token', id: 'machine' }) }));
 vi.mock('@spotify-to-plex/music-search/functions/getMusicSearchConfig', () => ({ getMusicSearchConfig: async () => ({ searchApproaches: [{ id: 'normal' }] }) }));
-vi.mock('../utils/getPlexPlaylists', () => ({ getPlexPlaylists: async () => ({ playlists: [] }) }));
+vi.mock('@spotify-to-plex/http-client/AxiosRequest', () => ({ AxiosRequest: { get: vi.fn() } }));
 vi.mock('../utils/loadSpotifyData', () => ({ loadSpotifyData }));
 vi.mock('../utils/getCachedPlexTracks', () => ({ getCachedPlexTracks: async () => ({ result: [], add: vi.fn(), markChecked: vi.fn(), recheck: [] }) }));
 vi.mock('../utils/matchByIsrc', () => ({ matchByIsrc: async (_config: unknown, results: unknown) => results }));
@@ -32,6 +33,8 @@ vi.mock('@spotify-to-plex/plex-music-search/functions/search', () => ({
 }));
 
 const { syncPlaylists } = await import('./playlists');
+const { putPlexPlaylist } = await import('../utils/putPlexTracks');
+const { AxiosRequest } = await import('@spotify-to-plex/http-client/AxiosRequest');
 
 let dir: string;
 const read = (file: string) => readFileSync(join(dir, file), 'utf8');
@@ -144,5 +147,67 @@ describe('syncPlaylists intervals', () => {
         await syncPlaylists(true);
 
         expect(spotifyList()).toEqual(['fresh']);
+    });
+});
+
+describe('syncPlaylists Plex Home user', () => {
+    const enrolFor = (user: string) => {
+        writeFileSync(join(dir, 'spotify_saved_items.json'), JSON.stringify([
+            { type: 'spotify-playlist', id: 'p1', title: 'p1', uri: 'spotify:playlist:p1', sync: true, sync_interval: '0', user }
+        ]));
+        writeFileSync(join(dir, 'spotify.json'), JSON.stringify([{ user: { id: user, name: 'Faye', plex_home_user: { uuid: `uuid-${user}`, title: 'Faye' } } }]));
+    };
+
+    beforeEach(() => {
+        vi.mocked(putPlexPlaylist).mockReset();
+        plexTv.post.mockReset().mockResolvedValue({ data: { authToken: 'faye-account' } });
+        plexTv.get.mockReset().mockResolvedValue({ data: [{ clientIdentifier: 'machine', accessToken: 'faye-server' }] });
+    });
+
+    it("writes the playlist of a Spotify user with a Plex Home user as that user", async () => {
+        enrolFor('faye-1');
+
+        await syncPlaylists(false);
+
+        expect(putPlexPlaylist).toHaveBeenCalledTimes(1);
+        expect(vi.mocked(putPlexPlaylist).mock.calls[0]?.[0]).toEqual({ id: 'machine', uri: 'http://plex.test:32400', token: 'faye-server', homeUser: 'uuid-faye-1' });
+    });
+
+    it('fetches a fresh token and writes once more when Plex rejects the cached one', async () => {
+        enrolFor('faye-3');
+        plexTv.get.mockResolvedValueOnce({ data: [{ clientIdentifier: 'machine', accessToken: 'stale-server' }] });
+        vi.mocked(putPlexPlaylist).mockRejectedValueOnce(Object.assign(new Error('Unauthorized'), { response: { status: 401 } }));
+
+        await syncPlaylists(false);
+
+        expect(vi.mocked(putPlexPlaylist).mock.calls.map(call => call[0].token)).toEqual(['stale-server', 'faye-server']);
+    });
+
+    // Its first run stored the playlist it created before Plex rejected the token
+    it('updates the playlist the rejected run created, rather than creating a second', async () => {
+        enrolFor('faye-4');
+        plexTv.get.mockResolvedValueOnce({ data: [{ clientIdentifier: 'machine', accessToken: 'stale-server' }] });
+        vi.mocked(AxiosRequest.get).mockResolvedValue({ data: { MediaContainer: { size: 1, Metadata: [{ ratingKey: '900', title: 'p1' }] } } } as never);
+        vi.mocked(putPlexPlaylist).mockImplementationOnce(async () => {
+            writeFileSync(join(dir, 'playlists.json'), JSON.stringify({ data: [{ type: 'playlist', id: 'p1', plex: '900' }] }));
+            throw Object.assign(new Error('Unauthorized'), { response: { status: 401 } });
+        });
+
+        await syncPlaylists(false);
+
+        const [first, retry] = vi.mocked(putPlexPlaylist).mock.calls;
+        expect(first?.[2]).toBeUndefined();
+        expect(retry?.[2]?.ratingKey).toBe('900');
+    });
+
+    // The owner's account would get a copy the Home user never sees
+    it("writes nothing when plex.tv can't give the Home user's token", async () => {
+        enrolFor('faye-2');
+        plexTv.post.mockRejectedValue(new Error('plex.tv down'));
+        vi.spyOn(console, 'error').mockImplementation(() => { /* expected */ });
+
+        await syncPlaylists(false);
+
+        expect(putPlexPlaylist).not.toHaveBeenCalled();
     });
 });

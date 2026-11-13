@@ -1,25 +1,27 @@
 import { AxiosRequest } from '@spotify-to-plex/http-client/AxiosRequest';
 import { handleOneRetryAttempt } from '../retry';
-import { getSettings } from '@spotify-to-plex/plex-config/functions/getSettings';
 import { getAPIUrl } from '@spotify-to-plex/shared-utils/utils/getAPIUrl';
+import type { PlexConnection as FullPlexConnection } from '../utils/plexSettingsFor';
 
-export async function putPlaylistPoster(id: string, image: string) {
-    let posters = await getPosters(id);
+type PlexConnection = Pick<FullPlexConnection, 'uri' | 'token'>
+
+// Takes the connection: a Plex Home user's playlist is only reachable with that user's token
+export async function putPlaylistPoster(settings: PlexConnection, id: string, image: string) {
+    let posters = await getPosters(settings, id);
     const uploadOnly = posters.size == 1;
-    await uploadPoster(id, image);
+    await uploadPoster(settings, id, image);
 
     if (uploadOnly)
         return;
 
-    posters = await getPosters(id);
+    posters = await getPosters(settings, id);
     // @ts-expect-error Needs some refactoring (typing missing)
     const uploadedPoster = posters.Metadata.find(item => item.key.indexOf('upload') > -1)
-    await putPoster(id, uploadedPoster.ratingKey)
+    await putPoster(settings, id, uploadedPoster.ratingKey)
 
 }
 
-export async function getPlaylist(id: string) {
-    const settings = await getSettings();
+export async function getPlaylist(settings: PlexConnection, id: string) {
     const { token, uri } = settings;
     if (!token || !uri)
         throw new Error('Plex settings not configured properly');
@@ -29,8 +31,7 @@ export async function getPlaylist(id: string) {
 
     return currentPlaylist.data.MediaContainer.Metadata[0];
 }
-async function getPosters(id: string) {
-    const settings = await getSettings();
+async function getPosters(settings: PlexConnection, id: string) {
     const { token, uri } = settings;
     if (!token || !uri)
         throw new Error('Plex settings not configured properly');
@@ -40,8 +41,7 @@ async function getPosters(id: string) {
 
     return currentPosters.data.MediaContainer;
 }
-async function putPoster(id: string, uploadUrl: string) {
-    const settings = await getSettings();
+async function putPoster(settings: PlexConnection, id: string, uploadUrl: string) {
     const { token, uri } = settings;
     if (!token || !uri)
         throw new Error('Plex settings not configured properly');
@@ -51,8 +51,7 @@ async function putPoster(id: string, uploadUrl: string) {
     return handleOneRetryAttempt(() => AxiosRequest.put<any>(url, token))
 }
 
-async function uploadPoster(id: string, image: string) {
-    const settings = await getSettings();
+async function uploadPoster(settings: PlexConnection, id: string, image: string) {
     const { token, uri } = settings;
     if (!token || !uri)
         throw new Error('Plex settings not configured properly');
