@@ -19,7 +19,7 @@ vi.mock('@spotify-to-plex/http-client/plexTvClient', () => ({ plexTvClient: plex
 
 vi.mock('@spotify-to-plex/plex-config/functions/getSettings', () => ({ getSettings: async () => ({ uri: 'http://plex.test:32400', token: 'token', id: 'machine' }) }));
 vi.mock('@spotify-to-plex/music-search/functions/getMusicSearchConfig', () => ({ getMusicSearchConfig: async () => ({ searchApproaches: [{ id: 'normal' }] }) }));
-vi.mock('../utils/getPlexPlaylists', () => ({ getPlexPlaylists: async () => ({ playlists: [] }) }));
+vi.mock('@spotify-to-plex/http-client/AxiosRequest', () => ({ AxiosRequest: { get: vi.fn() } }));
 vi.mock('../utils/loadSpotifyData', () => ({ loadSpotifyData }));
 vi.mock('../utils/getCachedPlexTracks', () => ({ getCachedPlexTracks: async () => ({ result: [], add: vi.fn(), markChecked: vi.fn(), recheck: [] }) }));
 vi.mock('../utils/matchByIsrc', () => ({ matchByIsrc: async (_config: unknown, results: unknown) => results }));
@@ -34,6 +34,7 @@ vi.mock('@spotify-to-plex/plex-music-search/functions/search', () => ({
 
 const { syncPlaylists } = await import('./playlists');
 const { putPlexPlaylist } = await import('../utils/putPlexTracks');
+const { AxiosRequest } = await import('@spotify-to-plex/http-client/AxiosRequest');
 
 let dir: string;
 const read = (file: string) => readFileSync(join(dir, file), 'utf8');
@@ -180,6 +181,23 @@ describe('syncPlaylists Plex Home user', () => {
         await syncPlaylists(false);
 
         expect(vi.mocked(putPlexPlaylist).mock.calls.map(call => call[0].token)).toEqual(['stale-server', 'faye-server']);
+    });
+
+    // Its first run stored the playlist it created before Plex rejected the token
+    it('updates the playlist the rejected run created, rather than creating a second', async () => {
+        enrolFor('faye-4');
+        plexTv.get.mockResolvedValueOnce({ data: [{ clientIdentifier: 'machine', accessToken: 'stale-server' }] });
+        vi.mocked(AxiosRequest.get).mockResolvedValue({ data: { MediaContainer: { size: 1, Metadata: [{ ratingKey: '900', title: 'p1' }] } } } as never);
+        vi.mocked(putPlexPlaylist).mockImplementationOnce(async () => {
+            writeFileSync(join(dir, 'playlists.json'), JSON.stringify({ data: [{ type: 'playlist', id: 'p1', plex: '900' }] }));
+            throw Object.assign(new Error('Unauthorized'), { response: { status: 401 } });
+        });
+
+        await syncPlaylists(false);
+
+        const [first, retry] = vi.mocked(putPlexPlaylist).mock.calls;
+        expect(first?.[2]).toBeUndefined();
+        expect(retry?.[2]?.ratingKey).toBe('900');
     });
 
     // The owner's account would get a copy the Home user never sees

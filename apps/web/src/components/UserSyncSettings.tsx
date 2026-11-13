@@ -92,10 +92,16 @@ export default function UserSyncSettings(props: Props) {
     }, [user])
 
     useEffect(() => {
+        const controller = new AbortController()
         errorBoundary(async () => {
-            const result = await axios.get<GetPlexHomeUsersResponse>('/api/plex/home-users')
+            const result = await axios.get<GetPlexHomeUsersResponse>('/api/plex/home-users', { signal: controller.signal })
             setHomeUsers(result.data)
-        }, () => setHomeUsers([]), true)
+        }, () => {
+            if (!controller.signal.aborted)
+                setHomeUsers([])
+        }, true)
+
+        return () => controller.abort()
     }, [])
 
     const hasChanges = (

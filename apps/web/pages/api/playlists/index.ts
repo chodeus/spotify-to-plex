@@ -4,7 +4,7 @@ import { generateError } from '@/helpers/errors/generateError';
 import { getPlaylistLink } from '@/helpers/plex/getPlaylistLink';
 import { getAPIUrl } from '@spotify-to-plex/shared-utils/utils/getAPIUrl';
 import { putPlaylistPoster } from '@spotify-to-plex/plex-helpers/playlist/putPlaylistPoster';
-import { plexSettingsForItem, withPlexConnection } from '@spotify-to-plex/plex-helpers/utils/plexSettingsFor';
+import { PlexConnection, plexSettingsForItem, withPlexConnection } from '@spotify-to-plex/plex-helpers/utils/plexSettingsFor';
 import { addItemsToPlaylist } from '@spotify-to-plex/plex-helpers/playlist/addItemsToPlaylist';
 import { storePlaylist } from '@spotify-to-plex/plex-helpers/playlist/storePlaylist';
 import { getPlexUri } from '@spotify-to-plex/plex-helpers/utils/getPlexUri';
@@ -46,7 +46,8 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
                 const { data: plexData } = playlistResult;
 
                 const result: GetPlexPlaylistResponse[] = []
-                plexData.MediaContainer.Metadata.forEach((item) => {
+                const playlists = plexData.MediaContainer.Metadata ?? []
+                playlists.forEach((item) => {
                     if (!item.smart && item.playlistType === 'audio') {
                         result.push({
                             key: item.key,
@@ -79,11 +80,22 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
                     return res.status(400).json({ msg: "No items given" });
 
                 // Made as the item's Plex Home user when its Spotify user has one, as the sync does
-                const { playlistId, refused, homeUser } = await withPlexConnection(() => plexSettingsForItem(id), async plex => {
-                    const uri = getPlexUri(plex, firstItem.key, firstItem.source);
-                    const createdId = await storePlaylist(plex, name, uri)
+                // Kept outside the retried calls: a retry after a rejected token adds to the playlist, never creates
+                // another; cleared when creating failed, so that retry creates it
+                let creating: Promise<string> | undefined
+                const create = async (plex: PlexConnection) => {
+                    const newId = await storePlaylist(plex, name, getPlexUri(plex, firstItem.key, firstItem.source))
                     // Recorded before the adds, so a failed add cannot leave a playlist that is created again
-                    await addPlaylist({ type, id, plex: createdId })
+                    await addPlaylist({ type, id, plex: newId })
+
+                    return newId
+                }
+                const { playlistId, refused, homeUser } = await withPlexConnection(() => plexSettingsForItem(id), async plex => {
+                    creating ??= create(plex).catch((error: unknown) => {
+                        creating = undefined
+                        throw error
+                    })
+                    const createdId = await creating
                     const refusedKeys = await addItemsToPlaylist(plex, createdId, items)
 
                     // Update thumbnail of playlist

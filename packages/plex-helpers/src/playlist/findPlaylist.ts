@@ -12,5 +12,5 @@ export async function findPlaylist(plex: { readonly uri: string, readonly token:
     const url = getAPIUrl(plex.uri, `/playlists`);
     const result = await handleOneRetryAttempt<GetPlaylistResponse>(() => AxiosRequest.get(url, plex.token));
 
-    return result.data.MediaContainer.Metadata.find((item: Playlist) => item.ratingKey == ratingKey);
+    return (result.data.MediaContainer.Metadata ?? []).find((item: Playlist) => item.ratingKey == ratingKey);
 }

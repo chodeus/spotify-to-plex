@@ -58,7 +58,6 @@ async function runPlaylists(force: boolean) {
         if (!settings.uri || !settings.token)
             throw new Error("No plex connection found")
 
-        const { playlists } = await getPlexPlaylists()
 
         // Read before this run rewrites them
         const lastMissing = readMissingSpotifyTrackIds()
@@ -140,9 +139,10 @@ async function runPlaylists(force: boolean) {
                 // Put plex playlist
                 ////////////
                 // As the Spotify user's Plex Home user when one is set: playlists are per Plex account
-                const plexKey = playlists.find(item => item.id == id)?.plex
                 await withPlexConnection(() => plexSettingsForUser(user), async plexConnection => {
-                    const plexPlaylist = await findPlaylist(plexConnection, plexKey)
+                    // Read again on a retry: the first run may have stored the playlist it created
+                    const { playlists } = await getPlexPlaylists()
+                    const plexPlaylist = await findPlaylist(plexConnection, playlists.find(item => item.id == id)?.plex)
                     await putPlexPlaylist(plexConnection, id, plexPlaylist, result, title, data.image)
                 })
 

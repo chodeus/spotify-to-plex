@@ -12,11 +12,14 @@ export type PlexHomeUser = { uuid: string, title: string, admin: boolean, protec
 const TOKEN_TTL_MS = 60 * 60 * 1000;
 const homeUserTokens = new Map<string, { token: string, at: number }>();
 
-function plexTvParams(token: string) {
+// The token goes in a header, never the URL, where request logs would keep it
+function plexTvRequest(token: string) {
     return {
-        "X-Plex-Product": "Spotify to Plex",
-        "X-Plex-Client-Identifier": process.env.PLEX_APP_ID,
-        "X-Plex-Token": token,
+        params: {
+            "X-Plex-Product": "Spotify to Plex",
+            "X-Plex-Client-Identifier": process.env.PLEX_APP_ID,
+        },
+        headers: { "X-Plex-Token": token },
     };
 }
 
@@ -36,10 +39,7 @@ export async function plexSettingsForUser(spotifyUserId?: string): Promise<PlexC
 
 /** The Plex Home user a Spotify user's playlists are made as, if one is set. */
 export async function plexHomeUserOf(spotifyUserId?: string) {
-    if (!spotifyUserId)
-        return undefined;
-
-    const credentials = await readJSON<SpotifyCredentials[]>('spotify.json');
+    const credentials = spotifyUserId ? await readJSON<SpotifyCredentials[]>('spotify.json') : null;
 
     return credentials?.find(item => item.user.id === spotifyUserId)?.user.plex_home_user;
 }
@@ -79,7 +79,7 @@ export async function getPlexHomeUsers(): Promise<PlexHomeUser[]> {
         throw new Error('Plex settings not configured properly');
 
     // An object with the account's fields and a users array, not a bare array
-    const result = await plexTvClient.get<{ users?: PlexHomeUser[] }>('https://plex.tv/api/v2/home/users', { params: plexTvParams(token) });
+    const result = await plexTvClient.get<{ users?: PlexHomeUser[] }>('https://plex.tv/api/v2/home/users', plexTvRequest(token));
 
     return (result.data.users ?? []).map(({ uuid, title, admin, protected: isProtected }) => ({ uuid, title, admin: !!admin, protected: !!isProtected }));
 }
@@ -105,7 +105,7 @@ async function homeUserServerToken(uuid: string, serverId: string) {
     const switched = await plexTvClient.post<{ authToken?: string }>(
         `https://plex.tv/api/v2/home/users/${encodeURIComponent(uuid)}/switch`,
         undefined,
-        { params: plexTvParams(accountToken) }
+        plexTvRequest(accountToken)
     );
     const userToken = switched.data.authToken;
     if (!userToken)
@@ -113,7 +113,7 @@ async function homeUserServerToken(uuid: string, serverId: string) {
 
     const resources = await plexTvClient.get<{ clientIdentifier: string, accessToken?: string }[]>(
         'https://plex.tv/api/v2/resources',
-        { params: plexTvParams(userToken) }
+        plexTvRequest(userToken)
     );
     const token = resources.data.find(item => item.clientIdentifier === serverId)?.accessToken;
     if (!token)

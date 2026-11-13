@@ -54,8 +54,12 @@ describe('plexSettingsForUser', () => {
         const connection2 = await plexSettingsForUser('faye-spotify');
 
         expect(connection2.token).toBe('faye-server');
-        expect(plexTv.post).toHaveBeenCalledWith('https://plex.tv/api/v2/home/users/uuid-a/switch', undefined, { params: expect.objectContaining({ 'X-Plex-Token': 'owner-account' }) });
-        expect(plexTv.get).toHaveBeenCalledWith('https://plex.tv/api/v2/resources', { params: expect.objectContaining({ 'X-Plex-Token': 'faye-account' }) });
+        expect(plexTv.post).toHaveBeenCalledWith('https://plex.tv/api/v2/home/users/uuid-a/switch', undefined, expect.objectContaining({ headers: { 'X-Plex-Token': 'owner-account' } }));
+        expect(plexTv.get).toHaveBeenCalledWith('https://plex.tv/api/v2/resources', expect.objectContaining({ headers: { 'X-Plex-Token': 'faye-account' } }));
+
+        // Never in the URL, where request logs would keep it
+        for (const call of [...plexTv.post.mock.calls, ...plexTv.get.mock.calls])
+            expect(JSON.stringify(call.at(-1).params ?? {})).not.toContain('X-Plex-Token');
     });
 
     it('asks plex.tv once an hour, not on every playlist', async () => {
@@ -86,7 +90,7 @@ describe('plexSettingsForUser', () => {
         await plexSettingsForUser('faye-spotify');
 
         expect(plexTv.post).toHaveBeenCalledTimes(2);
-        expect(plexTv.post).toHaveBeenLastCalledWith(expect.any(String), undefined, { params: expect.objectContaining({ 'X-Plex-Token': 'other-account' }) });
+        expect(plexTv.post).toHaveBeenLastCalledWith(expect.any(String), undefined, expect.objectContaining({ headers: { 'X-Plex-Token': 'other-account' } }));
     });
 
     // Falling back to the owner would put the playlist in the wrong account
