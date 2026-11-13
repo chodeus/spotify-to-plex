@@ -7,6 +7,8 @@ name: Docker build & publish
 on:
   push:
     branches: [testing]
+    # Not on pull_request: required checks must report there, docs-only PRs included
+    paths-ignore: ['docs/**', '**/*.md']
   pull_request:
   workflow_dispatch:
 

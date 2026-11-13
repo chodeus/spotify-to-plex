@@ -5,6 +5,8 @@ on:
   pull_request:
   push:
     branches: [testing]
+    # Not on pull_request: required checks must report there, docs-only PRs included
+    paths-ignore: ['docs/**', '**/*.md']
   workflow_dispatch:
 
 permissions:
