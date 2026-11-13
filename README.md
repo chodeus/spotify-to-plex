@@ -65,20 +65,34 @@ This fork is [jjdenhertog/spotify-to-plex](https://github.com/jjdenhertog/spotif
 
 - A track the title search cannot place is matched by its ISRC. MusicBrainz lists the track id of every release the recording is on, and Plex shows that id on files carrying MusicBrainz tags, as Lidarr writes them. This finds "JCB" when your library calls it "JCB Song". A track is taken only when exactly one candidate carries a listed id.
 - Version checks compare the original title, ignore credits and track numbers, treat a bare "version" as noise, apply in every search backend, and judge a candidate on the wanted track's credits. Cached links are re-checked against the version filter as well as duration.
+- A missing track can be matched to a Plex track by hand from the missing-tracks list. Playlist and album syncs then use that track, and it leaves this app's own missing-track lists at once. Its Lidarr album entry goes only when no other listed track still needs it; Lidarr and slskd themselves are never touched.
+
+**Plex Home users**
+
+- A Spotify user can be given a Plex Home user (user settings, Plex user). Playlists for items added from that user's library or recently played are then made in that Home user's Plex account, by the sync and by the page's Create and Update. Users with a PIN can't be picked.
+- Home Assistant (MQTT) leaves those playlists out, since it plays as the Plex owner who can't see them, and the page hides their Plex Web link for the same reason.
 
 **Lidarr and MusicBrainz**
 
 - An album Lidarr already holds in full is not searched again because one of its tracks is missing from Plex. That search only re-downloaded the same album as an "upgrade", every night.
 - MusicBrainz requests are paced from one place and identify the app, and the name search for albums without a Spotify link works.
+- Albums missing from MusicBrainz are listed with Harmony links to import them, and a new artist stays monitored along with every album a run sends for it.
+
+**slskd and Tidal**
+
+- slskd: a file is checked against the track's length, peers are ranked, and the search timeout is honoured.
+- Tidal: the access token is kept only for the seconds Tidal grants it.
 
 **Spotify**
 
 - Playlists are read from Spotify's tracks endpoint before the scraper, and every page is mapped the same way. A playlist that comes back short is not synced, so a bad read cannot empty a Plex playlist.
+- Albums with more than 50 tracks load every track, and a Spotify token is refreshed five minutes before it expires.
 
 **Sync, web and container**
 
 - Saved items are appended instead of rewritten from a stale copy, the recently-played switch is honoured, and having nothing enrolled is a quiet no-op that clears the missing-track files.
 - MQTT is skipped when no broker is configured, `TZ` reaches the scheduler, and the web app no longer sends `Access-Control-Allow-Origin: *` on every path.
+- One of each sync runs at a time, a job that ends early or fails still settles its status, and MQTT keeps Home Assistant's entities when Plex fails to answer.
 - Node 22, Next.js 15, React 19 and MUI 9, and current pins for the scraper's Python packages.
 
 ### What landed upstream
