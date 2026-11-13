@@ -40,6 +40,11 @@ You can view all songs that cannot be matched and:
 - Match them with Tidal (requires [Tidal credentials](installation#3-tidal-api-credentials-optional))
 - Send missing albums to [Lidarr](integrations/lidarr) for automatic download
 - Search via [SLSKD](integrations/slskd) for P2P downloads
+- Match one by hand with **Match in Plex**, which searches your library for it
+
+### Matching by hand
+
+A song you pick with **Match in Plex** is used by every sync from then on, for playlists and for albums, and it leaves the missing lists at once. Its Lidarr album request is dropped only when no other missing song still needs that album. Lidarr and SLSKD themselves are not touched, so anything already downloading or seeding stays as it is.
 
 ---
 

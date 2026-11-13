@@ -52,6 +52,10 @@ When viewing missing tracks for a playlist, you'll see a "Send to Lidarr" button
 
 ![Lidarr Dialog](../assets/images/lidarr_dialog.jpg)
 
+### Albums not in MusicBrainz
+
+Lidarr can only add an album MusicBrainz has an entry for. **Advanced → Not in MusicBrainz** lists the missing albums it could not add, each with a link to import it into MusicBrainz with Harmony. After an import, allow 2-3 hours for Lidarr's metadata server to pick it up; the next sync, or a retry on that page, sends it.
+
 ### Automatic Sync
 
 When automatic sync is enabled, missing albums are sent to Lidarr during the daily synchronization process.

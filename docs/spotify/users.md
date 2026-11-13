@@ -44,6 +44,18 @@ To add multiple users, you need to sign out of Spotify before attempting to add 
 
 ---
 
+## Plex Home User
+
+Playlists are made in the Plex account you signed in with. To make a user's playlists in a Plex Home user's account instead, so that person sees them as their own (in Plexamp, for example), open the user's sync settings and pick them under **Plex user**.
+
+- It applies to playlists for items added from that user's library or recently played. Items added by link stay in your account.
+- It applies to the scheduled sync and to Create and Update on the playlist page.
+- After a change, the next sync or Update makes new copies in the new account. The old copies stay where they are; delete them in Plex if you don't want them.
+- Home users with a PIN can't be picked.
+- These playlists are not published to [Home Assistant over MQTT](../integrations/mqtt), and the playlist page shows no Plex Web link for them. Both work as the Plex owner, who can't see another account's playlists.
+
+---
+
 ## Security
 
 When you login to your Spotify account, the tokens are stored in `spotify.json` in your storage folder (`/app/config`).

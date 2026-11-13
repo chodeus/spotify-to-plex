@@ -89,6 +89,8 @@ The MQTT sync runs **every hour** automatically. It:
 3. Publishes each item as a Home Assistant sensor
 4. Publishes a "Music Categories" sensor with all unique categories
 
+Playlists made in a [Plex Home user's account](../spotify/users#plex-home-user) are skipped, and their old sensors are removed: Home Assistant plays as the Plex owner, who can't see them.
+
 ### What Gets Published
 
 For each labeled item, a sensor is created with these attributes:

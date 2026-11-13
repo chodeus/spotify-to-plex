@@ -80,7 +80,7 @@ This fork is [jjdenhertog/spotify-to-plex](https://github.com/jjdenhertog/spotif
 
 **slskd and Tidal**
 
-- slskd: a file is checked against the track's length, peers are ranked, and the search timeout is honoured.
+- slskd: each file's length reaches the match filter, so its duration rows apply; among copies of one recording the peer likely to deliver soonest is tried first, and the search timeout is honoured.
 - Tidal: the access token is kept only for the seconds Tidal grants it.
 
 **Spotify**

@@ -67,6 +67,10 @@ Navigate to **Advanced → SLSKD Integration** and configure:
 |---------|-------------|
 | SLSKD URL | Base URL of your SLSKD instance (e.g., `http://192.168.1.100:5030`) |
 | Enable SLSKD Integration | Toggle to enable the feature |
+| Allowed File Extensions | File types to download, in order of preference |
+| Download Attempts | How many files to try for one song before giving up |
+| Search Timeout (seconds) | How long a search collects results |
+| Max Results | Results kept per search approach |
 | Enable Automatic Sync | Automatically search and download during daily sync |
 
 ---
@@ -76,6 +80,10 @@ Navigate to **Advanced → SLSKD Integration** and configure:
 ### Manual Search
 
 Once configured, you can manually search for SLSKD songs via the Missing Tracks dialog.
+
+### How a file is picked
+
+Results are matched with the same [match filter](../matching) as Plex. Each file's length is passed along, so the filter's duration rows apply to SLSKD results too. Files are tried in your extension order, then by how well they match. Among copies of the same recording, the peer likely to deliver soonest goes first: a free upload slot and a short queue, then upload speed.
 
 ### Automatic Sync
 
