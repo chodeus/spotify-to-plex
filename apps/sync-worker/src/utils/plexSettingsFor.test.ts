@@ -137,7 +137,7 @@ describe('findPickableHomeUser', () => {
             { uuid: 'kid', title: 'Kid', admin: false, protected: true }
         ] } });
 
-        expect(await findPickableHomeUser('faye')).toEqual({ uuid: 'faye', title: 'Faye', admin: false, protected: false });
+        expect(await findPickableHomeUser('faye')).toEqual({ uuid: 'faye', title: 'Faye', admin: false, protected: false, pickable: true });
         expect(await findPickableHomeUser('owner')).toBeUndefined();
         expect(await findPickableHomeUser('kid')).toBeUndefined();
         expect(await findPickableHomeUser('unknown')).toBeUndefined();

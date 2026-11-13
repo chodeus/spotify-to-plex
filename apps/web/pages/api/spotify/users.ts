@@ -32,10 +32,13 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
 
             const { id, sync, label, recent_context, plex_home_user } = req.body;
 
+            if (plex_home_user !== undefined && plex_home_user !== null && typeof plex_home_user !== 'string')
+                return res.status(400).json({ error: "plex_home_user must be a Home user's uuid, or null for the owner." })
+
             // Asked before the file is read: a token refresh written meanwhile must not be overwritten
             const homeUser = typeof plex_home_user === 'string' ? await findPickableHomeUser(plex_home_user) : undefined
             if (typeof plex_home_user === 'string' && !homeUser)
-                return res.status(400).json({ error: "Unknown Plex Home user, or one with a PIN." })
+                return res.status(400).json({ error: "That Plex Home user can't be picked: it isn't in this Plex Home, or it's the owner or has a PIN." })
 
             const credentials: SpotifyCredentials[] = JSON.parse(readFileSync(credentialsPath, 'utf8'))
             const credential = credentials.find(item => item.user.id === id)

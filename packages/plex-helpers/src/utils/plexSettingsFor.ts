@@ -7,7 +7,7 @@ import { readJSON } from '@spotify-to-plex/plex-config/utils/fileUtils';
 
 // homeUser is the Plex Home user's uuid when the token is theirs, not the owner's
 export type PlexConnection = { id: string, uri: string, token: string, homeUser?: string }
-export type PlexHomeUser = { uuid: string, title: string, admin: boolean, protected: boolean }
+export type PlexHomeUser = { uuid: string, title: string, admin: boolean, protected: boolean, pickable: boolean }
 
 const TOKEN_TTL_MS = 60 * 60 * 1000;
 const homeUserTokens = new Map<string, { token: string, at: number }>();
@@ -81,14 +81,16 @@ export async function getPlexHomeUsers(): Promise<PlexHomeUser[]> {
     // An object with the account's fields and a users array, not a bare array
     const result = await plexTvClient.get<{ users?: PlexHomeUser[] }>('https://plex.tv/api/v2/home/users', plexTvRequest(token));
 
-    return (result.data.users ?? []).map(({ uuid, title, admin, protected: isProtected }) => ({ uuid, title, admin: !!admin, protected: !!isProtected }));
+    // The owner is the default and a PIN can't be stored, so neither can be picked
+    return (result.data.users ?? []).map(({ uuid, title, admin, protected: isProtected }) => ({
+        uuid, title, admin: !!admin, protected: !!isProtected, pickable: !admin && !isProtected
+    }));
 }
 
-// The owner and PIN-protected users can't be picked: the owner is the default, and a PIN can't be stored
 export async function findPickableHomeUser(uuid: string) {
     const homeUsers = await getPlexHomeUsers();
 
-    return homeUsers.find(item => item.uuid === uuid && !item.admin && !item.protected);
+    return homeUsers.find(item => item.uuid === uuid && item.pickable);
 }
 
 async function homeUserServerToken(uuid: string, serverId: string) {

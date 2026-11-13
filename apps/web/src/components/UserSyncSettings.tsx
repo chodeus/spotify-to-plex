@@ -21,6 +21,7 @@ export default function UserSyncSettings(props: Props) {
     // '' is the Plex owner's account
     const [plexHomeUser, setPlexHomeUser] = useState('')
     const [homeUsers, setHomeUsers] = useState<GetPlexHomeUsersResponse | null>(null)
+    const [homeUsersFailed, setHomeUsersFailed] = useState(false)
 
     //////////////////////////////
     // Making changes
@@ -97,8 +98,11 @@ export default function UserSyncSettings(props: Props) {
             const result = await axios.get<GetPlexHomeUsersResponse>('/api/plex/home-users', { signal: controller.signal })
             setHomeUsers(result.data)
         }, () => {
-            if (!controller.signal.aborted)
-                setHomeUsers([])
+            if (controller.signal.aborted)
+                return
+
+            setHomeUsers([])
+            setHomeUsersFailed(true)
         }, true)
 
         return () => controller.abort()
@@ -158,7 +162,7 @@ export default function UserSyncSettings(props: Props) {
                 <FormControl sx={{ mb: 2 }}>
                     <FormLabel component="legend">Plex user</FormLabel>
                     <Typography variant="body2">
-                        Playlists for items added from this user&apos;s library or recently played are made in this Plex Home user&apos;s account. After a change the next sync makes new copies there; the old ones stay where they are.
+                        Playlists for items added from this user&apos;s library or recently played are made in this Plex Home user&apos;s account. After a change, the next sync or Update makes new copies there; the old ones stay where they are.
                     </Typography>
                     <Select size="small" value={plexHomeUser} onChange={onPlexHomeUserChange} disabled={!homeUsers} displayEmpty>
                         <MenuItem value="">
@@ -167,11 +171,14 @@ export default function UserSyncSettings(props: Props) {
                         {!!user.plex_home_user && !homeUsers?.some(item => item.uuid === user.plex_home_user?.uuid) &&
                             <MenuItem value={user.plex_home_user.uuid}>{user.plex_home_user.title}</MenuItem>}
                         {homeUsers?.filter(item => !item.admin).map(item => (
-                            <MenuItem key={item.uuid} value={item.uuid} disabled={item.protected}>
+                            <MenuItem key={item.uuid} value={item.uuid} disabled={!item.pickable}>
                                 {item.title}{item.protected ? ' (PIN not supported)' : ''}
                             </MenuItem>
                         ))}
                     </Select>
+                    {!!homeUsersFailed && <Typography variant="body2" color="error">
+                        Plex Home users could not be loaded.
+                    </Typography>}
                 </FormControl>
 
                 <Divider sx={{ mt: 1, mb: 1 }} />

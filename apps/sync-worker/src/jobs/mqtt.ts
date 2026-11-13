@@ -140,8 +140,8 @@ async function runMQTT() {
                     currentPublished.push(previous);
             };
 
-            // Home Assistant plays as the Plex owner, who can't see a playlist made as a Home user;
-            // not publishing it, nor its label, also drops the entity it had before
+            // Home Assistant plays as the Plex owner, who can't see a playlist made as a Home user: skipped
+            // before its label is counted, and its old entity is removed by the cleanup below
             if (item.type === 'spotify-playlist' && await plexHomeUserOf(item.user)) {
                 logComplete(itemLog);
                 continue;
