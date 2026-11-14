@@ -26,7 +26,7 @@ const saved = (id: string, plexId: number) => ({ type: 'plex-media', uri: `/libr
 const previous = (id: string) => ({ id, entity_id: `sensor.spotify_to_plex_item_${id}`, category: 'Mood' });
 
 const PREFIX = 'spotify_to_plex';
-const IDS = ['kept', 'flaky', 'deleted', 'unsaved'];
+const IDS = ['kept', 'flaky', 'deleted', 'unsaved', 'fresh'];
 // A clear left unretained does not remove what the broker holds
 const cleared = (topic: string, retained = false) => published.some(item => item.topic === topic && item.message === '' && (!retained || item.retain === true));
 const configCleared = (id: string, retained?: boolean) => cleared(createDiscoveryTopic(createEntityId(id, PREFIX), 'homeassistant'), retained);
@@ -102,6 +102,31 @@ describe('syncMQTT cleanup', () => {
 
         expect(removed()).toEqual(['unsaved']);
         expect(kept()).toEqual(['kept', 'flaky', 'deleted']);
+    });
+
+    // Its config is retained on the broker though its state publish failed: left untracked, no run would clear it
+    it('tracks a new entity whose publish failed partway, so a later run can remove it', async () => {
+        write('spotify_saved_items.json', [saved('kept', 1), saved('fresh', 4)]);
+        write('mqtt_published_items.json', [previous('kept')]);
+        publish.mockImplementation(async (topic: string, message: string, options?: { retain?: boolean }) => {
+            await record(topic, message, options);
+            if (topic === createStateTopic('fresh', PREFIX) && message !== '')
+                throw new Error('publish timed out');
+        });
+
+        await syncMQTT();
+
+        expect(kept()).toEqual(['kept', 'fresh']);
+
+        // Unsaved before the next run: its retained config is cleared
+        write('spotify_saved_items.json', [saved('kept', 1)]);
+        published.length = 0;
+        publish.mockImplementation(record);
+
+        await syncMQTT();
+
+        expect(removed()).toEqual(['fresh']);
+        expect(kept()).toEqual(['kept']);
     });
 
     it.each(['playlists.json', 'track_links.json'])('removes nothing when %s cannot be read', async file => {
