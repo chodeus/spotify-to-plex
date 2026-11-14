@@ -27,15 +27,15 @@
     "@spotify-to-plex/slskd-music-search": "workspace:*",
     "@spotify-to-plex/tidal-music-search": "workspace:*",
     "@spotify/web-api-ts-sdk": "^1.2.0",
-    "axios": "^1.21.0",
+    "axios": "^1.21.1",
     "moment": "^2.31.0",
-    "next": "^16.4.5",
+    "next": "^16.4.6",
     "next-connect": "^1.0.0",
     "notistack": "^3.0.2",
     "qs": "^6.17.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
-    "sass": "^1.108.1"
+    "sass": "^1.108.2"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",

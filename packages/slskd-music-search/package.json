@@ -44,14 +44,14 @@
     "dependencies": {
         "@spotify-to-plex/music-search": "workspace:*",
         "@spotify-to-plex/shared-types": "workspace:*",
-        "axios": "^1.21.0",
+        "axios": "^1.21.1",
         "qs": "^6.17.1"
     },
     "devDependencies": {
         "@types/node": "^26.6.6",
         "@types/qs": "^6.15.1",
         "typescript": "~6.0.3",
-        "vite": "^8.3.6",
+        "vite": "^8.3.8",
         "vitest": "^5.1.0"
     }
 }

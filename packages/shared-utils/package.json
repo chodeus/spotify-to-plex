@@ -35,7 +35,7 @@
         "@spotify-to-plex/http-client": "workspace:*",
         "@spotify-to-plex/shared-types": "workspace:*",
         "@spotify/web-api-ts-sdk": "^1.2.0",
-        "axios": "^1.21.0",
+        "axios": "^1.21.1",
         "fs-extra": "^11.4.1",
         "string-similarity-js": "^2.1.4"
     },
@@ -43,7 +43,7 @@
         "@types/fs-extra": "^11.0.4",
         "@types/node": "^26.6.6",
         "typescript": "~6.0.3",
-        "vite": "^8.3.6",
+        "vite": "^8.3.8",
         "vitest": "^5.1.0"
     },
     "peerDependencies": {
