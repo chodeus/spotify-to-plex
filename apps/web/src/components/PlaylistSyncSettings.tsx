@@ -8,7 +8,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import { Box, Button, Checkbox, Chip, CircularProgress, Divider, FormControlLabel, FormGroup, IconButton, Modal, Radio, RadioGroup, TextField, Typography } from "@mui/material";
 import axios from "axios";
 import { enqueueSnackbar } from "notistack";
-import { ChangeEvent, useCallback, useEffect, useState } from "react";
+import { ChangeEvent, useCallback, useState } from "react";
 
 type Props = {
     readonly onClose: (reload?: boolean) => void
@@ -19,11 +19,21 @@ type Props = {
 type PlexTarget = NonNullable<SavedItem['plex_target']>
 const PLEX_TARGET_LABELS: Record<PlexTarget, string> = { playlist: 'Playlist', collection: 'Collection', both: 'Playlist and collection' }
 
+function sharedLabel(items: SavedItem[]) {
+    const labels = items
+        .map(item => item.label || "")
+        .filter(filterUnique)
+
+    return labels.length === 1 && labels[0] ? labels[0] : ''
+}
+
 export default function PlaylistItemSettings(props: Props) {
     const { items, labels, onClose } = props;
-    const [autoSync, setAutoSync] = useState(false);
-    const [days, setDays] = useState("2");
-    const [plexTarget, setPlexTarget] = useState<PlexTarget>('playlist');
+    // Read once, as the editor opens: a reload of the list behind it must not undo an edit
+    const [firstItem] = items
+    const [autoSync, setAutoSync] = useState(!!firstItem?.sync);
+    const [days, setDays] = useState(firstItem?.sync_interval ?? "2");
+    const [plexTarget, setPlexTarget] = useState<PlexTarget>(() => firstItem ? plexTargetOf(firstItem) : 'playlist');
     const [loading, setLoading] = useState(false);
     // The albums sync makes nothing in Plex, so the choice is for playlists only
     const allPlaylists = items.length > 0 && items.every(item => item.type === 'spotify-playlist');
@@ -31,7 +41,7 @@ export default function PlaylistItemSettings(props: Props) {
     ///////////////////////////////////////////////
     // Modify labels
     ///////////////////////////////////////////////
-    const [label, setLabel] = useState('')
+    const [label, setLabel] = useState(() => sharedLabel(items))
     // Only touched fields are sent: with several items selected the form starts from the
     // first item (sync) or blank (mixed labels), and sending that would overwrite the rest
     const [labelEdited, setLabelEdited] = useState(false)
@@ -100,29 +110,6 @@ export default function PlaylistItemSettings(props: Props) {
     const onCloseClick = useCallback(() => {
         onClose()
     }, [onClose])
-
-    /////////////////////////////////////
-    // Load item data
-    /////////////////////////////////////
-    useEffect(() => {
-        if (!items || items.length === 0)
-            return;
-
-        const [firstItem] = items
-        if (firstItem) {
-            setAutoSync(!!firstItem.sync)
-            setDays(firstItem.sync_interval ?? "2")
-            setPlexTarget(plexTargetOf(firstItem))
-        }
-
-        const labels = items
-            .map(item => item.label || "")
-            .filter(filterUnique)
-
-        if (labels.length === 1 && labels[0])
-            setLabel(labels[0])
-
-    }, [items])
 
     const onEditLabelChipClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
         const labelValue = e.currentTarget.dataset.label;
