@@ -1,8 +1,24 @@
+import { forgetPlexMatches } from '@spotify-to-plex/shared-utils/cache/forgetPlexMatches';
 import { waitForLock } from '@spotify-to-plex/shared-utils/utils/syncLock';
 import { PlexSettingsUpdate } from '../types/PlexSettingsUpdate';
 import { getSettings } from './getSettings';
 import { deleteJSON, writeJSON } from '../utils/fileUtils';
 import { SyncRunningError } from '../utils/SyncRunningError';
+
+// The syncs that save Plex keys: one running now would save the old server's keys again
+async function lockKeySavingSyncs() {
+    const playlists = await waitForLock('playlists', 0);
+    const albums = playlists ? await waitForLock('albums', 0) : undefined;
+    if (!playlists || !albums) {
+        playlists?.();
+        throw new SyncRunningError('A playlist or album sync is running: choose the new Plex server once it finishes');
+    }
+
+    return () => {
+        albums();
+        playlists();
+    };
+}
 
 export async function updateSettings(updates: PlexSettingsUpdate) {
     const current = await getSettings(true);
@@ -13,13 +29,11 @@ export async function updateSettings(updates: PlexSettingsUpdate) {
         return updated;
     }
 
-    // The lock syncPlaylists runs under: a playlist sync running now would save the old server's keys again
-    const release = await waitForLock('playlists', 0);
-    if (!release)
-        throw new SyncRunningError('A playlist sync is running: choose the new Plex server once it finishes');
-
+    const release = await lockKeySavingSyncs();
     try {
-        // Saved playlist and collection keys belong to the server that made them: another server gives those numbers to its own items
+        // Saved playlist, collection, track and album keys belong to the server that made them: another server gives those numbers to its own items.
+        // The track links go first, as an unreadable file is the likeliest failure: it then stops the switch before anything changed
+        forgetPlexMatches();
         await Promise.all([deleteJSON('playlists.json'), deleteJSON('collections.json')]);
         await writeJSON('plex.json', updated);
     } finally {

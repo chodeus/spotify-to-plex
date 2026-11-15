@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { updateSettings } from '@spotify-to-plex/plex-config/functions/updateSettings';
+import { getCachedTrackLinks } from '@spotify-to-plex/shared-utils/cache/getCachedTrackLink';
 import { waitForLock } from '@spotify-to-plex/shared-utils/utils/syncLock';
 
 import { membersOf, plex, resetPlex, tag } from './testing/fakePlexLibrary';
@@ -32,6 +33,12 @@ const saved = (plexTarget: string) => write('spotify_saved_items.json', [{ type:
 const errorOf = (id: string) => read('sync_log.json').playlists.find((log: { id: string }) => log.id === id)?.error;
 const collectionsNamed = (title: string) => [...plex.collections].filter(([, c]) => c.title === title).map(([ratingKey]) => ratingKey);
 const newServer = { id: 'other-machine', uri: 'http://other.test:32400', serverToken: 'other-server' };
+const slskdFile = { username: 'u', filename: 'Song.flac', size: 3 };
+const links = [
+    { spotify_id: 't1', plex_id: ['/library/metadata/1'], manual: true, tidal_id: ['91'] },
+    { spotify_id: 't2', plex_id: ['/library/metadata/2'], plex_matched_by: 'isrc', plex_checked_at: 1_700_000_000_000, slskd_files: [slskdFile] },
+    { spotify_id: 'album-b', plex_id: ['/library/metadata/50'] }
+];
 
 async function sync() {
     const { syncPlaylists } = await import('../jobs/playlists');
@@ -68,17 +75,46 @@ describe('POST /api/settings choosing another Plex server', () => {
         return { status, json };
     }
 
-    it('refuses while a playlist sync runs, and changes nothing', async () => {
+    it.each(['playlists', 'albums'])('refuses while the %s sync runs, and changes nothing', async lock => {
         write('collections.json', { data: [{ id: 'p1', plex: '900' }] });
-        const release = await waitForLock('playlists', 0);
+        write('track_links.json', links);
+        const release = await waitForLock(lock, 0);
         try {
             const { status, json } = await post({ id: 'other-machine', uri: 'http://other.test:32400' });
 
-            expect({ status, json }).toEqual({ status: 409, json: { error: 'A playlist sync is running: choose the new Plex server once it finishes' } });
+            expect({ status, json }).toEqual({ status: 409, json: { error: 'A playlist or album sync is running: choose the new Plex server once it finishes' } });
         } finally {
             release?.();
         }
 
+        expect(read('plex.json').id).toBe('machine');
+        expect(read('collections.json').data).toEqual([{ id: 'p1', plex: '900' }]);
+        expect(read('track_links.json')).toEqual(links);
+        // The refusal must not keep the other lock: the next sync would never start
+        const free = await Promise.all(['playlists', 'albums'].map(name => waitForLock(name, 0)));
+        free.forEach(release => release?.());
+        expect(free.map(Boolean)).toEqual([true, true]);
+    });
+
+    it("forgets the old server's Plex matches, hand-picks included, and keeps the Tidal and slskd ones", async () => {
+        write('track_links.json', links);
+
+        const { status } = await post({ id: 'other-machine', uri: 'http://other.test:32400' });
+
+        expect(status).toBe(200);
+        expect(read('track_links.json')).toEqual([{ spotify_id: 't1', tidal_id: ['91'] }, { spotify_id: 't2', slskd_files: [slskdFile] }, { spotify_id: 'album-b' }]);
+        const tracks = ['t1', 't2'].map(id => ({ id, title: id, artists: ['A'] }));
+        expect(getCachedTrackLinks(tracks, 'plex').found).toEqual([]);
+        expect(getCachedTrackLinks(tracks, 'tidal').found.map(link => link.spotify_id)).toEqual(['t1']);
+    });
+
+    it('stops before changing anything when the track links cannot be read', async () => {
+        write('collections.json', { data: [{ id: 'p1', plex: '900' }] });
+        writeFileSync(join(dir, 'track_links.json'), '[{"spotify_id": "t1",');
+
+        const { status, json } = await post({ id: 'other-machine', uri: 'http://other.test:32400' });
+
+        expect({ status, json }).toEqual({ status: 500, json: { error: 'Failed to update settings' } });
         expect(read('plex.json').id).toBe('machine');
         expect(read('collections.json').data).toEqual([{ id: 'p1', plex: '900' }]);
     });
@@ -124,13 +160,14 @@ describe('playlist sync across a Plex server switch', () => {
 
         await sync();
 
-        expect(refused).toBe('A playlist sync is running: choose the new Plex server once it finishes');
+        expect(refused).toBe('A playlist or album sync is running: choose the new Plex server once it finishes');
         expect(read('plex.json').id).toBe('machine');
         expect(errorOf('p1')).toBeUndefined();
         expect(read('collections.json').data).toEqual([{ id: 'p1', plex: '900' }]);
     });
 
-    it('keeps its collection when the same server is chosen at another address', async () => {
+    it('keeps its collection and every track match when the same server is chosen at another address', async () => {
+        write('track_links.json', links);
         await sync();
 
         await updateSettings({ id: 'machine', uri: 'http://other.test:32400', serverToken: 'owner-server' });
@@ -139,5 +176,6 @@ describe('playlist sync across a Plex server switch', () => {
         expect(errorOf('p1')).toBeUndefined();
         expect([...plex.collections.keys()]).toEqual(['900']);
         expect(membersOf('900')).toEqual(['1', '2', '3']);
+        expect(read('track_links.json')).toEqual(links);
     });
 });
