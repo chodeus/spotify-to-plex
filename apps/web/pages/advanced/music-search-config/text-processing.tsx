@@ -16,7 +16,7 @@ const TextProcessingPage: NextPage = () => {
     const editorRef = useRef<MonacoJsonEditorHandle>(null);
 
     const loadConfig = useCallback(async () => {
-        errorBoundary(async () => {
+        await errorBoundary(async () => {
             setLoading(true);
             const response = await axios.get('/api/plex/music-search-config/text-processing');
             setJsonData(response.data);

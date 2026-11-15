@@ -48,7 +48,7 @@ const MatchFiltersPage: NextPage = () => {
     }, []);
 
     const loadData = useCallback(async () => {
-        errorBoundary(async () => {
+        await errorBoundary(async () => {
             setLoading(true);
             const response = await axios.get('/api/plex/music-search-config/match-filters');
             setData(response.data);
@@ -59,7 +59,7 @@ const MatchFiltersPage: NextPage = () => {
     }, []);
 
     const saveData = useCallback(async () => {
-        errorBoundary(async () => {
+        await errorBoundary(async () => {
             const validationErrorMsg = validateFilters(data);
             if (validationErrorMsg) {
                 setValidationError(validationErrorMsg);

@@ -94,11 +94,11 @@ export default function SyncTrigger() {
             const message = getErrorMessage(err);
             setError(`Failed to start ${type} sync: ${message}`);
             setSyncing(prev => ({ ...prev, [type]: false }));
-        });
+        }, true);
     }, []);
 
     const onSyncClick = useCallback((type: SyncType) => () => {
-        errorBoundary(async () => handleSync(type));
+        errorBoundary(() => handleSync(type));
     }, [handleSync]);
 
     // Filter sync options based on availability
