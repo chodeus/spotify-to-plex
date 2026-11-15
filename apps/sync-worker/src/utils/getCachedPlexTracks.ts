@@ -76,7 +76,7 @@ export async function getCachedPlexTracks(plexSearchConfig: PlexMusicSearchConfi
     const manual: SearchResponse[] = [];
     // A hand pick Plex didn't answer for this run: the caller can't tell what it matched
     let manualUnanswered = false;
-    // A link whose lookups all failed this run: its cached key stands in for it in Plex, as a hiccup is no reason to drop it
+    // A link with no track this run and a lookup Plex left unanswered: its cached key stands in, as a hiccup is no reason to drop it
     const standIns = new Map<string, string>();
     // Links due a fresh search: the caller searches them, and a better match replaces the cached one
     const recheck: SpotifyTrack[] = [];
@@ -116,8 +116,7 @@ export async function getCachedPlexTracks(plexSearchConfig: PlexMusicSearchConfi
             if (standIn)
                 standIns.set(searchItem.id, standIn);
 
-            // A manual pick whose lookups all failed is not evidence of a bad link.
-            // Keep it out of the automatic re-search so a plex hiccup cannot replace it
+            // A manual pick Plex left unanswered is no evidence of a bad link: kept out of the re-search so a hiccup cannot replace it
             if (!trackLink.manual)
                 continue;
 
