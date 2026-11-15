@@ -46,14 +46,22 @@ export async function putPlexCollection(settings: PlexConnection, id: string, re
     await addItemsToCollection(settings, collectionId, toAdd);
 
     const dropped = [...held].filter(key => !wanted.has(key));
+    // Every removal is tried, so one track Plex keeps refusing cannot hold back the rest
+    const notRemoved: { key: string, error: unknown }[] = [];
     if (removeDropped) {
         for (const key of dropped)
-            await removeItemFromCollection(settings, collectionId, key);
+            await removeItemFromCollection(settings, collectionId, key).catch((error: unknown) => { notRemoved.push({ key, error }) });
     } else if (dropped.length > 0) {
         console.log(`* Plex did not answer for every track, so ${dropped.length} track(s) stay in the collection until a sync where it does`);
     }
 
     await logNotAdded(settings, collectionId, toAdd);
+    const [refused] = notRemoved;
+    if (refused) {
+        console.log(`* Plex did not take ${notRemoved.length} track(s) out of the collection: ${notRemoved.map(item => item.key).join(', ')}`);
+        throw refused.error;
+    }
+
     if (!thumb)
         return;
 

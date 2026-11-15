@@ -100,6 +100,18 @@ describe('playlist sync into a Plex collection', () => {
         expect(plex.requests.filter(line => line.startsWith('PUT /library/metadata/900/prefs'))).toHaveLength(1);
     });
 
+    it('takes out every other dropped track when Plex refuses to take out one, and names that one', async () => {
+        await sync();
+        spotify.tracks = tracks(1);
+        plex.fail = (method, path) => method === 'DELETE' && path.endsWith('/children/2');
+
+        await sync();
+
+        expect(errorOf('p1')).toBe('Something went wrong while syncing: Request failed with status code 401');
+        expect(membersOf('900')).toEqual(keys(1, 2));
+        expect(console.log).toHaveBeenCalledWith('* Plex did not take 1 track(s) out of the collection: /library/metadata/2');
+    });
+
     it('renames the collection with the playlist, keeping its tracks', async () => {
         await sync();
         saved({ plex_target: 'collection', title: 'Mix 2' });
