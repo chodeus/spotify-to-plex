@@ -27,7 +27,7 @@ export async function putPlexCollection(settings: PlexConnection, id: string, re
     const sectionId = collection?.librarySectionID ?? await sectionOf(settings, keys);
 
     const others = await getSectionCollections(settings, sectionId);
-    const own = collection ?? await adoptMade(id, others);
+    const own = collection ?? await adoptMade(settings, id, others);
     // Plex ties tracks to a collection by its title, ignoring case: two collections with one title share their tracks
     const clash = others.find(other => other.ratingKey !== own?.ratingKey && sameTitle(other.title, title));
     if (clash && records.some(item => item.plex === clash.ratingKey))
@@ -75,25 +75,28 @@ export async function putPlexCollection(settings: PlexConnection, id: string, re
 // Only this playlist's collection is ever made under it, so a create whose answer or record was lost is found again
 const makingTitle = (id: string) => `spotify-to-plex ${id}`;
 
-async function adoptMade(id: string, others: { ratingKey: string, title: string }[]) {
+async function adoptMade(settings: PlexConnection, id: string, others: { ratingKey: string, title: string }[]) {
     const made = others.find(other => other.title === makingTitle(id));
     if (made)
-        await addCollection({ id, plex: made.ratingKey });
+        await claim(settings, id, made.ratingKey);
 
     return made;
 }
 
-async function createCollection(settings: PlexConnection, id: string, sectionId: number, title: string, firstKey: string) {
-    const collectionId = await storeCollection(settings, sectionId, makingTitle(id), firstKey);
-    // Recorded before the adds, so a failed add cannot leave a collection the next sync creates again
+// Recorded before the adds, so a failed add cannot leave a collection the next sync creates again
+async function claim(settings: PlexConnection, id: string, collectionId: string) {
     await addCollection({ id, plex: collectionId });
-    // Once, at create: a sort chosen later in Plex stays
+    // As the collection becomes this playlist's, not on every sync: a sort chosen later in Plex stays
     try {
         await sortCollectionByTitle(settings, collectionId);
     } catch (_e) {
         console.log(`* Could not set the collection to sort by title`);
     }
+}
 
+async function createCollection(settings: PlexConnection, id: string, sectionId: number, title: string, firstKey: string) {
+    const collectionId = await storeCollection(settings, sectionId, makingTitle(id), firstKey);
+    await claim(settings, id, collectionId);
     await renameCollection(settings, sectionId, collectionId, title);
 
     return collectionId;

@@ -3,6 +3,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { updateSettings } from '@spotify-to-plex/plex-config/functions/updateSettings';
+
 import { membersOf, plex, resetPlex, tag, untag } from './testing/fakePlexLibrary';
 
 const { plexTv, spotify } = vi.hoisted(() => ({
@@ -209,7 +211,37 @@ describe('playlist sync into a Plex collection', () => {
         expect(errorOf('p1')).toBeUndefined();
         expect([...plex.collections]).toEqual([['900', { title: 'Mix', section: 6 }]]);
         expect(membersOf('900')).toEqual(keys(1, 2, 3));
+        expect(plex.sorts.get('900')).toBe('1');
         expect(read('collections.json').data).toEqual([{ id: 'p1', plex: '900' }]);
+    });
+
+    it("leaves a new server's playlist and collection alone when they carry the keys saved for the old server", async () => {
+        saved({ plex_target: 'both' });
+        write('playlists.json', { data: [{ id: 'p1', plex: '700' }] });
+        write('collections.json', { data: [{ id: 'p1', plex: '800' }] });
+        plex.playlists.set('700', ['/library/metadata/7']);
+        plex.collections.set('800', { title: 'Road Trip', section: 6 });
+        tag('7', 'Road Trip');
+
+        await updateSettings({ id: 'other-machine', uri: 'http://other.test:32400', serverToken: 'other-server' });
+        await sync();
+
+        expect(plex.playlists.get('700')).toEqual(['/library/metadata/7']);
+        expect([...plex.playlists.values()]).toContainEqual(['/library/metadata/1', '/library/metadata/2', '/library/metadata/3']);
+        expect(plex.collections.get('800')?.title).toBe('Road Trip');
+        expect(membersOf('800')).toEqual(keys(7));
+        expect(membersOf(collectionsNamed('Mix')[0] ?? '')).toEqual(keys(1, 2, 3));
+    });
+
+    it('keeps its collection when the same server is chosen at another address', async () => {
+        await sync();
+
+        await updateSettings({ id: 'machine', uri: 'http://other.test:32400', serverToken: 'owner-server' });
+        await sync();
+
+        expect(errorOf('p1')).toBeUndefined();
+        expect([...plex.collections.keys()]).toEqual(['900']);
+        expect(membersOf('900')).toEqual(keys(1, 2, 3));
     });
 
     it('makes nothing when Plex does not answer with the collection list, and tries again on the next run before the interval is up', async () => {
