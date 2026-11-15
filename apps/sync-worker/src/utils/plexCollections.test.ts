@@ -132,6 +132,17 @@ describe('playlist sync into a Plex collection', () => {
         expect(errorOf('p1')).toBe('Something went wrong while syncing: Plex already has a collection named "MIX" that spotify-to-plex has no record of: rename or delete it in Plex to sync this playlist as a collection');
     });
 
+    it('names the other synced playlist when it already has a collection with this title', async () => {
+        const item = (id: string) => ({ type: 'spotify-playlist', id, title: 'Discover Weekly', uri: `spotify:playlist:${id}`, image: '', sync: true, sync_interval: '0', plex_target: 'collection' });
+        write('spotify_saved_items.json', [item('p1'), item('p2')]);
+
+        await sync();
+
+        expect(collectionsNamed('Discover Weekly')).toEqual(['900']);
+        expect(errorOf('p1')).toBeUndefined();
+        expect(errorOf('p2')).toBe('Something went wrong while syncing: Another synced playlist already has a collection named "Discover Weekly": give one of them another title to sync both as collections');
+    });
+
     it('keeps its collection as it was rather than rename it to a title another collection has', async () => {
         await sync();
         plex.collections.set('800', { title: 'Other', section: 6 });
@@ -172,6 +183,21 @@ describe('playlist sync into a Plex collection', () => {
         expect(errorOf('p1')).toBeUndefined();
         expect(collectionsNamed('Mix')).toEqual(['900']);
         expect(membersOf('900')).toHaveLength(150);
+    });
+
+    it('takes over the collection a create made when Plex lost its answer, rather than make a second', async () => {
+        plex.loseAnswer = (method, path) => method === 'POST' && path === '/library/collections';
+        await sync();
+        expect(errorOf('p1')).toBe('Something went wrong while syncing: timeout of 30000ms exceeded');
+        expect([...plex.collections]).toEqual([['900', { title: 'spotify-to-plex p1', section: 6 }]]);
+
+        plex.loseAnswer = undefined;
+        await sync();
+
+        expect(errorOf('p1')).toBeUndefined();
+        expect([...plex.collections]).toEqual([['900', { title: 'Mix', section: 6 }]]);
+        expect(membersOf('900')).toEqual(keys(1, 2, 3));
+        expect(read('collections.json').data).toEqual([{ id: 'p1', plex: '900' }]);
     });
 
     it('makes nothing when Plex does not answer with the collection list, and tries again on the next run before the interval is up', async () => {

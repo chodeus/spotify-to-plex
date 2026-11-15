@@ -26,14 +26,18 @@ export async function putPlexCollection(settings: PlexConnection, id: string, re
     const collection = found?.type === 'collection' ? found : undefined;
     const sectionId = collection?.librarySectionID ?? await sectionOf(settings, keys);
 
-    // Plex ties tracks to a collection by its title, ignoring case: two collections with one title share their tracks
     const others = await getSectionCollections(settings, sectionId);
-    const clash = others.find(other => other.ratingKey !== collection?.ratingKey && sameTitle(other.title, title));
+    const own = collection ?? await adoptMade(id, others);
+    // Plex ties tracks to a collection by its title, ignoring case: two collections with one title share their tracks
+    const clash = others.find(other => other.ratingKey !== own?.ratingKey && sameTitle(other.title, title));
+    if (clash && records.some(item => item.plex === clash.ratingKey))
+        throw new Error(`Another synced playlist already has a collection named "${clash.title}": give one of them another title to sync both as collections`);
+
     if (clash)
         throw new Error(`Plex already has a collection named "${clash.title}" that spotify-to-plex has no record of: rename or delete it in Plex to sync this playlist as a collection`);
 
-    const collectionId = collection?.ratingKey ?? await createCollection(settings, id, sectionId, title, first);
-    if (collection && collection.title !== title)
+    const collectionId = own?.ratingKey ?? await createCollection(settings, id, sectionId, title, first);
+    if (own && own.title !== title)
         await renameCollection(settings, sectionId, collectionId, title);
 
     const held = new Set(await getCollectionItemKeys(settings, collectionId));
@@ -60,8 +64,19 @@ export async function putPlexCollection(settings: PlexConnection, id: string, re
     }
 }
 
+// Only this playlist's collection is ever made under it, so a create whose answer or record was lost is found again
+const makingTitle = (id: string) => `spotify-to-plex ${id}`;
+
+async function adoptMade(id: string, others: { ratingKey: string, title: string }[]) {
+    const made = others.find(other => other.title === makingTitle(id));
+    if (made)
+        await addCollection({ id, plex: made.ratingKey });
+
+    return made;
+}
+
 async function createCollection(settings: PlexConnection, id: string, sectionId: number, title: string, firstKey: string) {
-    const collectionId = await storeCollection(settings, sectionId, title, firstKey);
+    const collectionId = await storeCollection(settings, sectionId, makingTitle(id), firstKey);
     // Recorded before the adds, so a failed add cannot leave a collection the next sync creates again
     await addCollection({ id, plex: collectionId });
     // Once, at create: a sort chosen later in Plex stays
@@ -70,6 +85,8 @@ async function createCollection(settings: PlexConnection, id: string, sectionId:
     } catch (_e) {
         console.log(`* Could not set the collection to sort by title`);
     }
+
+    await renameCollection(settings, sectionId, collectionId, title);
 
     return collectionId;
 }

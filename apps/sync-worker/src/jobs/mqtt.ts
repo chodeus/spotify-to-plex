@@ -259,7 +259,7 @@ async function runMQTT() {
             stateTopic: getCategoriesStateTopic(mqttConfig.topicPrefix),
         };
 
-        if (categories.size > 0 && publisher)
+        if (publisher)
             await publisher.publishCategories(categoriesArray);
 
         // Cleanup removed entities: one stays listed until its clear goes through, as the broker still holds it

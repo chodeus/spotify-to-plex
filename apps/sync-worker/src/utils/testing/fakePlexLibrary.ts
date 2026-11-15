@@ -8,6 +8,8 @@ export const plex = {
     ignored: new Set<string>(),
     dead: new Set<string>(),
     fail: undefined as undefined | ((method: string, path: string) => boolean),
+    // Plex does the request, then its answer never arrives
+    loseAnswer: undefined as undefined | ((method: string, path: string) => boolean),
     requests: [] as string[],
 };
 
@@ -16,6 +18,7 @@ export function resetPlex() {
         store.clear();
     plex.nextKey = 900;
     plex.fail = undefined;
+    plex.loseAnswer = undefined;
     plex.requests = [];
 }
 
@@ -114,6 +117,9 @@ export const fakeAxiosRequest = {
 
             for (const n of keysIn(uri))
                 tag(n, title);
+
+            if (plex.loseAnswer?.('POST', parsed.pathname))
+                throw Object.assign(new Error('timeout of 30000ms exceeded'), { code: 'ECONNABORTED' });
 
             return created(ratingKey);
         }
