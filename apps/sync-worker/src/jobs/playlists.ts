@@ -104,7 +104,7 @@ async function runPlaylists(force: boolean) {
 
                 console.log(`---- Syncing ${data.title} ----`)
                 // A blank saved title would leave the playlist or collection with no readable name in Plex
-                const plexTitle = title.trim() ? title : data.title
+                const plexTitle = title?.trim() ? title : data.title
 
                 //////////////////////////////////////
                 // Load music search configuration
@@ -164,7 +164,7 @@ async function runPlaylists(force: boolean) {
                 if (unsearched.length > 0)
                     console.log(`Could not search Plex for ${unsearched.length} tracks; they keep their status from the last missing list`)
 
-                const missingTracks = findMissingTracks(toSearchItems, result, lastMissing)
+                const missingTracks = findMissingTracks(toSearchItems, result, lastMissing, standIns)
                 if (missingTracks.length > 0)
                     console.log(`Missing ${missingTracks.length} tracks`)
 

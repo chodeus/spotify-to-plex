@@ -15,6 +15,7 @@ beforeEach(() => {
     write('spotify_saved_items.json', [{ type: 'spotify-playlist', id: 'p1', title: 'Mix', uri: 'spotify:playlist:p1', image: '', plex_target: 'collection' }]);
 });
 afterEach(() => {
+    vi.unstubAllEnvs();
     rmSync(dir, { recursive: true, force: true });
 });
 
@@ -74,7 +75,6 @@ describe('/api/saved-items title', () => {
 
         const { status } = await call('POST', { search: 'faye:liked', label: '  ' });
 
-        vi.unstubAllEnvs();
         expect(status).toBe(200);
         expect(read('spotify_saved_items.json').find((item: { id: string }) => item.id === 'liked-u1')?.title).toBe('Liked Songs');
     });

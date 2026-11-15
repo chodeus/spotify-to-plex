@@ -124,7 +124,7 @@ describe('playlist sync into a Plex collection', () => {
         expect(membersOf('900')).toEqual(keys(1, 2, 3));
     });
 
-    it.each(['', '  '])('names the playlist and collection after the Spotify playlist when the saved title is %j', async title => {
+    it.each([undefined, '', '  '])('names the playlist and collection after the Spotify playlist when the saved title is %j', async title => {
         saved({ plex_target: 'both', title });
 
         await sync();
@@ -321,6 +321,19 @@ describe('playlist sync into a Plex collection', () => {
         expect(read('collections.json').data).toEqual([{ id: 'p1', plex: '900' }, { id: 'p1', plex: '901' }]);
     });
 
+    it('keeps the collection in one library in step while another library refuses the title', async () => {
+        plex.sections.set('1', 7);
+        plex.collections.set('800', { title: 'Mix', section: 7 });
+        tag('1', 'Mix');
+
+        await sync();
+
+        expect(errorOf('p1')).toBe('Something went wrong while syncing: Plex already has a collection named "Mix" that spotify-to-plex has no record of: rename or delete it in Plex to sync this playlist as a collection');
+        expect([...plex.collections]).toEqual([['800', { title: 'Mix', section: 7 }], ['900', { title: 'Mix', section: 6 }]]);
+        expect(membersOf('800')).toEqual(keys(1));
+        expect(membersOf('900')).toEqual(keys(2, 3));
+    });
+
     it('drops the record of a collection deleted in Plex and keeps the others', async () => {
         plex.sections.set('3', 7);
         await sync();
@@ -439,6 +452,18 @@ describe('collection sync through the real track cache and search', () => {
         expect(errorOf('p1')).toBeUndefined();
         expect(members()).toEqual(keys(1, 2, 3));
         expect(playlistKeys()).toEqual([keys(1, 2, 3)]);
+    });
+
+    it('keeps the missing status of a track Plex holds through its cached key while the search finds nothing', async () => {
+        links();
+        await sync();
+
+        plex.fail = (method, path) => method === 'GET' && path === '/library/metadata/1';
+        await sync();
+
+        expect(errorOf('p1')).toBeUndefined();
+        expect(members()).toEqual(keys(1, 2, 3));
+        expect(existsSync(join(dir, 'missing_tracks_slskd.json')) ? read('missing_tracks_slskd.json') : []).toEqual([]);
     });
 
     it('keeps a hand-picked track Plex left unanswered this sync', async () => {

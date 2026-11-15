@@ -1,4 +1,5 @@
-// A fake Plex library that, like the real one, ties tracks to a collection of their own library by its title, ignoring case
+// A fake Plex library that, like the real one, ties tracks to a collection by its title, ignoring case;
+// keeping that to the collection's own library is assumed, as no second music library was checked live
 export const plex = {
     collections: new Map<string, { title: string, section: number }>(),
     tags: new Map<string, Set<string>>(),
@@ -139,6 +140,9 @@ export const fakeAxiosRequest = {
         const playlist = route(pathname, /^\/playlists\/(\d+)\/items$/);
         if (playlist)
             return { data: { MediaContainer: { Metadata: (plex.playlists.get(playlist) ?? []).map(key => ({ key })) } } };
+
+        if (pathname === '/hubs/search')
+            return { data: { MediaContainer: { size: 0, Hub: [] } } };
 
         throw new Error(`unexpected GET ${pathname}`);
     },
