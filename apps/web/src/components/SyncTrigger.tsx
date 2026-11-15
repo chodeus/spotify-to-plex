@@ -69,9 +69,10 @@ export default function SyncTrigger() {
                 const response = await axios.get<SyncAvailability>('/api/sync/availability');
                 setAvailability(response.data);
                 setLoading(false);
-            }, () => {
+            }, (err: unknown) => {
+                setError(`Could not load the sync options: ${getErrorMessage(err)}`);
                 setLoading(false);
-            });
+            }, true);
         };
 
         errorBoundary(fetchAvailability);
@@ -131,7 +132,7 @@ export default function SyncTrigger() {
                 </Alert>
             }
 
-            {!hasAvailableOptions &&
+            {!!availability && !hasAvailableOptions &&
                 <Alert severity="info" sx={{ mb: 2 }}>
                     No sync options are currently available. Please configure at least one sync option (Users, Lidarr, SLSKD or MQTT) to enable manual synchronization.
                 </Alert>
