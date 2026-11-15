@@ -6,6 +6,7 @@ import { syncUsers } from 'cronjob/users';
 import { syncLidarr } from 'cronjob/lidarr';
 import { syncMQTT } from 'cronjob/mqtt';
 import { syncSlskd } from 'cronjob/slskd';
+import { syncAll } from 'cronjob/all';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createRouter } from 'next-connect';
 import { isSyncRunning } from '@spotify-to-plex/shared-utils/utils/syncLock';
@@ -22,22 +23,21 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
                 throw new Error(`Expecting type albums, playlists, users, lidarr, mqtt, slskd, or all. Got ${typeof type === 'string' ? type : 'none'}`)
 
             // The job would skip itself anyway; saying so here keeps the page from reporting a start that never happens
-            const running = (type === 'all' ? ALL_TYPES : [type]).filter(isSyncRunning)
-            if (running.length > 0)
-                return res.status(409).json({ error: `Already running: the ${running.join(', ')} sync. Wait for it to finish, then start it again.` })
+            // "all" also checks its own lock: between steps it holds no single sync's lock
+            const checked: string[] = type === 'all' ? ['all', ...ALL_TYPES] : [type]
+            const running = checked.filter(name => isSyncRunning(name))
+            if (running.length > 0) {
+                const names = running.map(name => (name === 'all' ? '"all"' : name)).join(', ')
+
+                return res.status(409).json({ error: `Already running: the ${names} sync. Wait for it to finish, then start it again.` })
+            }
 
             // Fire and forget - start the sync process without awaiting
             if (type === 'all') {
                 // Run all syncs in sequence but don't await
-                syncUsers()
-                    .then(() => syncAlbums(true))
-                    .then(() => syncPlaylists(true))
-                    .then(() => syncLidarr())
-                    .then(() => syncMQTT())
-                    .then(() => syncSlskd())
-                    .catch((error: unknown) => {
-                        console.error(`Sync all failed: ${describeHttpError(error)}`);
-                    });
+                syncAll().catch((error: unknown) => {
+                    console.error(`Sync all failed: ${describeHttpError(error)}`);
+                });
             } else {
                 switch (type) {
                     case "albums":
