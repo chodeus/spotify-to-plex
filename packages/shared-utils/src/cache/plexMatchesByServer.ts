@@ -19,15 +19,13 @@ function readList<T>(path: string): T[] {
 /** Keeps a copy of the server's Plex matches, then takes them off every track and album link; Tidal and slskd matches stay. */
 export function forgetPlexMatches(server: string) {
     const links = readList<TrackLink>(linksPath())
-    const copies = readList<ServerCopy>(copiesPath())
+    const copies = readList<ServerCopy>(copiesPath()).filter(copy => copy.server !== server)
     const matches = links
         .filter(link => link.plex_id?.length)
         .map(({ spotify_id, plex_id, manual, plex_matched_by, plex_checked_at }) => ({ spotify_id, plex_id, manual, plex_matched_by, plex_checked_at }))
-    // A server with no matches now, as after a failed switch or restore, keeps the copy it had
-    const kept = matches.length > 0 ? matches : copies.find(copy => copy.server === server)?.matches ?? []
 
     // The copy is saved before the links lose their matches
-    writeJsonFileAtomic(copiesPath(), [...copies.filter(copy => copy.server !== server), { server, matches: kept }])
+    writeJsonFileAtomic(copiesPath(), [...copies, { server, matches }])
     writeJsonFileAtomic(linksPath(), links.map(({ plex_id, manual, plex_matched_by, plex_checked_at, ...link }) => link))
 }
 

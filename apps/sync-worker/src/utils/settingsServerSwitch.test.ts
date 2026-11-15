@@ -18,11 +18,26 @@ vi.mock('@spotify-to-plex/http-client/AxiosRequest', async () => {
     return { AxiosRequest: fakeAxiosRequest };
 });
 vi.mock('./loadSpotifyData', () => ({ loadSpotifyData }));
-const { disk } = vi.hoisted(() => ({ disk: { failDelete: false } }));
+const { disk } = vi.hoisted(() => ({ disk: { failDelete: false, holdRead: undefined as { reached: () => void, gate: Promise<void> } | undefined } }));
 vi.mock('@spotify-to-plex/plex-config/utils/fileUtils', async importOriginal => {
     const actual = await importOriginal<typeof import('@spotify-to-plex/plex-config/utils/fileUtils')>();
 
-    return { ...actual, deleteJSON: async (name: string) => disk.failDelete ? Promise.reject(new Error('EACCES: permission denied')) : actual.deleteJSON(name) };
+    return {
+        ...actual,
+        deleteJSON: async (name: string) => disk.failDelete ? Promise.reject(new Error('EACCES: permission denied')) : actual.deleteJSON(name),
+        // Holds one read of the settings after the file is read, as a slow disk would
+        readJSON: async <T>(name: string) => {
+            const value = await actual.readJSON<T>(name);
+            const hold = disk.holdRead;
+            if (name === 'plex.json' && hold) {
+                disk.holdRead = undefined;
+                hold.reached();
+                await hold.gate;
+            }
+
+            return value;
+        }
+    };
 });
 // Every track already matched in the cache, so the sync searches nothing
 vi.mock('./getCachedPlexTracks', () => ({ getCachedPlexTracks: async () => ({
@@ -49,6 +64,16 @@ const links = [
 const unmatched = [{ spotify_id: 't1', tidal_id: ['91'] }, { spotify_id: 't2', slskd_files: [slskdFile] }, { spotify_id: 'album-b' }];
 const oldServer = { id: 'machine', uri: 'http://plex.test:32400', serverToken: 'owner-server' };
 
+function holdNextSettingsRead() {
+    let reached = (): void => undefined;
+    let release = (): void => undefined;
+    const read = new Promise<void>(resolve => { reached = resolve });
+    const gate = new Promise<void>(resolve => { release = resolve });
+    disk.holdRead = { reached, gate };
+
+    return { read, release };
+}
+
 async function sync() {
     const { syncPlaylists } = await import('../jobs/playlists');
     await syncPlaylists(true);
@@ -59,6 +84,7 @@ beforeEach(() => {
     process.env.STORAGE_DIR = dir;
     resetPlex();
     disk.failDelete = false;
+    disk.holdRead = undefined;
     write('plex.json', { id: 'machine', uri: 'http://plex.test:32400', token: 'owner-account', serverToken: 'owner-server' });
     saved('collection');
     plexTv.get.mockResolvedValue({ data: [{ product: 'Plex Media Server', name: 'New', clientIdentifier: 'other-machine', accessToken: 'other-server', connections: [{ local: true, uri: 'http://other.test:32400' }] }] });
@@ -133,16 +159,37 @@ describe('POST /api/settings choosing another Plex server', () => {
         expect(read('track_links.json')).toEqual([{ spotify_id: 't1', tidal_id: ['91'], plex_id: ['/library/metadata/77'], manual: true }, ...unmatched.slice(1)]);
     });
 
-    it('still brings back every hand-pick after a switch that failed part-way and was tried again', async () => {
+    it("puts the old server's matches back as soon as a switch fails part-way, so a hand-pick made next is kept with them", async () => {
         write('track_links.json', links);
         disk.failDelete = true;
 
         const failed = await post({ id: 'other-machine', uri: 'http://other.test:32400' });
         disk.failDelete = false;
-        const retried = await post({ id: 'other-machine', uri: 'http://other.test:32400' });
+
+        expect(failed.status).toBe(500);
+        expect(read('plex.json').id).toBe('machine');
+        expect(read('track_links.json')).toEqual(links);
+
+        setManualTrackLink('t2', '/library/metadata/88');
+        const picked = read('track_links.json');
+        await updateSettings(newServer);
         await updateSettings(oldServer);
 
-        expect([failed.status, retried.status]).toEqual([500, 200]);
+        expect(read('track_links.json')).toEqual(picked);
+    });
+
+    it('keeps each server its own matches when a second switch read the settings before the first switch ended', async () => {
+        write('track_links.json', links);
+        const late = holdNextSettingsRead();
+        const second = updateSettings(newServer);
+        await late.read;
+
+        await updateSettings(newServer);
+        late.release();
+        await second;
+
+        expect(read('plex.json')).toMatchObject(newServer);
+        await updateSettings(oldServer);
         expect(read('track_links.json')).toEqual(links);
     });
 
