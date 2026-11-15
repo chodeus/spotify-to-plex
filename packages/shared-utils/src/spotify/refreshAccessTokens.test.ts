@@ -9,7 +9,7 @@ vi.mock('axios', () => ({ default: { post: vi.fn() } }));
 vi.mock('../security/encrypt', () => ({ encrypt: (text: string) => `enc:${text}` }));
 vi.mock('../security/decrypt', () => ({ decrypt: (text: string) => text.replace(/^enc:/, '') }));
 
-const { refreshAccessTokens, REFRESH_MARGIN_MS, REFRESH_LOCK_WAIT_MS } = await import('./refreshAccessTokens');
+const { refreshAccessTokens, REFRESH_MARGIN_MS } = await import('./refreshAccessTokens');
 const { waitForLock } = await import('../utils/syncLock');
 const postMock = axios.post as unknown as Mock;
 
@@ -125,25 +125,27 @@ describe('refreshAccessTokens', () => {
 
     // The other process (web app or scheduler) refreshed while this one waited: its token is used, not refreshed again
     it('waits for a refresh in another process and uses its token', async () => {
+        vi.useFakeTimers();
         writeFileSync(path(), JSON.stringify([credential('expired', 0)]));
         const release = await waitForLock('spotify-token-refresh', 0);
         expect(release).toBeDefined();
 
         const refreshing = refreshAccessTokens();
-        await new Promise(resolve => { setTimeout(resolve, 300) });
+        await vi.advanceTimersByTimeAsync(1000);
         expect(postMock).not.toHaveBeenCalled();
 
         const other = credential('expired', Date.now() + 3_600_000);
         other.access_token.access_token = 'enc:other';
         writeFileSync(path(), JSON.stringify([other]));
         release?.();
+        await vi.advanceTimersByTimeAsync(250);
         await refreshing;
 
         expect(postMock).not.toHaveBeenCalled();
         expect(stored()[0]?.access_token.access_token).toBe('enc:other');
     });
 
-    // A hung holder must not stop every sync
+    // A hung holder must not stop every sync: with one user, the wait is two requests at the 15 s cap
     it('refreshes anyway when the lock is still held after the wait', async () => {
         vi.useFakeTimers();
         vi.spyOn(console, 'warn').mockImplementation(() => { /* expected */ });
@@ -152,13 +154,36 @@ describe('refreshAccessTokens', () => {
         const release = await waitForLock('spotify-token-refresh', 0);
 
         const refreshing = refreshAccessTokens();
-        await vi.advanceTimersByTimeAsync(REFRESH_LOCK_WAIT_MS + 1000);
+        await vi.advanceTimersByTimeAsync(29_000);
+        expect(postMock).not.toHaveBeenCalled();
+
+        await vi.advanceTimersByTimeAsync(2000);
+        expect(postMock).toHaveBeenCalledTimes(1);
         await refreshing;
         release?.();
 
-        expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('refreshing anyway'));
-        expect(postMock).toHaveBeenCalledTimes(1);
+        expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('still running after 30 s; refreshing anyway'));
         expect(stored()[0]?.access_token.access_token).toBe('enc:new');
+    });
+
+    // Five users at the 15 s cap take a holder 75 s: the wait outlasts that rather than resending their tokens
+    it('waits out a holder that refreshes every user at the request cap', async () => {
+        vi.useFakeTimers();
+        vi.spyOn(console, 'warn').mockImplementation(() => { /* expected */ });
+        writeFileSync(path(), JSON.stringify(['a', 'b', 'c', 'd', 'e'].map(id => credential(id, 0))));
+        postMock.mockResolvedValue({ data: { access_token: 'new', expires_in: 3600, token_type: 'Bearer' } });
+        const release = await waitForLock('spotify-token-refresh', 0);
+
+        const refreshing = refreshAccessTokens();
+        await vi.advanceTimersByTimeAsync(76_000);
+        expect(postMock).not.toHaveBeenCalled();
+
+        await vi.advanceTimersByTimeAsync(15_000);
+        expect(postMock).toHaveBeenCalledTimes(5);
+        await refreshing;
+        release?.();
+
+        expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('still running after 90 s'));
     });
 
     // Every playlist load waits on the refresh, so it must give up
