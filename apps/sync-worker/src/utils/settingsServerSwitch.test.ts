@@ -18,6 +18,12 @@ vi.mock('@spotify-to-plex/http-client/AxiosRequest', async () => {
     return { AxiosRequest: fakeAxiosRequest };
 });
 vi.mock('./loadSpotifyData', () => ({ loadSpotifyData }));
+const { disk } = vi.hoisted(() => ({ disk: { failDelete: false } }));
+vi.mock('@spotify-to-plex/plex-config/utils/fileUtils', async importOriginal => {
+    const actual = await importOriginal<typeof import('@spotify-to-plex/plex-config/utils/fileUtils')>();
+
+    return { ...actual, deleteJSON: async (name: string) => disk.failDelete ? Promise.reject(new Error('EACCES: permission denied')) : actual.deleteJSON(name) };
+});
 // Every track already matched in the cache, so the sync searches nothing
 vi.mock('./getCachedPlexTracks', () => ({ getCachedPlexTracks: async () => ({
     result: [1, 2, 3].map(n => ({ id: `t${n}`, title: `t${n}`, artist: 'A', album: 'B', result: [{ id: `/library/metadata/${n}` }] })),
@@ -52,6 +58,7 @@ beforeEach(() => {
     dir = mkdtempSync(join(tmpdir(), 'settings-switch-'));
     process.env.STORAGE_DIR = dir;
     resetPlex();
+    disk.failDelete = false;
     write('plex.json', { id: 'machine', uri: 'http://plex.test:32400', token: 'owner-account', serverToken: 'owner-server' });
     saved('collection');
     plexTv.get.mockResolvedValue({ data: [{ product: 'Plex Media Server', name: 'New', clientIdentifier: 'other-machine', accessToken: 'other-server', connections: [{ local: true, uri: 'http://other.test:32400' }] }] });
@@ -124,6 +131,19 @@ describe('POST /api/settings choosing another Plex server', () => {
         await updateSettings(newServer);
 
         expect(read('track_links.json')).toEqual([{ spotify_id: 't1', tidal_id: ['91'], plex_id: ['/library/metadata/77'], manual: true }, ...unmatched.slice(1)]);
+    });
+
+    it('still brings back every hand-pick after a switch that failed part-way and was tried again', async () => {
+        write('track_links.json', links);
+        disk.failDelete = true;
+
+        const failed = await post({ id: 'other-machine', uri: 'http://other.test:32400' });
+        disk.failDelete = false;
+        const retried = await post({ id: 'other-machine', uri: 'http://other.test:32400' });
+        await updateSettings(oldServer);
+
+        expect([failed.status, retried.status]).toEqual([500, 200]);
+        expect(read('track_links.json')).toEqual(links);
     });
 
     it('keeps the switch when the matches kept for the new server cannot be put back', async () => {
