@@ -107,7 +107,7 @@ describe('slskd track search', () => {
     it('keeps the wanted edit ahead of another version from a better peer', async () => {
         configure(['artist:match AND title:contains']);
         peers = [
-            { username: 'idle', hasFreeUploadSlot: true, files: [{ filename: 'Music\\a\\Some Band - Some Song (Live).flac', length: 200 }] },
+            { username: 'idle', hasFreeUploadSlot: true, files: [{ filename: String.raw`Music\a\Some Band - Some Song (Live).flac`, length: 200 }] },
             { username: 'queued', queueLength: 10, files: [{ filename: file('b'), length: 200 }] }
         ];
 

@@ -74,9 +74,7 @@ export default function SyncTrigger() {
             });
         };
 
-        fetchAvailability().catch((error: unknown) => {
-            console.error('Error fetching sync availability:', error);
-        });
+        errorBoundary(fetchAvailability);
     }, []);
 
     const handleSync = useCallback(async (type: SyncType) => {
@@ -96,13 +94,11 @@ export default function SyncTrigger() {
             const message = getErrorMessage(err);
             setError(`Failed to start ${type} sync: ${message}`);
             setSyncing(prev => ({ ...prev, [type]: false }));
-        });
+        }, true);
     }, []);
 
     const onSyncClick = useCallback((type: SyncType) => () => {
-        handleSync(type).catch((error: unknown) => {
-            console.error('Error triggering sync:', error);
-        });
+        errorBoundary(() => handleSync(type));
     }, [handleSync]);
 
     // Filter sync options based on availability

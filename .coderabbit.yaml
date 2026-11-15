@@ -95,8 +95,9 @@ reviews:
           hosts, other resource types, or skips is_valid_spotify_url.
         - Error bodies stay scrubbed ("Failed to scrape playlist"); the real
           message goes to the log only. Never return an exception string.
-        - CORS is unrestricted on purpose for the private network; flag a change
-          that pairs it with credentials or a new endpoint that mutates state.
+        - It listens on 127.0.0.1 only: flag a bind beyond localhost or a new
+          EXPOSE. CORS stays unrestricted; flag pairing it with credentials or
+          a new endpoint that mutates state.
         - Distinguish "scrape failed" (5xx, retryable) from "playlist is empty"
           (200 with zero tracks) — the sync worker treats an empty result as
           "user removed everything".

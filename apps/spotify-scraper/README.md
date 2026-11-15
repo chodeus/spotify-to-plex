@@ -1,6 +1,6 @@
 # Spotify Scraper Service
 
-A small Flask API that reads public Spotify playlists the Web API will not serve to the connected account (editorial and personalised mixes). It runs inside the main image under supervisord on port 3020, and the sync reaches it through `SPOTIFY_SCRAPER_URL`.
+A small Flask API that reads public Spotify playlists the Web API will not serve to the connected account (editorial and personalised mixes). It runs inside the main image under supervisord on localhost port 3020, and the sync reaches it through `SPOTIFY_SCRAPER_URL`.
 
 ## POST /playlist
 

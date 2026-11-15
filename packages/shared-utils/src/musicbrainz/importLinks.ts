@@ -1,6 +1,6 @@
 // Pure link builders: the web client imports these, so nothing here may touch node:fs
 
-const SPOTIFY_ID = /^[0-9A-Za-z]{22}$/;
+const SPOTIFY_ID = /^[\dA-Za-z]{22}$/;
 
 /** The sources Harmony combines for an import, as its own form names them. */
 const HARMONY_PROVIDERS = ['musicbrainz', 'discogs', 'deezer', 'spotify', 'tidal', 'qobuz', 'beatport'] as const;

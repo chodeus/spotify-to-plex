@@ -50,7 +50,7 @@ ENV TZ=UTC \
     PORT=9030 \
     HOSTNAME=0.0.0.0 \
     PLEX_APP_ID=eXf+f9ktw3CZ8i45OY468WxriOCtoFxuNPzVeDcAwfw= \
-    SPOTIFY_SCRAPER_URL=http://localhost:3020 \
+    SPOTIFY_SCRAPER_URL=http://127.0.0.1:3020 \
     STORAGE_DIR=/app/config \
     PUID=99 \
     PGID=100 \
@@ -112,8 +112,8 @@ RUN set -e; \
 
 WORKDIR /app
 
-# 9030: web app; 3020: scraper (internal)
-EXPOSE 9030 3020
+# 9030: web app; the scraper (3020) listens on localhost only
+EXPOSE 9030
 
 VOLUME ["/app/config"]
 

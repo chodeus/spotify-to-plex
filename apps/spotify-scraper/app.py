@@ -102,4 +102,5 @@ if __name__ == '__main__':
     debug = os.environ.get('DEBUG', 'false').lower() == 'true'
     
     logger.info(f"Starting Spotify Scraper API on port {port}")
-    app.run(host='0.0.0.0', port=port, debug=debug)
+    # Only the web app and the sync worker in this container call it: never listen beyond localhost
+    app.run(host='127.0.0.1', port=port, debug=debug)

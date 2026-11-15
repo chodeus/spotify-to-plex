@@ -122,7 +122,7 @@ async function runPlaylists(force: boolean) {
                 // eslint-disable-next-line prefer-const
                 let { result, add, markChecked, recheck } = await getCachedPlexTracks(plexSearchConfig, data)
 
-                const toSearchItems = data.tracks.filter(track => !result.some((item: SearchResponse) => item.id == track.id))
+                const toSearchItems = data.tracks.filter(track => !result.some((cached: SearchResponse) => cached.id === track.id))
                 const searchItems = [...toSearchItems, ...recheck]
                 if (searchItems.length > 0) {
                     console.log(`Searching for ${toSearchItems.length} tracks, re-checking ${recheck.length} cached links`)
@@ -141,7 +141,7 @@ async function runPlaylists(force: boolean) {
                 await withPlexConnection(() => plexSettingsForUser(user), async plexConnection => {
                     // Read again on a retry: the first run may have stored the playlist it created
                     const { playlists } = await getPlexPlaylists()
-                    const plexPlaylist = await findPlaylist(plexConnection, playlists.find(item => item.id == id)?.plex)
+                    const plexPlaylist = await findPlaylist(plexConnection, playlists.find(playlist => playlist.id === id)?.plex)
                     await putPlexPlaylist(plexConnection, id, plexPlaylist, result, title, data.image)
                 })
 
