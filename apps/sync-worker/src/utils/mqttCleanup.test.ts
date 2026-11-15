@@ -18,6 +18,7 @@ const { createEntityId } = await import('../services/mqtt/createEntityId');
 const { createDiscoveryTopic } = await import('../services/mqtt/createDiscoveryTopic');
 const { createStateTopic } = await import('../services/mqtt/createStateTopic');
 const { getCategoriesDiscoveryTopic } = await import('../services/mqtt/getCategoriesDiscoveryTopic');
+const { getCategoriesStateTopic } = await import('../services/mqtt/getCategoriesStateTopic');
 const { syncMQTT } = await import('../jobs/mqtt');
 
 let dir: string;
@@ -232,5 +233,15 @@ describe('syncMQTT cleanup', () => {
 
         expect(removed()).toEqual([]);
         expect(kept()).toEqual(['kept']);
+    });
+
+    it('removes the categories entity once no item with a label publishes', async () => {
+        write('spotify_saved_items.json', [{ type: 'spotify-playlist', uri: 'spotify:playlist:p1', id: 'p1', title: 'Mix', label: 'Mood', plex_target: 'collection' }]);
+
+        await syncMQTT();
+
+        expect(cleared(getCategoriesDiscoveryTopic(PREFIX, 'homeassistant'), true)).toBe(true);
+        expect(cleared(getCategoriesStateTopic(PREFIX), true)).toBe(true);
+        expect(sent()).toEqual([]);
     });
 });

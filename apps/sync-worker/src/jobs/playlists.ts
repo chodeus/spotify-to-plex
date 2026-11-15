@@ -15,6 +15,8 @@ import { updateSyncTypeProgress } from "../utils/updateSyncTypeProgress";
 import { loadSpotifyData } from "../utils/loadSpotifyData";
 import { matchByIsrc } from "../utils/matchByIsrc";
 import { putPlexPlaylist } from "../utils/putPlexTracks";
+import { putPlexCollection } from "../utils/putPlexCollection";
+import { plexTargetOf } from "@spotify-to-plex/shared-types/spotify/PlexTargets";
 import { plexSettingsForUser, withPlexConnection } from "@spotify-to-plex/plex-helpers/utils/plexSettingsFor";
 import { findPlaylist } from "@spotify-to-plex/plex-helpers/playlist/findPlaylist";
 import { getSettings } from "@spotify-to-plex/plex-config/functions/getSettings";
@@ -71,6 +73,7 @@ async function runPlaylists(force: boolean) {
             updateSyncTypeProgress('playlists', i + 1, toSyncPlaylists.length);
 
             const { id, title, uri, user, sync_interval } = item;
+            const plexTarget = plexTargetOf(item);
             let days = Number(sync_interval)
             if (isNaN(days))
                 days = 0;
@@ -120,7 +123,7 @@ async function runPlaylists(force: boolean) {
 
                 // @ts-ignore
                 // eslint-disable-next-line prefer-const
-                let { result, add, markChecked, recheck } = await getCachedPlexTracks(plexSearchConfig, data)
+                let { result, add, markChecked, recheck, manualUnanswered } = await getCachedPlexTracks(plexSearchConfig, data)
 
                 const toSearchItems = data.tracks.filter(track => !result.some((cached: SearchResponse) => cached.id === track.id))
                 const searchItems = [...toSearchItems, ...recheck]
@@ -138,12 +141,14 @@ async function runPlaylists(force: boolean) {
                 // Put plex playlist
                 ////////////
                 // As the Spotify user's Plex Home user when one is set: playlists are per Plex account
-                await withPlexConnection(() => plexSettingsForUser(user), async plexConnection => {
-                    // Read again on a retry: the first run may have stored the playlist it created
-                    const { playlists } = await getPlexPlaylists()
-                    const plexPlaylist = await findPlaylist(plexConnection, playlists.find(playlist => playlist.id === id)?.plex)
-                    await putPlexPlaylist(plexConnection, id, plexPlaylist, result, title, data.image)
-                })
+                if (plexTarget !== 'collection') {
+                    await withPlexConnection(() => plexSettingsForUser(user), async plexConnection => {
+                        // Read again on a retry: the first run may have stored the playlist it created
+                        const { playlists } = await getPlexPlaylists()
+                        const plexPlaylist = await findPlaylist(plexConnection, playlists.find(playlist => playlist.id === id)?.plex)
+                        await putPlexPlaylist(plexConnection, id, plexPlaylist, result, title, data.image)
+                    })
+                }
 
                 ////////////
                 // Handle missing tracks
@@ -157,6 +162,11 @@ async function runPlaylists(force: boolean) {
                 const missingTracks = findMissingTracks(toSearchItems, result, lastMissing)
                 if (missingTracks.length > 0)
                     console.log(`Missing ${missingTracks.length} tracks`)
+
+                // As the server owner, whatever the Plex Home user: a collection belongs to the library, not to one user.
+                // Before the record, so a failed collection is not recorded as a sync, like a failed playlist
+                if (plexTarget !== 'playlist')
+                    await putPlexCollection(await plexSettingsForUser(), id, result, title, data.image, unsearched.length == 0 && !manualUnanswered)
 
                 syncState.record(id, await missingListsFor(missingTracks))
 

@@ -5,6 +5,7 @@ import { describeHttpError } from '@spotify-to-plex/http-client/describeHttpErro
 import { getAPIUrl } from '@spotify-to-plex/shared-utils/utils/getAPIUrl';
 import { getSettings } from '@spotify-to-plex/plex-config/functions/getSettings';
 import { updateSettings } from '@spotify-to-plex/plex-config/functions/updateSettings';
+import { SyncRunningError } from '@spotify-to-plex/plex-config/utils/SyncRunningError';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createRouter } from 'next-connect';
 
@@ -43,6 +44,9 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
                 const settings = await getSettings(true);
                 res.json({ loggedin: !!settings.token, uri: settings.uri, id: settings.id })
             } catch (error) {
+                if (error instanceof SyncRunningError)
+                    return res.status(409).json({ error: error.message });
+
                 console.error(`Error updating Plex settings: ${describeHttpError(error)}`);
                 res.status(500).json({ error: 'Failed to update settings' });
             }

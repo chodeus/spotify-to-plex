@@ -3,6 +3,7 @@ import { getSpotifyData } from '@spotify-to-plex/shared-utils/spotify/getSpotify
 import { getStorageDir } from '@spotify-to-plex/shared-utils/utils/getStorageDir';
 
 import type { SavedItem } from '@spotify-to-plex/shared-types/spotify/SavedItem';
+import { PLEX_TARGETS } from '@spotify-to-plex/shared-types/spotify/PlexTargets';
 import type { SpotifyCredentials } from '@spotify-to-plex/shared-types/spotify/SpotifyCredentials';
 import { getById } from '@spotify-to-plex/plex-music-search/functions/getById';
 import { getMusicSearchConfig } from "@spotify-to-plex/music-search/functions/getMusicSearchConfig";
@@ -206,9 +207,12 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
             if (!existsSync(savedItemsPath))
                 return res.status(400).json({ error: `No items found` })
 
-            const { ids, label, sync, sync_interval, title } = req.body
+            const { ids, label, sync, sync_interval, title, plex_target } = req.body
             if (!Array.isArray(ids))
                 return res.status(400).json({ error: `Mutliple ids expected as an array` })
+
+            if (plex_target !== undefined && !PLEX_TARGETS.includes(plex_target))
+                return res.status(400).json({ error: `plex_target must be one of: ${PLEX_TARGETS.join(', ')}` })
 
             const savedItems: SavedItem[] = JSON.parse(readFileSync(savedItemsPath, 'utf8'))
 
@@ -229,6 +233,13 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
 
                 if (typeof title === 'string')
                     saveItem.title = title;
+
+                if (plex_target !== undefined) {
+                    if (saveItem.type !== 'spotify-playlist')
+                        return res.status(400).json({ error: `plex_target applies to playlists only` })
+
+                    saveItem.plex_target = plex_target
+                }
             }
 
             // Change the imtes

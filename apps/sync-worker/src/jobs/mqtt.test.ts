@@ -53,6 +53,23 @@ describe('syncMQTT', () => {
         expect(categories.list).toEqual(['Dean']);
     });
 
+    it('publishes no playlist entity, and logs no error, for a playlist synced only as a collection', async () => {
+        write('spotify_saved_items.json', [
+            { type: 'spotify-playlist', id: 'p-mine', title: 'Mine', uri: 'spotify:playlist:p-mine', label: 'Dean' },
+            { type: 'spotify-playlist', id: 'p-was', title: 'Was a playlist', uri: 'spotify:playlist:p-was', label: 'Mood', plex_target: 'collection' },
+            { type: 'spotify-playlist', id: 'p-new', title: 'Never a playlist', uri: 'spotify:playlist:p-new', label: 'Mood', plex_target: 'collection' }
+        ]);
+        write('playlists.json', { data: [{ type: 'spotify-playlist', id: 'p-mine', plex: '11' }, { type: 'spotify-playlist', id: 'p-was', plex: '33' }] });
+
+        await syncMQTT();
+
+        const { entities, categories } = manifest();
+        expect(entities.map(item => item.entity.name)).toEqual(['Mine']);
+        expect(categories.list).toEqual(['Dean']);
+        const logs = JSON.parse(readFileSync(join(dir, 'sync_log.json'), 'utf8')).mqtt;
+        expect(logs.map((log: { id: string, error?: string }) => [log.id, log.error])).toEqual([['mqtt_p-mine', undefined], ['mqtt_p-was', undefined], ['mqtt_p-new', undefined]]);
+    });
+
     it("lists each entity's topics and saved record in the dry-run manifest", async () => {
         write('spotify_saved_items.json', [
             { type: 'plex-media', id: 'Mix-1', title: 'Mix', uri: '/library/metadata/7', label: 'Mood' },

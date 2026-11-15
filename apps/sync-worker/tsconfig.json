@@ -19,7 +19,7 @@
   ],
   "exclude": [
     "node_modules",
-    "dist", "**/*.test.ts"],
+    "dist", "**/*.test.ts", "src/**/testing/**"],
   "references": [
     {
       "path": "../../packages/shared-types"

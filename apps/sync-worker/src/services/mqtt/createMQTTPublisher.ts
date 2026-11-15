@@ -58,7 +58,7 @@ export function createMQTTPublisher(client: MQTTClient, topicPrefix: string, dis
     };
 
     /**
-   * Publish categories entity
+   * Publish categories entity; with no categories left, remove it
    */
     const publishCategories = async (categories: string[]) => {
         const categoriesEntity = buildCategoriesEntity(categories);
@@ -66,10 +66,12 @@ export function createMQTTPublisher(client: MQTTClient, topicPrefix: string, dis
 
         const discoveryTopic = getCategoriesDiscoveryTopic(topicPrefix, discoveryPrefix);
         const stateTopic = getCategoriesStateTopic(topicPrefix);
+        // An empty retained message clears the topic, so the broker stops holding the last list
+        const removing = categories.length === 0;
 
         try {
             // Publish discovery config
-            await client.publish(discoveryTopic, JSON.stringify(discoveryConfig, null, 2), {
+            await client.publish(discoveryTopic, removing ? '' : JSON.stringify(discoveryConfig, null, 2), {
                 qos: 1,
                 retain: true,
             });
@@ -80,7 +82,7 @@ export function createMQTTPublisher(client: MQTTClient, topicPrefix: string, dis
                 retain: true,
             });
 
-            console.log(`[MQTT] Published categories: ${categories.length} categories`);
+            console.log(removing ? `[MQTT] Removed categories: none left` : `[MQTT] Published categories: ${categories.length} categories`);
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Unknown error';
             throw new Error(`Failed to publish categories: ${message}`);

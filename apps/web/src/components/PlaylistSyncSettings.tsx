@@ -2,12 +2,13 @@ import { errorBoundary } from "@/helpers/errors/errorBoundary";
 import { filterUnique } from "@spotify-to-plex/shared-utils/array/filterUnique";
 // MIGRATED: Updated to use shared utils package
 import { SavedItem } from "@spotify-to-plex/shared-types/spotify/SavedItem";
+import { PLEX_TARGETS, plexTargetOf } from "@spotify-to-plex/shared-types/spotify/PlexTargets";
 // MIGRATED: Updated to use shared types package
 import CloseIcon from '@mui/icons-material/Close';
-import { Box, Button, Checkbox, Chip, CircularProgress, Divider, FormControlLabel, FormGroup, IconButton, Modal, TextField, Typography } from "@mui/material";
+import { Box, Button, Checkbox, Chip, CircularProgress, Divider, FormControlLabel, FormGroup, IconButton, Modal, Radio, RadioGroup, TextField, Typography } from "@mui/material";
 import axios from "axios";
 import { enqueueSnackbar } from "notistack";
-import { ChangeEvent, useCallback, useEffect, useState } from "react";
+import { ChangeEvent, useCallback, useState } from "react";
 
 type Props = {
     readonly onClose: (reload?: boolean) => void
@@ -15,21 +16,38 @@ type Props = {
     readonly items: SavedItem[]
 }
 
+type PlexTarget = NonNullable<SavedItem['plex_target']>
+const PLEX_TARGET_LABELS: Record<PlexTarget, string> = { playlist: 'Playlist', collection: 'Collection', both: 'Playlist and collection' }
+
+function sharedLabel(items: SavedItem[]) {
+    const labels = items
+        .map(item => item.label || "")
+        .filter(filterUnique)
+
+    return labels.length === 1 && labels[0] ? labels[0] : ''
+}
+
 export default function PlaylistItemSettings(props: Props) {
     const { items, labels, onClose } = props;
-    const [autoSync, setAutoSync] = useState(false);
-    const [days, setDays] = useState("2");
+    // Read once, as the editor opens: a reload of the list behind it must not undo an edit
+    const [firstItem] = items
+    const [autoSync, setAutoSync] = useState(!!firstItem?.sync);
+    const [days, setDays] = useState(firstItem?.sync_interval ?? "2");
+    const [plexTarget, setPlexTarget] = useState<PlexTarget>(() => firstItem ? plexTargetOf(firstItem) : 'playlist');
     const [loading, setLoading] = useState(false);
+    // The albums sync makes nothing in Plex, so the choice is for playlists only
+    const allPlaylists = items.length > 0 && items.every(item => item.type === 'spotify-playlist');
 
     ///////////////////////////////////////////////
     // Modify labels
     ///////////////////////////////////////////////
-    const [label, setLabel] = useState('')
+    const [label, setLabel] = useState(() => sharedLabel(items))
     // Only touched fields are sent: with several items selected the form starts from the
     // first item (sync) or blank (mixed labels), and sending that would overwrite the rest
     const [labelEdited, setLabelEdited] = useState(false)
     const [syncEdited, setSyncEdited] = useState(false)
     const [daysEdited, setDaysEdited] = useState(false)
+    const [plexTargetEdited, setPlexTargetEdited] = useState(false)
     const onEditLabelChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
         setLabel(e.target.value)
         setLabelEdited(true)
@@ -50,6 +68,14 @@ export default function PlaylistItemSettings(props: Props) {
         }
     }, [])
 
+    const onPlexTargetChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
+        const target = PLEX_TARGETS.find(value => value === e.target.value)
+        if (target) {
+            setPlexTarget(target)
+            setPlexTargetEdited(true)
+        }
+    }, [])
+
     const onSaveChangesClick = useCallback(() => {
 
         errorBoundary(async () => {
@@ -66,6 +92,7 @@ export default function PlaylistItemSettings(props: Props) {
                 ...(syncEdited ? { sync: autoSync } : {}),
                 ...(daysEdited ? { sync_interval: days } : {}),
                 ...(labelEdited ? { label } : {}),
+                ...(plexTargetEdited ? { plex_target: plexTarget } : {}),
             })
 
             enqueueSnackbar(`Changes saved`)
@@ -75,7 +102,7 @@ export default function PlaylistItemSettings(props: Props) {
             setLoading(false);
         })
 
-    }, [autoSync, days, items, label, labelEdited, syncEdited, daysEdited, onClose])
+    }, [autoSync, days, items, label, labelEdited, syncEdited, daysEdited, plexTarget, plexTargetEdited, onClose])
 
     //////////////////////////////
     // Close dialog
@@ -83,28 +110,6 @@ export default function PlaylistItemSettings(props: Props) {
     const onCloseClick = useCallback(() => {
         onClose()
     }, [onClose])
-
-    /////////////////////////////////////
-    // Load item data
-    /////////////////////////////////////
-    useEffect(() => {
-        if (!items || items.length === 0)
-            return;
-
-        const [firstItem] = items
-        if (firstItem) {
-            setAutoSync(!!firstItem.sync)
-            setDays(firstItem.sync_interval ?? "2")
-        }
-
-        const labels = items
-            .map(item => item.label || "")
-            .filter(filterUnique)
-
-        if (labels.length === 1 && labels[0])
-            setLabel(labels[0])
-
-    }, [items])
 
     const onEditLabelChipClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
         const labelValue = e.currentTarget.dataset.label;
@@ -186,6 +191,18 @@ export default function PlaylistItemSettings(props: Props) {
 
                         }
                     </Box>
+
+                    {!!autoSync && !!allPlaylists &&
+                        <Box sx={{ mt: 2 }}>
+                            <Typography variant="body1">Create in Plex as</Typography>
+                            <RadioGroup row value={plexTarget} onChange={onPlexTargetChange}>
+                                {PLEX_TARGETS.map(target => <FormControlLabel key={target} value={target} control={<Radio />} label={PLEX_TARGET_LABELS[target]} />)}
+                            </RadioGroup>
+                            <Typography variant="body2" color="text.secondary">
+                                A collection belongs to the music library rather than to one Plex user, and lists its tracks by title.
+                            </Typography>
+                        </Box>
+                    }
 
                     <Divider sx={{ mt: 3, mb: 1 }} />
                     <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
