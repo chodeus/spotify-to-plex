@@ -233,6 +233,24 @@ describe('playlist sync into a Plex collection', () => {
         expect(membersOf(collectionsNamed('Mix')[0] ?? '')).toEqual(keys(1, 2, 3));
     });
 
+    it('refuses a server switch while a playlist sync runs, and keeps what that sync saved', async () => {
+        const load = loadSpotifyData.getMockImplementation();
+        let refused: unknown;
+        loadSpotifyData.mockImplementationOnce(async (...args: unknown[]) => {
+            refused = await updateSettings({ id: 'other-machine', uri: 'http://other.test:32400', serverToken: 'other-server' })
+                .then(() => 'switched', (error: unknown) => error instanceof Error ? error.message : error);
+
+            return load?.(...args);
+        });
+
+        await sync();
+
+        expect(refused).toBe('A playlist sync is running: choose the new Plex server once it finishes');
+        expect(read('plex.json').id).toBe('machine');
+        expect(errorOf('p1')).toBeUndefined();
+        expect(read('collections.json').data).toEqual([{ id: 'p1', plex: '900' }]);
+    });
+
     it('keeps its collection when the same server is chosen at another address', async () => {
         await sync();
 

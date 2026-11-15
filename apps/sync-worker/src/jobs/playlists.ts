@@ -164,7 +164,7 @@ async function runPlaylists(force: boolean) {
                     console.log(`Missing ${missingTracks.length} tracks`)
 
                 // As the server owner, whatever the Plex Home user: a collection belongs to the library, not to one user.
-                // Before the record, so a failed collection leaves the playlist due, like a failed playlist
+                // Before the record, so a failed collection is not recorded as a sync, like a failed playlist
                 if (plexTarget !== 'playlist')
                     await putPlexCollection(await plexSettingsForUser(), id, result, title, data.image, unsearched.length == 0 && !manualUnanswered)
 
