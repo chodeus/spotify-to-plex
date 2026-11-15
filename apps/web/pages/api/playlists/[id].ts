@@ -1,6 +1,7 @@
 import { describeHttpError } from '@spotify-to-plex/http-client/describeHttpError';
 import { generateError } from '@/helpers/errors/generateError';
 import { getPlaylistLink } from '@/helpers/plex/getPlaylistLink';
+import { playlistWriteError } from '@/helpers/plex/playlistWriteError';
 import { addItemsToPlaylist } from '@spotify-to-plex/plex-helpers/playlist/addItemsToPlaylist';
 import { putPlaylistPoster } from '@spotify-to-plex/plex-helpers/playlist/putPlaylistPoster';
 import { plexSettingsForItem, withPlexConnection } from '@spotify-to-plex/plex-helpers/utils/plexSettingsFor';
@@ -76,8 +77,9 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
             try {
                 const { id, name, label: _label, thumb } = req.body;
                 const items: { key: string, source?: string }[] = req.body.items;
-                if (!items || items.length === 0 || typeof name !== 'string' || typeof id !== 'string')
-                    return res.status(400).json({ msg: "Invalid data given" });
+                const invalid = playlistWriteError(req.body)
+                if (invalid)
+                    return res.status(400).json({ error: invalid });
 
                 const settings = await getSettings();
 
@@ -105,7 +107,7 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
                     // Add all items
                     const refused = await addItemsToPlaylist(plex, playlist.ratingKey, items)
 
-                    if (playlist.title !== name && name)
+                    if (playlist.title !== name)
                         await updatePlaylist(plex, playlist.ratingKey, { title: name })
 
                     // Update thumbnail of playlist

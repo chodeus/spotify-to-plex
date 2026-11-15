@@ -24,11 +24,12 @@ export async function getLibraryItems(settings: PlexSettings, keys: string[]) {
         const url = getAPIUrl(settings.uri, `/library/metadata/${ratingKeys.slice(start, start + KEYS_PER_REQUEST).join(',')}`);
         try {
             const response = await handleOneRetryAttempt(() => AxiosRequest.get<LibraryItemsResponse>(url, settings.token));
-            const container = response.data?.MediaContainer;
-            if (!container)
+            const found = response.data?.MediaContainer?.Metadata;
+            // Not Plex's 404 for keys it no longer has: read as gone, it would empty a collection
+            if (!found?.length)
                 throw new Error(`Plex did not answer with the library items`);
 
-            items.push(...container.Metadata ?? []);
+            items.push(...found);
         } catch (error) {
             // Plex answers 404 when it has none of the batch
             if (httpStatusOf(error) !== 404)

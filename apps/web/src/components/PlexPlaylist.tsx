@@ -300,11 +300,8 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
     const onSavePlaylistNameClick = useCallback(() => {
         errorBoundary(async () => {
 
-            if (!newPlaylistName?.trim()) {
-                enqueueSnackbar(`The title cannot be blank`, { variant: 'error' })
-
+            if (!newPlaylistName)
                 return;
-            }
 
             await axios.put(`/api/saved-items/`, {
                 ids: [playlist.id],

@@ -2,6 +2,7 @@ import { AxiosRequest } from '@spotify-to-plex/http-client/AxiosRequest';
 import { describeHttpError } from '@spotify-to-plex/http-client/describeHttpError';
 import { generateError } from '@/helpers/errors/generateError';
 import { getPlaylistLink } from '@/helpers/plex/getPlaylistLink';
+import { INVALID_PLAYLIST, playlistWriteError } from '@/helpers/plex/playlistWriteError';
 import { getAPIUrl } from '@spotify-to-plex/shared-utils/utils/getAPIUrl';
 import { putPlaylistPoster } from '@spotify-to-plex/plex-helpers/playlist/putPlaylistPoster';
 import { PlexConnection, plexSettingsForItem, withPlexConnection } from '@spotify-to-plex/plex-helpers/utils/plexSettingsFor';
@@ -98,8 +99,9 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
             try {
                 const { id, name, type, thumb } = req.body
                 const items: { key: string, source?: string }[] = req.body.items;
-                if (!items || items.length === 0 || typeof name !== 'string' || typeof id !== 'string' || typeof type !== 'string')
-                    return res.status(400).json({ msg: "Invalid data given" });
+                const invalid = typeof type === 'string' ? playlistWriteError(req.body) : INVALID_PLAYLIST
+                if (invalid)
+                    return res.status(400).json({ error: invalid });
 
                 const settings = await getSettings();
 

@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@/helpers/errors/generateError', async () => import('../../../web/src/helpers/errors/generateError'));
+vi.mock('@/helpers/plex/playlistWriteError', async () => import('../../../web/src/helpers/plex/playlistWriteError'));
 
 let dir: string;
 const write = (name: string, data: unknown) => { writeFileSync(join(dir, name), JSON.stringify(data)) };

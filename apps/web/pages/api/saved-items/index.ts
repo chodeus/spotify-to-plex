@@ -1,7 +1,7 @@
 import { generateError } from '@/helpers/errors/generateError';
 import { getSpotifyData } from '@spotify-to-plex/shared-utils/spotify/getSpotifyData';
 import { getStorageDir } from '@spotify-to-plex/shared-utils/utils/getStorageDir';
-
+import { BLANK_TITLE } from '@/helpers/plex/playlistWriteError';
 import type { SavedItem } from '@spotify-to-plex/shared-types/spotify/SavedItem';
 import { PLEX_TARGETS } from '@spotify-to-plex/shared-types/spotify/PlexTargets';
 import type { SpotifyCredentials } from '@spotify-to-plex/shared-types/spotify/SpotifyCredentials';
@@ -256,7 +256,7 @@ function invalidUpdate({ ids, title, plex_target }: NextApiRequest['body']) {
         return `plex_target must be one of: ${PLEX_TARGETS.join(', ')}`;
 
     // Plex would name the playlist or collection with nothing readable
-    return typeof title === 'string' && !title.trim() ? `The title cannot be blank` : undefined;
+    return typeof title === 'string' && !title.trim() ? BLANK_TITLE : undefined;
 }
 
 export default router.handler({

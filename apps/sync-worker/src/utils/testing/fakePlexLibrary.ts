@@ -14,6 +14,8 @@ export const plex = {
     fail: undefined as undefined | ((method: string, path: string) => boolean),
     // Plex does the request, then its answer never arrives
     loseAnswer: undefined as undefined | ((method: string, path: string) => boolean),
+    // A lookup answered with no items, which Plex was never seen to do
+    emptyAnswer: undefined as undefined | ((path: string) => boolean),
     requests: [] as string[],
 };
 
@@ -23,6 +25,7 @@ export function resetPlex() {
     plex.nextKey = 900;
     plex.fail = undefined;
     plex.loseAnswer = undefined;
+    plex.emptyAnswer = undefined;
     plex.requests = [];
 }
 
@@ -116,6 +119,9 @@ export const fakeAxiosRequest = {
         // A comma list answers with the items Plex has, or 404 when it has none
         const items = route(pathname, /^\/library\/metadata\/(\d+(?:,\d+)*)$/);
         if (items) {
+            if (plex.emptyAnswer?.(pathname))
+                return { data: { MediaContainer: { size: 0 } } };
+
             const found = keysIn(pathname).flatMap(libraryItem);
             if (found.length === 0)
                 throw httpError(404);

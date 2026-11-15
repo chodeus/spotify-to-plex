@@ -84,6 +84,7 @@ vi.mock('../utils/findMissingTidalTracks', () => ({ findMissingTidalTracks: asyn
 // The web route's own helpers sit behind the web app's "@/" alias
 vi.mock('@/helpers/errors/generateError', async () => import('../../../web/src/helpers/errors/generateError'));
 vi.mock('@/helpers/plex/getPlaylistLink', async () => import('../../../web/src/helpers/plex/getPlaylistLink'));
+vi.mock('@/helpers/plex/playlistWriteError', async () => import('../../../web/src/helpers/plex/playlistWriteError'));
 
 let dir: string;
 let run = 0;
@@ -111,8 +112,14 @@ beforeEach(() => {
 });
 afterEach(() => { rmSync(dir, { recursive: true, force: true }) });
 
-async function callRoute(method: string, body: unknown, route = 'playlists/index') {
-    const { default: handler } = route == 'spotify/users' ? await import('../../../web/pages/api/spotify/users') : await import('../../../web/pages/api/playlists/index');
+const routes = {
+    'playlists/index': () => import('../../../web/pages/api/playlists/index'),
+    'playlists/[id]': () => import('../../../web/pages/api/playlists/[id]'),
+    'spotify/users': () => import('../../../web/pages/api/spotify/users'),
+};
+
+async function callRoute(method: string, body: unknown, route: keyof typeof routes = 'playlists/index') {
+    const { default: handler } = await routes[route]();
     let status = 200; let json: unknown;
     const res = { status(n: number) { status = n;
 
@@ -168,6 +175,25 @@ describe('playlist sync for a Home user, through the real putPlexPlaylist', () =
         expect(playlistItems('900')).toEqual(['/library/metadata/0', '/library/metadata/1', '/library/metadata/2', '/library/metadata/3']);
         expect(playlistItems('800')).toEqual(['/library/metadata/0']);
         expect(JSON.parse(readFileSync(join(dir, 'playlists.json'), 'utf8')).data).toEqual([{ type: 'playlist', id: 'p1', plex: '900' }]);
+    });
+});
+
+describe('playlist routes given a blank name', () => {
+    it('POST refuses it and makes no playlist', async () => {
+        const { status, json } = await callRoute('POST', { id: 'p1', name: '   ', type: 'playlist', items: [track(1)] });
+
+        expect({ status, json }).toEqual({ status: 400, json: { error: 'The title cannot be blank' } });
+        expect(server.playlists.size).toBe(0);
+    });
+
+    it('PUT refuses it and leaves the playlist as it was', async () => {
+        server.playlists.set('900', { token: 'faye-fresh', title: 'P1', items: ['server://machine/com.plexapp.plugins.library/library/metadata/0'] });
+        write('playlists.json', { data: [{ type: 'playlist', id: 'p1', plex: '900' }] });
+
+        const { status, json } = await callRoute('PUT', { id: 'p1', name: '   ', type: 'playlist', items: [track(1)] }, 'playlists/[id]');
+
+        expect({ status, json }).toEqual({ status: 400, json: { error: 'The title cannot be blank' } });
+        expect(playlistItems('900')).toEqual(['/library/metadata/0']);
     });
 });
 

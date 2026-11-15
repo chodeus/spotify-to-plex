@@ -298,6 +298,18 @@ describe('playlist sync into a Plex collection', () => {
         expect(membersOf('900')).toEqual(keys(1, 2));
     });
 
+    it('keeps the collection and its record when Plex answers the lookup with no items', async () => {
+        await sync();
+        plex.emptyAnswer = path => path === '/library/metadata/900';
+        spotify.tracks = tracks(2);
+
+        await sync();
+
+        expect(read('collections.json').data).toEqual([{ id: 'p1', plex: '900' }]);
+        expect(membersOf('900')).toEqual(keys(1, 2, 3));
+        expect(errorOf('p1')).toContain('Plex did not answer with the library items');
+    });
+
     it('keeps syncing when the only new track has a dead key', async () => {
         await sync();
         spotify.tracks = [...tracks(3), { id: 't4', plex: 4 }];
