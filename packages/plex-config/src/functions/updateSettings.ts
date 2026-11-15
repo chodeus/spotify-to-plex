@@ -1,4 +1,4 @@
-import { forgetPlexMatches } from '@spotify-to-plex/shared-utils/cache/forgetPlexMatches';
+import { forgetPlexMatches, restorePlexMatches } from '@spotify-to-plex/shared-utils/cache/plexMatchesByServer';
 import { waitForLock } from '@spotify-to-plex/shared-utils/utils/syncLock';
 import { PlexSettingsUpdate } from '../types/PlexSettingsUpdate';
 import { getSettings } from './getSettings';
@@ -20,6 +20,15 @@ async function lockKeySavingSyncs() {
     };
 }
 
+// The switch is saved by now: a failed restore leaves those tracks to the next sync's search
+function restoreKeptMatches(server: string) {
+    try {
+        restorePlexMatches(server);
+    } catch (error) {
+        console.error(`The Plex matches kept for this server could not be put back: ${error instanceof Error ? error.message : String(error)}`);
+    }
+}
+
 export async function updateSettings(updates: PlexSettingsUpdate) {
     const current = await getSettings(true);
     const updated = { ...current, ...updates };
@@ -32,10 +41,11 @@ export async function updateSettings(updates: PlexSettingsUpdate) {
     const release = await lockKeySavingSyncs();
     try {
         // Saved playlist, collection, track and album keys belong to the server that made them: another server gives those numbers to its own items.
-        // The track links go first, as an unreadable file is the likeliest failure: it then stops the switch before anything changed
-        forgetPlexMatches();
+        // Matches leave first and come back last: a failed step never leaves a server with another server's matches
+        forgetPlexMatches(current.id);
         await Promise.all([deleteJSON('playlists.json'), deleteJSON('collections.json')]);
         await writeJSON('plex.json', updated);
+        restoreKeptMatches(updates.id);
     } finally {
         release();
     }

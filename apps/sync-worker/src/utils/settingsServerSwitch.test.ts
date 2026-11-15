@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { updateSettings } from '@spotify-to-plex/plex-config/functions/updateSettings';
 import { getCachedTrackLinks } from '@spotify-to-plex/shared-utils/cache/getCachedTrackLink';
+import { setManualTrackLink } from '@spotify-to-plex/shared-utils/cache/setManualTrackLink';
 import { waitForLock } from '@spotify-to-plex/shared-utils/utils/syncLock';
 
 import { membersOf, plex, resetPlex, tag } from './testing/fakePlexLibrary';
@@ -39,6 +40,8 @@ const links = [
     { spotify_id: 't2', plex_id: ['/library/metadata/2'], plex_matched_by: 'isrc', plex_checked_at: 1_700_000_000_000, slskd_files: [slskdFile] },
     { spotify_id: 'album-b', plex_id: ['/library/metadata/50'] }
 ];
+const unmatched = [{ spotify_id: 't1', tidal_id: ['91'] }, { spotify_id: 't2', slskd_files: [slskdFile] }, { spotify_id: 'album-b' }];
+const oldServer = { id: 'machine', uri: 'http://plex.test:32400', serverToken: 'owner-server' };
 
 async function sync() {
     const { syncPlaylists } = await import('../jobs/playlists');
@@ -90,6 +93,7 @@ describe('POST /api/settings choosing another Plex server', () => {
         expect(read('plex.json').id).toBe('machine');
         expect(read('collections.json').data).toEqual([{ id: 'p1', plex: '900' }]);
         expect(read('track_links.json')).toEqual(links);
+        expect(existsSync(join(dir, 'plex_matches_by_server.json'))).toBe(false);
         // The refusal must not keep the other lock: the next sync would never start
         const free = await Promise.all(['playlists', 'albums'].map(name => waitForLock(name, 0)));
         free.forEach(release => release?.());
@@ -102,17 +106,46 @@ describe('POST /api/settings choosing another Plex server', () => {
         const { status } = await post({ id: 'other-machine', uri: 'http://other.test:32400' });
 
         expect(status).toBe(200);
-        expect(read('track_links.json')).toEqual([{ spotify_id: 't1', tidal_id: ['91'] }, { spotify_id: 't2', slskd_files: [slskdFile] }, { spotify_id: 'album-b' }]);
+        expect(read('track_links.json')).toEqual(unmatched);
         const tracks = ['t1', 't2'].map(id => ({ id, title: id, artists: ['A'] }));
         expect(getCachedTrackLinks(tracks, 'plex').found).toEqual([]);
         expect(getCachedTrackLinks(tracks, 'tidal').found.map(link => link.spotify_id)).toEqual(['t1']);
     });
 
-    it('stops before changing anything when the track links cannot be read', async () => {
-        const torn = '[{"spotify_id": "t1",';
+    it("brings back each server's own matches, hand-picks included, when it is chosen again", async () => {
+        write('track_links.json', links);
+
+        await updateSettings(newServer);
+        setManualTrackLink('t1', '/library/metadata/77');
+        await updateSettings(oldServer);
+
+        expect(read('track_links.json')).toEqual(links);
+
+        await updateSettings(newServer);
+
+        expect(read('track_links.json')).toEqual([{ spotify_id: 't1', tidal_id: ['91'], plex_id: ['/library/metadata/77'], manual: true }, ...unmatched.slice(1)]);
+    });
+
+    it('keeps the switch when the matches kept for the new server cannot be put back', async () => {
+        write('track_links.json', links);
+        write('plex_matches_by_server.json', [{ server: 'other-machine', matches: 5 }]);
+
+        const { status } = await post({ id: 'other-machine', uri: 'http://other.test:32400' });
+
+        expect(status).toBe(200);
+        expect(read('plex.json')).toMatchObject(newServer);
+        expect(read('track_links.json')).toEqual(unmatched);
+        expect(console.error).toHaveBeenCalledWith(expect.stringContaining('The Plex matches kept for this server could not be put back'));
+    });
+
+    const kept = ['track_links.json', 'plex_matches_by_server.json'];
+    it.each(kept)('stops before changing anything when %s cannot be read', async torn => {
+        write('track_links.json', links);
+        write('plex_matches_by_server.json', []);
+        writeFileSync(join(dir, torn), '[{"spotify_id": "t1",');
         write('playlists.json', { data: [{ id: 'p1', plex: '700' }] });
         write('collections.json', { data: [{ id: 'p1', plex: '900' }] });
-        writeFileSync(join(dir, 'track_links.json'), torn);
+        const before = kept.map(file => readFileSync(join(dir, file), 'utf8'));
 
         const { status, json } = await post({ id: 'other-machine', uri: 'http://other.test:32400' });
 
@@ -120,7 +153,7 @@ describe('POST /api/settings choosing another Plex server', () => {
         expect(read('plex.json').id).toBe('machine');
         expect(read('playlists.json').data).toEqual([{ id: 'p1', plex: '700' }]);
         expect(read('collections.json').data).toEqual([{ id: 'p1', plex: '900' }]);
-        expect(readFileSync(join(dir, 'track_links.json'), 'utf8')).toBe(torn);
+        expect(kept.map(file => readFileSync(join(dir, file), 'utf8'))).toEqual(before);
     });
 
     it("switches when no playlist sync runs, and drops the old server's records", async () => {
