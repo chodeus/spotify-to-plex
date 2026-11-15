@@ -23,7 +23,7 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
                 throw new Error(`Expecting type albums, playlists, users, lidarr, mqtt, slskd, or all. Got ${typeof type === 'string' ? type : 'none'}`)
 
             // The job would skip itself anyway; saying so here keeps the page from reporting a start that never happens
-            // "all" also checks its own lock: between steps none of the single syncs is running
+            // "all" also checks its own lock: between steps it holds no single sync's lock
             const checked: string[] = type === 'all' ? ['all', ...ALL_TYPES] : [type]
             const running = checked.filter(name => isSyncRunning(name))
             if (running.length > 0) {

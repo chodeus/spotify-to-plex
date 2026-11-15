@@ -47,7 +47,7 @@ describe('syncAll', () => {
         expect(ran).toEqual(['users', 'albums', 'playlists', 'lidarr', 'mqtt', 'slskd']);
     });
 
-    // Between steps no single sync holds its lock, so only the "all" lock keeps a second run out
+    // Between steps "all" holds no single sync's lock, so only its own keeps a second run out
     it('does not start a second run while the first is going', async () => {
         let finishUsers!: () => void;
         usersDone = new Promise<void>(resolve => { finishUsers = resolve });

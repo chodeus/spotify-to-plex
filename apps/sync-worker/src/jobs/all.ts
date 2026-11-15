@@ -6,7 +6,7 @@ import { syncPlaylists } from "./playlists";
 import { syncSlskd } from "./slskd";
 import { syncUsers } from "./users";
 
-/** Runs the syncs in turn under one "all" lock, stopping at the first that fails */
+/** Runs the syncs in turn under one "all" lock; one that throws stops the rest */
 export async function syncAll() {
     return runExclusive('all', async () => {
         await syncUsers();
