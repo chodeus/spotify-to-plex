@@ -49,6 +49,33 @@ function keysIn(uri: string) {
 
     return keys;
 }
+// Plex skips keys it no longer has, and refuses a list holding none it has
+function addToCollection(ratingKey: string, uri: string) {
+    const title = plex.collections.get(ratingKey)?.title ?? '';
+    const batch = keysIn(uri);
+    if (batch.every(n => plex.dead.has(n)))
+        throw httpError(400);
+
+    for (const n of batch)
+        tag(n, title);
+
+    return ok();
+}
+function retitleCollection(ratingKey: string, title: string) {
+    const collection = plex.collections.get(ratingKey);
+    const members = membersOf(ratingKey);
+    if (!collection)
+        throw httpError(404);
+
+    for (const n of members)
+        untag(n, collection.title);
+    collection.title = title;
+
+    for (const n of members)
+        tag(n, collection.title);
+
+    return ok();
+}
 function request(method: string, url: string, token: string) {
     const parsed = new URL(url);
     plex.requests.push(`${method} ${parsed.pathname} ${token}`);
@@ -129,35 +156,11 @@ export const fakeAxiosRequest = {
     put: async (url: string, token: string) => {
         const parsed = request('PUT', url, token);
         const items = route(parsed.pathname, /^\/library\/collections\/(\d+)\/items$/);
-        if (items) {
-            const title = plex.collections.get(items)?.title ?? '';
-            const batch = keysIn(parsed.searchParams.get('uri') ?? '');
-            // Plex skips keys it no longer has, and refuses a list holding none it has
-            if (batch.every(n => plex.dead.has(n)))
-                throw httpError(400);
+        if (items)
+            return addToCollection(items, parsed.searchParams.get('uri') ?? '');
 
-            for (const n of batch)
-                tag(n, title);
-
-            return ok();
-        }
-
-        if (route(parsed.pathname, /^\/library\/sections\/(\d+)\/all$/)) {
-            const id = parsed.searchParams.get('id') ?? '';
-            const collection = plex.collections.get(id);
-            const members = membersOf(id);
-            if (!collection)
-                throw httpError(404);
-
-            for (const n of members)
-                untag(n, collection.title);
-            collection.title = parsed.searchParams.get('title.value') ?? '';
-
-            for (const n of members)
-                tag(n, collection.title);
-
-            return ok();
-        }
+        if (route(parsed.pathname, /^\/library\/sections\/(\d+)\/all$/))
+            return retitleCollection(parsed.searchParams.get('id') ?? '', parsed.searchParams.get('title.value') ?? '');
 
         const playlist = route(parsed.pathname, /^\/playlists\/(\d+)\/items$/);
         if (playlist) {
