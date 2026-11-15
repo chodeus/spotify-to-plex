@@ -109,14 +109,18 @@ describe('POST /api/settings choosing another Plex server', () => {
     });
 
     it('stops before changing anything when the track links cannot be read', async () => {
+        const torn = '[{"spotify_id": "t1",';
+        write('playlists.json', { data: [{ id: 'p1', plex: '700' }] });
         write('collections.json', { data: [{ id: 'p1', plex: '900' }] });
-        writeFileSync(join(dir, 'track_links.json'), '[{"spotify_id": "t1",');
+        writeFileSync(join(dir, 'track_links.json'), torn);
 
         const { status, json } = await post({ id: 'other-machine', uri: 'http://other.test:32400' });
 
         expect({ status, json }).toEqual({ status: 500, json: { error: 'Failed to update settings' } });
         expect(read('plex.json').id).toBe('machine');
+        expect(read('playlists.json').data).toEqual([{ id: 'p1', plex: '700' }]);
         expect(read('collections.json').data).toEqual([{ id: 'p1', plex: '900' }]);
+        expect(readFileSync(join(dir, 'track_links.json'), 'utf8')).toBe(torn);
     });
 
     it("switches when no playlist sync runs, and drops the old server's records", async () => {
