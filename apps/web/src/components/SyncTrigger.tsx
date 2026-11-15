@@ -74,9 +74,7 @@ export default function SyncTrigger() {
             });
         };
 
-        fetchAvailability().catch((error: unknown) => {
-            console.error('Error fetching sync availability:', error);
-        });
+        errorBoundary(fetchAvailability);
     }, []);
 
     const handleSync = useCallback(async (type: SyncType) => {
@@ -100,9 +98,7 @@ export default function SyncTrigger() {
     }, []);
 
     const onSyncClick = useCallback((type: SyncType) => () => {
-        handleSync(type).catch((error: unknown) => {
-            console.error('Error triggering sync:', error);
-        });
+        errorBoundary(async () => handleSync(type));
     }, [handleSync]);
 
     // Filter sync options based on availability

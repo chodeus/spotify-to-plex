@@ -112,8 +112,8 @@ RUN set -e; \
 
 WORKDIR /app
 
-# 9030: web app; 3020: scraper (internal)
-EXPOSE 9030 3020
+# 9030: web app; the scraper (3020) listens on localhost only
+EXPOSE 9030
 
 VOLUME ["/app/config"]
 

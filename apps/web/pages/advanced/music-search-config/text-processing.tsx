@@ -107,11 +107,11 @@ const TextProcessingPage: NextPage = () => {
 
     // Wrapper functions to handle promises properly for onClick
     const handleSaveClick = useCallback(() => {
-        handleSave().catch(console.error);
+        errorBoundary(handleSave);
     }, [handleSave]);
 
     const handleResetClick = useCallback(() => {
-        handleReset().catch(console.error);
+        errorBoundary(handleReset);
     }, [handleReset]);
 
     if (loading) {

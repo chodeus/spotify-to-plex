@@ -12,6 +12,28 @@ type TrackAnalyzerHandles = {
     readonly analyze: (trackId: string, type: 'plex' | 'tidal' | 'slskd') => void
 }
 
+function getRoundedSimilarity(value: number) {
+    return `${Math.round(value * 100)}%`
+}
+
+type MatchScoreProps = {
+    readonly label: string;
+    readonly score: NonNullable<PlexTrack["matching"]>["title"];
+}
+
+function MatchScore(props: MatchScoreProps) {
+    const { label, score } = props;
+
+    return (
+        <Box sx={{ width: "160px" }}>
+            <Typography variant="body1"><strong>{label}</strong></Typography>
+            <Typography variant="body2">Match: {score.match ? "Yes" : "No"}</Typography>
+            <Typography variant="body2">Contains: {score.contains ? "Yes" : "No"}</Typography>
+            <Typography variant="body2">Similarity: {getRoundedSimilarity(score.similarity)}</Typography>
+        </Box>
+    );
+}
+
 const TrackAnalyzer = forwardRef<TrackAnalyzerHandles, unknown>((_props, ref) => {
 
     const [loading, setLoading] = useState(false)
@@ -60,10 +82,6 @@ const TrackAnalyzer = forwardRef<TrackAnalyzerHandles, unknown>((_props, ref) =>
             setLoading(false)
         })
     }, [])
-
-    const getRoundedSimilarity = (value: number) => {
-        return `${Math.round(value * 100)}%`
-    }
 
     // Check if a file extension is in the allowed list
     const isExtensionAllowed = (filename: string, allowedExtensions?: string[]) => {
@@ -176,7 +194,7 @@ const TrackAnalyzer = forwardRef<TrackAnalyzerHandles, unknown>((_props, ref) =>
                                             if (!matching)
                                                 return null;
 
-                                            const { isMatchingApproach } = matching;
+                                            const { isMatchingApproach, title: titleScore, artist: artistScore, artistInTitle, artistWithTitle, album: albumScore, duration: durationScore } = matching;
                                             const extensionAllowed = isExtensionAllowed(src || '', searchResponse?.allowedExtensions);
 
                                             // Determine icon: Block if extension not allowed, otherwise check/close based on match
@@ -242,40 +260,15 @@ const TrackAnalyzer = forwardRef<TrackAnalyzerHandles, unknown>((_props, ref) =>
                                                 </Box>
                                                 <Divider sx={{ mt: 1, mb: 1, borderColor: "black" }} />
                                                 <Box sx={{ display: 'flex', mt: 1 }}>
-                                                    <Box sx={{ width: "160px" }}>
-                                                        <Typography variant="body1"><strong>Title</strong></Typography>
-                                                        <Typography variant="body2">Match: {matching.title.match ? "Yes" : "No"}</Typography>
-                                                        <Typography variant="body2">Contains: {matching.title.contains ? "Yes" : "No"}</Typography>
-                                                        <Typography variant="body2">Similarity: {getRoundedSimilarity(matching.title.similarity)}</Typography>
-                                                    </Box>
-                                                    <Box sx={{ width: "160px" }}>
-                                                        <Typography variant="body1"><strong>Artist</strong></Typography>
-                                                        <Typography variant="body2">Match: {matching.artist.match ? "Yes" : "No"}</Typography>
-                                                        <Typography variant="body2">Contains: {matching.artist.contains ? "Yes" : "No"}</Typography>
-                                                        <Typography variant="body2">Similarity: {getRoundedSimilarity(matching.artist.similarity)}</Typography>
-                                                    </Box>
-                                                    <Box sx={{ width: "160px" }}>
-                                                        <Typography variant="body1"><strong>Artist in Title</strong></Typography>
-                                                        <Typography variant="body2">Match: {matching.artistInTitle.match ? "Yes" : "No"}</Typography>
-                                                        <Typography variant="body2">Contains: {matching.artistInTitle.contains ? "Yes" : "No"}</Typography>
-                                                        <Typography variant="body2">Similarity: {getRoundedSimilarity(matching.artistInTitle.similarity)}</Typography>
-                                                    </Box>
-                                                    <Box sx={{ width: "160px" }}>
-                                                        <Typography variant="body1"><strong>Artist with Title</strong></Typography>
-                                                        <Typography variant="body2">Match: {matching.artistWithTitle.match ? "Yes" : "No"}</Typography>
-                                                        <Typography variant="body2">Contains: {matching.artistWithTitle.contains ? "Yes" : "No"}</Typography>
-                                                        <Typography variant="body2">Similarity: {getRoundedSimilarity(matching.artistWithTitle.similarity)}</Typography>
-                                                    </Box>
-                                                    <Box sx={{ width: "160px" }}>
-                                                        <Typography variant="body1"><strong>Album</strong></Typography>
-                                                        <Typography variant="body2">Match: {matching.album.match ? "Yes" : "No"}</Typography>
-                                                        <Typography variant="body2">Contains: {matching.album.contains ? "Yes" : "No"}</Typography>
-                                                        <Typography variant="body2">Similarity: {getRoundedSimilarity(matching.album.similarity)}</Typography>
-                                                    </Box>
-                                                    {matching.duration ? <Box sx={{ width: "160px" }}>
+                                                    <MatchScore label="Title" score={titleScore} />
+                                                    <MatchScore label="Artist" score={artistScore} />
+                                                    <MatchScore label="Artist in Title" score={artistInTitle} />
+                                                    <MatchScore label="Artist with Title" score={artistWithTitle} />
+                                                    <MatchScore label="Album" score={albumScore} />
+                                                    {durationScore ? <Box sx={{ width: "160px" }}>
                                                         <Typography variant="body1"><strong>Duration</strong></Typography>
-                                                        <Typography variant="body2">Available: {matching.duration.available ? "Yes" : "No"}</Typography>
-                                                        <Typography variant="body2">Similarity: {matching.duration.available ? getRoundedSimilarity(matching.duration.similarity) : "N/A"}</Typography>
+                                                        <Typography variant="body2">Available: {durationScore.available ? "Yes" : "No"}</Typography>
+                                                        <Typography variant="body2">Similarity: {durationScore.available ? getRoundedSimilarity(durationScore.similarity) : "N/A"}</Typography>
                                                     </Box> : null}
                                                 </Box>
                                             </Box>

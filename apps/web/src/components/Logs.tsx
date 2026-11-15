@@ -31,6 +31,54 @@ function TabPanel(props: TabPanelProps) {
     );
 }
 
+function formatDuration(ms: number) {
+    const seconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+
+    if (hours > 0) {
+        return `${hours}h ${minutes % 60}m`;
+    } else if (minutes > 0) {
+        return `${minutes}m ${seconds % 60}s`;
+    }
+
+    return `${seconds}s`;
+}
+
+type LogTimingProps = {
+    readonly start?: number;
+    readonly duration: number | null;
+}
+
+function LogTiming(props: LogTimingProps) {
+    const { start, duration } = props;
+
+    return (
+        <>
+            {start ? <Typography
+                variant="body2"
+                sx={{
+                    color: "text.secondary",
+                    whiteSpace: 'nowrap'
+                }}>
+                <BMoment date={start} format="D MMM HH:mm" />
+            </Typography> : null}
+            {duration !== null && (
+                <Typography
+                    variant="body2"
+                    sx={{
+                        color: "text.secondary",
+                        whiteSpace: 'nowrap',
+                        minWidth: '60px',
+                        textAlign: 'right'
+                    }}>
+                    {formatDuration(duration)}
+                </Typography>
+            )}
+        </>
+    );
+}
+
 export default function Logs() {
     const [loading, setLoading] = useState(true);
     const [data, setData] = useState<GetLogsResponse | null>(null);
@@ -42,8 +90,9 @@ export default function Logs() {
         await errorBoundary(async () => {
             const result = await axios.get<GetLogsResponse>('/api/logs');
             setData(result.data);
-            setLoading(false);
         });
+        // errorBoundary never rethrows: this runs after a failure too
+        setLoading(false);
     }, []);
 
     useEffect(() => {
@@ -64,14 +113,12 @@ export default function Logs() {
         await errorBoundary(async () => {
             await axios.delete('/api/logs');
             await fetchLogs();
-            setClearing(false);
         });
+        setClearing(false);
     }, [fetchLogs]);
 
     const onClearLogsClick = useCallback(() => {
-        handleClearLogs().catch((error: unknown) => {
-            console.error('Error clearing logs:', error);
-        });
+        errorBoundary(handleClearLogs);
     }, [handleClearLogs]);
 
     const getSyncTypeTitle = (type: SyncType) => {
@@ -85,20 +132,6 @@ export default function Logs() {
         };
 
         return titles[type];
-    };
-
-    const formatDuration = (ms: number) => {
-        const seconds = Math.floor(ms / 1000);
-        const minutes = Math.floor(seconds / 60);
-        const hours = Math.floor(minutes / 60);
-
-        if (hours > 0) {
-            return `${hours}h ${minutes % 60}m`;
-        } else if (minutes > 0) {
-            return `${minutes}m ${seconds % 60}s`;
-        }
-
-        return `${seconds}s`;
     };
 
     const renderOverview = () => {
@@ -188,26 +221,7 @@ export default function Logs() {
                                 <Typography variant="body2" sx={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
                                     {log.title}
                                 </Typography>
-                                {log.start ? <Typography
-                                    variant="body2"
-                                    sx={{
-                                        color: "text.secondary",
-                                        whiteSpace: 'nowrap'
-                                    }}>
-                                    <BMoment date={log.start} format="D MMM HH:mm" />
-                                </Typography> : null}
-                                {duration !== null && (
-                                    <Typography
-                                        variant="body2"
-                                        sx={{
-                                            color: "text.secondary",
-                                            whiteSpace: 'nowrap',
-                                            minWidth: '60px',
-                                            textAlign: 'right'
-                                        }}>
-                                        {formatDuration(duration)}
-                                    </Typography>
-                                )}
+                                <LogTiming start={log.start} duration={duration} />
                                 {hasError && log.error ? (
                                     <Tooltip title={log.error} arrow>
                                         <Chip label="Error" color="error" size="small" sx={{ minWidth: '75px', cursor: 'help' }} />
@@ -269,26 +283,7 @@ export default function Logs() {
                                         </Link>
                                     </Tooltip>
                                 )}
-                                {log.start ? <Typography
-                                    variant="body2"
-                                    sx={{
-                                        color: "text.secondary",
-                                        whiteSpace: 'nowrap'
-                                    }}>
-                                    <BMoment date={log.start} format="D MMM HH:mm" />
-                                </Typography> : null}
-                                {duration !== null && (
-                                    <Typography
-                                        variant="body2"
-                                        sx={{
-                                            color: "text.secondary",
-                                            whiteSpace: 'nowrap',
-                                            minWidth: '60px',
-                                            textAlign: 'right'
-                                        }}>
-                                        {formatDuration(duration)}
-                                    </Typography>
-                                )}
+                                <LogTiming start={log.start} duration={duration} />
                                 {hasError && log.error ? (
                                     <Tooltip title={log.error} arrow>
                                         <Chip label={log.status} color="error" size="small" sx={{ minWidth: '85px', cursor: 'help' }} />
@@ -344,26 +339,7 @@ export default function Logs() {
                                 <Typography variant="body2" sx={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
                                     {log.artist_name} - {log.track_name}
                                 </Typography>
-                                {log.start ? <Typography
-                                    variant="body2"
-                                    sx={{
-                                        color: "text.secondary",
-                                        whiteSpace: 'nowrap'
-                                    }}>
-                                    <BMoment date={log.start} format="D MMM HH:mm" />
-                                </Typography> : null}
-                                {duration !== null && (
-                                    <Typography
-                                        variant="body2"
-                                        sx={{
-                                            color: "text.secondary",
-                                            whiteSpace: 'nowrap',
-                                            minWidth: '60px',
-                                            textAlign: 'right'
-                                        }}>
-                                        {formatDuration(duration)}
-                                    </Typography>
-                                )}
+                                <LogTiming start={log.start} duration={duration} />
                                 {hasError && log.error ? (
                                     <Tooltip title={log.error} arrow>
                                         <Chip label={log.status} color="error" size="small" sx={{ minWidth: '85px', cursor: 'help' }} />

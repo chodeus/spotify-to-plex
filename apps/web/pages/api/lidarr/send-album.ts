@@ -82,33 +82,33 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
             // Step 3: Add to Lidarr, or monitor the album it has, then search
             const outcome = await addOrMonitorAlbum(lidarrAlbum, releaseId, settings, apiKey);
 
-            const { releasesWithoutStatus } = outcome;
-            if (outcome.result === 'not_found' && releasesWithoutStatus?.length)
+            const { result, ok, message, releasesWithoutStatus } = outcome;
+            if (result === 'not_found' && releasesWithoutStatus?.length)
                 updateUnmappedAlbums(list => touchMissingReleaseStatus(list, spotify_album_id, releasesWithoutStatus));
-            else if (outcome.result === 'not_found')
+            else if (result === 'not_found')
                 updateUnmappedAlbums(list => touchAwaitingLidarr(list, spotify_album_id));
             else
                 updateUnmappedAlbums(list => clearUnmapped(list, spotify_album_id));
 
-            if (outcome.result === 'not_found') {
+            if (result === 'not_found') {
                 return res.status(404).json({
                     success: false,
-                    message: outcome.message,
+                    message,
                 });
             }
 
-            if (outcome.result === 'failed') {
-                console.error('Error sending album to Lidarr:', outcome.message);
+            if (result === 'failed') {
+                console.error('Error sending album to Lidarr:', message);
 
                 return res.status(500).json({
                     success: false,
-                    message: outcome.message,
+                    message,
                 });
             }
 
             return res.status(200).json({
-                success: outcome.ok,
-                message: outcome.result === 'added' && outcome.ok ? `Successfully added "${lidarrAlbum.title}" to Lidarr` : outcome.message,
+                success: ok,
+                message: result === 'added' && ok ? `Successfully added "${lidarrAlbum.title}" to Lidarr` : message,
             });
 
         } catch (error: unknown) {

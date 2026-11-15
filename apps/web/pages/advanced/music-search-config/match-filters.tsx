@@ -84,11 +84,11 @@ const MatchFiltersPage: NextPage = () => {
     }, [loadData]);
 
     const handleResetClick = useCallback(() => {
-        handleReset().catch(console.error);
+        errorBoundary(handleReset);
     }, [handleReset]);
 
     const handleSaveClick = useCallback(() => {
-        saveData().catch(console.error);
+        errorBoundary(saveData);
     }, [saveData]);
 
     const handleViewModeChange = useCallback((
