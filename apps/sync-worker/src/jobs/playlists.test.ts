@@ -21,7 +21,7 @@ vi.mock('@spotify-to-plex/plex-config/functions/getSettings', () => ({ getSettin
 vi.mock('@spotify-to-plex/music-search/functions/getMusicSearchConfig', () => ({ getMusicSearchConfig: async () => ({ searchApproaches: [{ id: 'normal' }] }) }));
 vi.mock('@spotify-to-plex/http-client/AxiosRequest', () => ({ AxiosRequest: { get: vi.fn() } }));
 vi.mock('../utils/loadSpotifyData', () => ({ loadSpotifyData }));
-vi.mock('../utils/getCachedPlexTracks', () => ({ getCachedPlexTracks: async () => ({ result: [], add: vi.fn(), markChecked: vi.fn(), recheck: [] }) }));
+vi.mock('../utils/getCachedPlexTracks', () => ({ getCachedPlexTracks: async () => ({ result: [], add: vi.fn(), markChecked: vi.fn(), recheck: [], standIns: new Map() }) }));
 vi.mock('../utils/matchByIsrc', () => ({ matchByIsrc: async (_config: unknown, results: unknown) => results }));
 vi.mock('../utils/putPlexTracks', () => ({ putPlexPlaylist: vi.fn() }));
 vi.mock('../utils/findMissingTidalTracks', () => ({ findMissingTidalTracks: async () => [] }));

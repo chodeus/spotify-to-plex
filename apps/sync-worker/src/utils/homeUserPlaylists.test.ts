@@ -79,7 +79,7 @@ vi.mock('../utils/loadSpotifyData', () => ({ loadSpotifyData }));
 vi.mock('@spotify-to-plex/music-search/functions/getMusicSearchConfig', () => ({ getMusicSearchConfig: async () => ({ searchApproaches: [{ id: 'normal' }] }) }));
 vi.mock('../utils/getCachedPlexTracks', () => ({ getCachedPlexTracks: async () => ({
     result: [0, 1, 2, 3].map(n => ({ id: `t${n}`, title: `T${n}`, artist: 'A', album: 'B', result: [{ id: `/library/metadata/${n}` }] })),
-    add: vi.fn(), markChecked: vi.fn(), recheck: [] }) }));
+    add: vi.fn(), markChecked: vi.fn(), recheck: [], standIns: new Map() }) }));
 vi.mock('../utils/findMissingTidalTracks', () => ({ findMissingTidalTracks: async () => [] }));
 // The web route's own helpers sit behind the web app's "@/" alias
 vi.mock('@/helpers/errors/generateError', async () => import('../../../web/src/helpers/errors/generateError'));

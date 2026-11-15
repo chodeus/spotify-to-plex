@@ -30,7 +30,7 @@ vi.mock('./getCachedPlexTracks', async importOriginal => {
 
         const result = spotify.tracks.map(track => ({ id: track.id, title: track.id, artist: 'A', album: 'B', result: track.plex === undefined ? [] : [{ id: `/library/metadata/${track.plex}` }] }));
 
-        return { result, add: vi.fn(), markChecked: vi.fn(), recheck: [], manualUnanswered: false };
+        return { result, add: vi.fn(), markChecked: vi.fn(), recheck: [], standIns: new Map<string, string>() };
     } };
 });
 vi.mock('./findMissingTidalTracks', () => ({ findMissingTidalTracks: async () => [] }));
@@ -122,6 +122,16 @@ describe('playlist sync into a Plex collection', () => {
 
         expect([...plex.collections]).toEqual([['900', { title: 'Mix 2', section: 6 }]]);
         expect(membersOf('900')).toEqual(keys(1, 2, 3));
+    });
+
+    it.each(['', '  '])('names the playlist and collection after the Spotify playlist when the saved title is %j', async title => {
+        saved({ plex_target: 'both', title });
+
+        await sync();
+
+        expect(errorOf('p1')).toBeUndefined();
+        expect([...plex.collections.values()]).toEqual([{ title: 'Mix', section: 6 }]);
+        expect([...plex.playlistTitles.values()]).toEqual(['Mix']);
     });
 
     it('as both, makes the playlist and the collection', async () => {
@@ -284,7 +294,44 @@ describe('playlist sync into a Plex collection', () => {
 
         expect(errorOf('p1')).toBeUndefined();
         expect(membersOf(collectionsNamed('Mix')[0] ?? '')).toEqual(keys(2, 3));
-        expect(console.log).toHaveBeenCalledWith('* Plex did not add 1 track(s) to the collection: /library/metadata/1');
+        expect(console.log).toHaveBeenCalledWith('* Plex does not have 1 matched track(s): /library/metadata/1');
+    });
+
+    it('keeps a collection in each music library the tracks are in, and finds both again on the next sync', async () => {
+        plex.sections.set('3', 7);
+        await sync();
+        await sync();
+
+        expect(errorOf('p1')).toBeUndefined();
+        expect([...plex.collections]).toEqual([['900', { title: 'Mix', section: 6 }], ['901', { title: 'Mix', section: 7 }]]);
+        expect(membersOf('900')).toEqual(keys(1, 2));
+        expect(membersOf('901')).toEqual(keys(3));
+        expect(read('collections.json').data).toEqual([{ id: 'p1', plex: '900' }, { id: 'p1', plex: '901' }]);
+    });
+
+    it('empties the collection of a library the playlist no longer has tracks in', async () => {
+        plex.sections.set('3', 7);
+        await sync();
+        spotify.tracks = tracks(2);
+
+        await sync();
+
+        expect(membersOf('900')).toEqual(keys(1, 2));
+        expect(membersOf('901')).toEqual([]);
+        expect(read('collections.json').data).toEqual([{ id: 'p1', plex: '900' }, { id: 'p1', plex: '901' }]);
+    });
+
+    it('drops the record of a collection deleted in Plex and keeps the others', async () => {
+        plex.sections.set('3', 7);
+        await sync();
+        untag('3', 'Mix');
+        plex.collections.delete('901');
+        spotify.tracks = tracks(2);
+
+        await sync();
+
+        expect(read('collections.json').data).toEqual([{ id: 'p1', plex: '900' }]);
+        expect(membersOf('900')).toEqual(keys(1, 2));
     });
 
     it('keeps syncing when the only new track has a dead key', async () => {
@@ -377,16 +424,21 @@ describe('collection sync through the real track cache and search', () => {
     const links = (manual?: string) => write('track_links.json', tracks(3).map(track => ({ spotify_id: track.id, plex_id: [`/library/metadata/${track.plex}`], plex_checked_at: Date.now(), ...(track.id === manual ? { manual: true } : {}) })));
     beforeEach(() => { spotify.realCache = true });
 
-    it('keeps a track whose cached link and search Plex both left unanswered this sync', async () => {
+    const members = () => membersOf(collectionsNamed('Mix')[0] ?? '');
+    const playlistKeys = () => [...plex.playlists.values()].map(items => items.map(key => key.slice('/library/metadata/'.length)));
+    beforeEach(() => saved({ plex_target: 'both' }));
+
+    it('keeps a track whose cached link and search Plex both left unanswered this sync, in its place', async () => {
         links();
         await sync();
-        expect(membersOf('900')).toEqual(keys(1, 2, 3));
+        expect(members()).toEqual(keys(1, 2, 3));
 
-        plex.fail = (method, path) => method === 'GET' && (path === '/library/metadata/3' || path === '/hubs/search');
+        plex.fail = (method, path) => method === 'GET' && (path === '/library/metadata/1' || path === '/hubs/search');
         await sync();
 
-        expect(membersOf('900')).toEqual(keys(1, 2, 3));
-        expect(console.log).toHaveBeenCalledWith('* Plex did not answer for every track, so 1 track(s) stay in the collection until a sync where it does');
+        expect(errorOf('p1')).toBeUndefined();
+        expect(members()).toEqual(keys(1, 2, 3));
+        expect(playlistKeys()).toEqual([keys(1, 2, 3)]);
     });
 
     it('keeps a hand-picked track Plex left unanswered this sync', async () => {
@@ -396,7 +448,20 @@ describe('collection sync through the real track cache and search', () => {
         plex.fail = (method, path) => method === 'GET' && path === '/library/metadata/3';
         await sync();
 
-        expect(membersOf('900')).toEqual(keys(1, 2, 3));
+        expect(members()).toEqual(keys(1, 2, 3));
+        expect(playlistKeys()).toEqual([keys(1, 2, 3)]);
+    });
+
+    it('takes out a track the playlist dropped even while Plex leaves another unanswered', async () => {
+        links();
+        await sync();
+
+        spotify.tracks = tracks(2);
+        plex.fail = (method, path) => method === 'GET' && (path === '/library/metadata/2' || path === '/hubs/search');
+        await sync();
+
+        expect(members()).toEqual(keys(1, 2));
+        expect(playlistKeys()).toEqual([keys(1, 2)]);
     });
 
     it('takes out a track the playlist dropped when Plex answered for every track', async () => {
@@ -406,7 +471,8 @@ describe('collection sync through the real track cache and search', () => {
         spotify.tracks = tracks(2);
         await sync();
 
-        expect(membersOf('900')).toEqual(keys(1, 2));
+        expect(members()).toEqual(keys(1, 2));
+        expect(playlistKeys()).toEqual([keys(1, 2)]);
     });
 });
 

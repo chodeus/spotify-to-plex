@@ -300,7 +300,7 @@ export default function PlexPlaylist(props: PlexPlaylistProps) {
     const onSavePlaylistNameClick = useCallback(() => {
         errorBoundary(async () => {
 
-            if (!newPlaylistName)
+            if (!newPlaylistName?.trim())
                 return;
 
             await axios.put(`/api/saved-items/`, {

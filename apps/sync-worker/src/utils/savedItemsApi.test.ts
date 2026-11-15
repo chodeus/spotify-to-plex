@@ -18,20 +18,21 @@ afterEach(() => {
     rmSync(dir, { recursive: true, force: true });
 });
 
+async function call(method: 'PUT' | 'POST', body: unknown) {
+    const { default: handler } = await import('../../../web/pages/api/saved-items/index');
+    let status = 200; let json: unknown;
+    const res = { status(n: number) { status = n;
+
+        return res }, json(b: unknown) { json = b;
+
+        return res }, setHeader() { return res }, end() { return res } };
+    await handler({ method, url: '/api/saved-items', headers: {}, query: {}, body } as never, res as never);
+
+    return { status, json };
+}
+const put = (body: unknown) => call('PUT', body);
+
 describe('PUT /api/saved-items plex_target', () => {
-    async function put(body: unknown) {
-        const { default: handler } = await import('../../../web/pages/api/saved-items/index');
-        let status = 200; let json: unknown;
-        const res = { status(n: number) { status = n;
-
-            return res }, json(b: unknown) { json = b;
-
-            return res }, setHeader() { return res }, end() { return res } };
-        await handler({ method: 'PUT', url: '/api/saved-items', headers: {}, query: {}, body } as never, res as never);
-
-        return { status, json };
-    }
-
     it('saves a valid choice on a playlist', async () => {
         const { status } = await put({ ids: ['p1'], plex_target: 'both' });
 
@@ -54,5 +55,27 @@ describe('PUT /api/saved-items plex_target', () => {
 
         expect({ status, json }).toEqual({ status: 400, json: { error: 'plex_target applies to playlists only' } });
         expect(read('spotify_saved_items.json')[0].plex_target).toBeUndefined();
+    });
+});
+
+describe('/api/saved-items title', () => {
+    it.each(['', '   '])('refuses a blank title (%j) and saves nothing', async title => {
+        const { status, json } = await put({ ids: ['p1'], title, label: 'x' });
+
+        expect({ status, json }).toEqual({ status: 400, json: { error: 'The title cannot be blank' } });
+        expect(read('spotify_saved_items.json')[0]).toMatchObject({ title: 'Mix' });
+        expect(read('spotify_saved_items.json')[0].label).toBeUndefined();
+    });
+
+    it('names liked songs "Liked Songs" when the label is blank', async () => {
+        vi.stubEnv('SPOTIFY_API_CLIENT_ID', 'client');
+        vi.stubEnv('SPOTIFY_API_CLIENT_SECRET', 'secret');
+        write('spotify.json', [{ user: { id: 'u1', name: 'Faye' } }]);
+
+        const { status } = await call('POST', { search: 'faye:liked', label: '  ' });
+
+        vi.unstubAllEnvs();
+        expect(status).toBe(200);
+        expect(read('spotify_saved_items.json').find((item: { id: string }) => item.id === 'liked-u1')?.title).toBe('Liked Songs');
     });
 });

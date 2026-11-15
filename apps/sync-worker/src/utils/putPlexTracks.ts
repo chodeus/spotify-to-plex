@@ -6,24 +6,11 @@ import { storePlaylist } from "@spotify-to-plex/plex-helpers/playlist/storePlayl
 import { updatePlaylist } from "@spotify-to-plex/plex-helpers/playlist/updatePlaylist";
 import { getPlexUri } from "@spotify-to-plex/plex-helpers/utils/getPlexUri";
 import { Playlist } from "@spotify-to-plex/shared-types/plex/Playlist";
-import { SearchResponse } from "@spotify-to-plex/plex-music-search/types/SearchResponse";
+import { PlaylistItem } from "@spotify-to-plex/plex-helpers/PlaylistItem";
 import { PlexConnection } from "@spotify-to-plex/plex-helpers/utils/plexSettingsFor";
 import { addPlaylist } from "@spotify-to-plex/plex-config/functions/addPlaylist";
 
-export async function putPlexPlaylist(settings: PlexConnection, id: string, plexPlaylist: Playlist | undefined | null, result: SearchResponse[], title: string, thumb: string) {
-    const plexTracks = result.map(item => {
-        if (item.result.length == 0)
-            return null;
-
-        const [firstResult] = item.result;
-        if (!firstResult) return null;
-
-        return {
-            key: firstResult.id,
-            source: firstResult.source
-        };
-    }).filter(item => !!item);
-
+export async function putPlexPlaylist(settings: PlexConnection, id: string, plexPlaylist: Playlist | undefined | null, plexTracks: PlaylistItem[], title: string, thumb: string) {
     const [firstItem] = plexTracks;
     if (firstItem) {
         if (plexPlaylist) {

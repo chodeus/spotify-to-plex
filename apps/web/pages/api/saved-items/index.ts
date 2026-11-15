@@ -106,7 +106,7 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
                         type: 'spotify-playlist',
                         uri: `spotify:liked:${userId}`,
                         id: `liked-${userId}`,
-                        title: label && typeof label === 'string' ? label : 'Liked Songs',
+                        title: typeof label === 'string' && label.trim() ? label : 'Liked Songs',
                         image: ''
                     };
 
@@ -213,6 +213,10 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
 
             if (plex_target !== undefined && !PLEX_TARGETS.includes(plex_target))
                 return res.status(400).json({ error: `plex_target must be one of: ${PLEX_TARGETS.join(', ')}` })
+
+            // Plex would name the playlist or collection with nothing readable
+            if (typeof title === 'string' && !title.trim())
+                return res.status(400).json({ error: `The title cannot be blank` })
 
             const savedItems: SavedItem[] = JSON.parse(readFileSync(savedItemsPath, 'utf8'))
 
