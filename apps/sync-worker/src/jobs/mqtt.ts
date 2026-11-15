@@ -62,6 +62,8 @@ async function runMQTT() {
     console.log('[MQTT] Starting MQTT publish job...');
 
     let client: ReturnType<typeof createMQTTClient> | undefined;
+    // Set once the previous list is read: lists what the broker may still hold, once, however the run ends
+    let saveList: (() => void) | undefined;
 
     // Everything after the start settles the status: a throw above this try left it "running" until the next run
     try {
@@ -106,6 +108,15 @@ async function runMQTT() {
 
         // Process items
         const currentPublished: PublishedItem[] = [];
+        const cleared = new Set<string>();
+        if (!isDryRun) {
+            saveList = () => {
+                saveList = undefined;
+                const held = new Set(findItemsToRemove(previouslyPublished, currentPublished).filter(id => !cleared.has(id)));
+                savePublishedItems([...currentPublished, ...previouslyPublished.filter(item => item?.id && held.has(item.id))]);
+            };
+        }
+
         const categories = new Set<string>();
         let successCount = 0;
         let errorCount = 0;
@@ -124,10 +135,17 @@ async function runMQTT() {
             if (!item?.label)
                 continue;
 
+            // The broker is gone: every item left would only fail on its own
+            if (client && !client.isConnected())
+                throw new Error('Lost the connection to the MQTT broker');
+
             // Update progress
             updateSyncTypeProgress('mqtt', i + 1, savedItems.length);
 
             const itemLog = putLog(`mqtt_${item.id}`, item.title);
+            // The entity a publish is sending: its config may reach the broker before the state fails,
+            // so it is kept even when the last run had no entry for it
+            let attempted: PublishedItem | undefined;
             // A failure that may pass - Plex down or slow, the broker refusing one publish - keeps the
             // entity Home Assistant already has, rather than the cleanup below deleting it. Only an
             // item Plex says it no longer has is gone for good.
@@ -135,9 +153,9 @@ async function runMQTT() {
                 if (error instanceof PlexItemMissingError)
                     return;
 
-                const previous = previousById.get(item.id);
-                if (previous)
-                    currentPublished.push(previous);
+                const kept = previousById.get(item.id) ?? attempted;
+                if (kept)
+                    currentPublished.push(kept);
             };
 
             // Home Assistant plays as the Plex owner, who can't see a playlist made as a Home user: skipped
@@ -176,19 +194,18 @@ async function runMQTT() {
 
                 // Build entity
                 const entity = buildEntity(item, plexId, plexMetadata.image || '');
+                const published: PublishedItem = {
+                    id: entity.id,
+                    entity_id: createEntityId(entity.id, mqttConfig.topicPrefix),
+                    category: entity.category,
+                };
 
                 // Publish entity or collect for dry-run
                 if (isDryRun) {
                     // Collect entity data for manifest
-                    const entityId = createEntityId(entity.id, mqttConfig.topicPrefix);
-                    const discoveryTopic = createDiscoveryTopic(entityId, mqttConfig.discoveryPrefix);
+                    const discoveryTopic = createDiscoveryTopic(published.entity_id, mqttConfig.discoveryPrefix);
                     const stateTopic = createStateTopic(entity.id, mqttConfig.topicPrefix);
 
-                    const published = {
-                        id: entity.id,
-                        entity_id: entityId,
-                        category: entity.category,
-                    };
                     dryRunEntities.push({ entity, discoveryTopic, stateTopic, published });
                     currentPublished.push(published);
                     console.log(`[DRY-RUN] Would publish: ${item.title} [${item.type}] (${item.label})`);
@@ -196,8 +213,9 @@ async function runMQTT() {
                 }
 
                 if (publisher) {
-                    const publishedItem = await publisher.publishEntity(entity);
-                    currentPublished.push(publishedItem);
+                    attempted = published;
+                    await publisher.publishEntity(entity);
+                    currentPublished.push(published);
                     console.log(`[MQTT] Published: ${item.title} [${item.type}] (${item.label})`);
                 }
 
@@ -243,18 +261,22 @@ async function runMQTT() {
         if (categories.size > 0 && publisher)
             await publisher.publishCategories(categoriesArray);
 
-        // Cleanup removed entities
+        // Cleanup removed entities: one stays listed until its clear goes through, as the broker still holds it
         const toRemove = findItemsToRemove(previouslyPublished, currentPublished);
         if (toRemove.length > 0) {
             if (isDryRun) {
                 console.log(`[DRY-RUN] Would remove ${toRemove.length} unused entities`);
             } else if (publisher) {
                 console.log(`[MQTT] Removing ${toRemove.length} unused entities...`);
-                await publisher.removeEntities(toRemove);
+
+                for (const id of await publisher.removeEntities(toRemove))
+                    cleared.add(id);
             }
         }
 
-        // Save or generate manifest
+        saveList?.();
+
+        // Write the dry-run manifest or the summary
         if (isDryRun) {
             // Write dry-run manifest
             writeDryRunManifest(
@@ -271,10 +293,6 @@ async function runMQTT() {
                 }
             );
         } else {
-            // Save current published items
-            savePublishedItems(currentPublished);
-
-            // Summary
             console.log(`[MQTT] Successfully published ${successCount} items (${countByType.playlists} playlists, ${countByType.albums} albums, ${countByType['plex-media']} plex media)`);
         }
 
@@ -283,6 +301,13 @@ async function runMQTT() {
     } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
         console.error(`[MQTT] ERROR: ${message}`);
+        // Lists what this run may have put on the broker; a failed save here leaves the run's own error shown
+        try {
+            saveList?.();
+        } catch (saveError) {
+            console.error(`[MQTT] ERROR: ${saveError instanceof Error ? saveError.message : 'Unknown error'}`);
+        }
+
         errorSyncType('mqtt', message);
         throw error;
     } finally {
