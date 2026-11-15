@@ -21,7 +21,7 @@ export async function getSpotifyData(api: SpotifyApi, id: string, simplified: bo
             while (items.length < result.tracks.total) {
                 const page = await api.albums.tracks(albumId, undefined, 50, items.length)
                 // An empty page short of the total would end the loop on part of the album
-                if (page.items.length == 0)
+                if (page.items.length === 0)
                     throw new Error(`Spotify returned ${items.length} of ${result.tracks.total} tracks for album ${albumId}`);
 
                 items.push(...page.items)
@@ -55,7 +55,7 @@ export async function getSpotifyData(api: SpotifyApi, id: string, simplified: bo
     // Anything else Spotify-flavoured (artist, track, show, ...) would be sliced
     // into a mangled id below and then reported as a failed curated playlist.
     const spotifyType = id.startsWith('spotify:') ? id.split(':')[1] : undefined;
-    if (spotifyType && spotifyType != 'playlist')
+    if (spotifyType && spotifyType !== 'playlist')
         throw new Error(`This is a Spotify ${spotifyType} link. Only playlists and albums can be imported.`);
 
     const playlistId = id.slice(Math.max(0, id.indexOf('spotify:playlist:') + 'spotify:playlist:'.length)).trim();
@@ -109,7 +109,7 @@ export async function getSpotifyData(api: SpotifyApi, id: string, simplified: bo
         .filter((image) => {
             // Keep images without dimensions: SpotifyScraper stopped reporting
             // them, and dropping those would leave every playlist coverless.
-            if (typeof image.width != 'number')
+            if (typeof image.width !== 'number')
                 return true;
 
             return image.width >= 100;
@@ -135,7 +135,7 @@ export async function getSpotifyData(api: SpotifyApi, id: string, simplified: bo
         }
     }) || []
 
-    if (tracks.length == 0)
+    if (tracks.length === 0)
         return null;
 
 

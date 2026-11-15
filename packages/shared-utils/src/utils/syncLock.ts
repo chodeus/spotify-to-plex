@@ -6,7 +6,7 @@ import { getStorageDir } from './getStorageDir';
 
 /**
  * One run of each sync at a time: a lock file in the temp directory the web server and the scheduler
- * share, per storage directory so separate installs never meet. It outlives a container restart.
+ * share, per storage directory so separate installs never meet. A lock a restart left is cleared: see STALE_MS.
  */
 function lockPath(name: string) {
     const storage = createHash('sha256')
