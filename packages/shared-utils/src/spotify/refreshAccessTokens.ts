@@ -6,12 +6,59 @@ import { join } from "node:path"
 import { decrypt } from "../security/decrypt";
 import { encrypt } from "../security/encrypt"
 import { writeJsonFileAtomic } from "../utils/writeJsonFileAtomic"
+import { waitForLock } from "../utils/syncLock"
 
 // A token is used for a while after it is read - paging a large playlist, searching its tracks -
 // so one that is about to expire is refreshed now, rather than failing with a 401 partway through
 export const REFRESH_MARGIN_MS = 5 * 60 * 1000
 
+// The web app and the scheduler each refresh, and a refresh token sent twice can revoke the sign-in:
+// one refresh at a time across processes; one that waited re-reads the file and finds nothing due
+const LOCK_NAME = 'spotify-token-refresh'
+// Each token request is capped at this, and a holder sends one per user, one after another
+const TOKEN_REQUEST_TIMEOUT_MS = 15_000
+
+// Calls in this process share one refresh rather than queueing on the lock behind each other
+let inFlight: Promise<void> | undefined
+
 export async function refreshAccessTokens() {
+    inFlight ??= refreshLocked().finally(() => { inFlight = undefined })
+
+    return inFlight
+}
+
+async function refreshLocked() {
+    const waitMs = lockWaitMs()
+    // A hung holder or a lock that can't be made must not stop every sync: refresh as before the lock
+    let release: (() => void) | undefined
+    try {
+        release = await waitForLock(LOCK_NAME, waitMs)
+        if (!release)
+            console.warn(`⚠️  Another token refresh still running after ${waitMs / 1000} s; refreshing anyway`)
+    } catch (e) {
+        console.warn(`⚠️  Token refresh lock unavailable; refreshing without it:`, e instanceof Error ? e.message : e)
+    }
+
+    try {
+        await refreshTokens()
+    } finally {
+        release?.()
+    }
+}
+
+// A holder refreshing every user at the cap, plus one request of slack; one still going after that is taken as hung
+function lockWaitMs() {
+    try {
+        const users: unknown = JSON.parse(readFileSync(join(getStorageDir(), "spotify.json"), "utf8"))
+
+        return ((Array.isArray(users) ? users.length : 0) + 1) * TOKEN_REQUEST_TIMEOUT_MS
+    } catch {
+        // Missing or unreadable: the refresh itself reports it
+        return TOKEN_REQUEST_TIMEOUT_MS
+    }
+}
+
+async function refreshTokens() {
     const credentialsPath = join(getStorageDir(), 'spotify.json')
     if (!existsSync(credentialsPath))
         throw new Error("No users are currently connected.");
@@ -53,7 +100,7 @@ export async function refreshAccessTokens() {
                             'Content-Type': 'application/x-www-form-urlencoded',
                         },
                         // Every playlist load waits on this, so a hung Spotify endpoint would hang the sync
-                        timeout: 15_000,
+                        timeout: TOKEN_REQUEST_TIMEOUT_MS,
                     }
                 );
 
