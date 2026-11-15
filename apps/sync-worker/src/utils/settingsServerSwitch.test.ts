@@ -18,7 +18,21 @@ vi.mock('@spotify-to-plex/http-client/AxiosRequest', async () => {
     return { AxiosRequest: fakeAxiosRequest };
 });
 vi.mock('./loadSpotifyData', () => ({ loadSpotifyData }));
-const { disk } = vi.hoisted(() => ({ disk: { failDelete: false, holdRead: undefined as { reached: () => void, gate: Promise<void> } | undefined } }));
+const { disk } = vi.hoisted(() => ({ disk: {
+    failDelete: false,
+    failWrite: undefined as ((path: string) => boolean) | undefined,
+    holdRead: undefined as { reached: () => void, gate: Promise<void> } | undefined
+} }));
+vi.mock('@spotify-to-plex/shared-utils/utils/writeJsonFileAtomic', async importOriginal => {
+    const actual = await importOriginal<typeof import('@spotify-to-plex/shared-utils/utils/writeJsonFileAtomic')>();
+
+    return { writeJsonFileAtomic: (path: string, data: unknown) => {
+        if (disk.failWrite?.(path))
+            throw new Error('ENOSPC: no space left on device');
+
+        actual.writeJsonFileAtomic(path, data);
+    } };
+});
 vi.mock('@spotify-to-plex/plex-config/utils/fileUtils', async importOriginal => {
     const actual = await importOriginal<typeof import('@spotify-to-plex/plex-config/utils/fileUtils')>();
 
@@ -74,6 +88,18 @@ function holdNextSettingsRead() {
     return { read, release };
 }
 
+// Runs `other` while `held` waits on its settings read; `other` gets 300 ms, as a save waiting for the lock never ends
+async function whileReadHeld(held: () => Promise<unknown>, other: () => Promise<unknown>) {
+    const hold = holdNextSettingsRead();
+    const first = held();
+    await hold.read;
+    const second = other();
+    await Promise.race([second, new Promise(resolve => { setTimeout(resolve, 300) })]);
+    hold.release();
+
+    return Promise.all([first, second]);
+}
+
 async function sync() {
     const { syncPlaylists } = await import('../jobs/playlists');
     await syncPlaylists(true);
@@ -85,6 +111,7 @@ beforeEach(() => {
     resetPlex();
     disk.failDelete = false;
     disk.holdRead = undefined;
+    disk.failWrite = undefined;
     write('plex.json', { id: 'machine', uri: 'http://plex.test:32400', token: 'owner-account', serverToken: 'owner-server' });
     saved('collection');
     plexTv.get.mockResolvedValue({ data: [{ product: 'Plex Media Server', name: 'New', clientIdentifier: 'other-machine', accessToken: 'other-server', connections: [{ local: true, uri: 'http://other.test:32400' }] }] });
@@ -178,19 +205,59 @@ describe('POST /api/settings choosing another Plex server', () => {
         expect(read('track_links.json')).toEqual(picked);
     });
 
-    it('keeps each server its own matches when a second switch read the settings before the first switch ended', async () => {
+    it('keeps each server its own matches when two switches to the same server overlap', async () => {
         write('track_links.json', links);
-        const late = holdNextSettingsRead();
-        const second = updateSettings(newServer);
-        await late.read;
 
-        await updateSettings(newServer);
-        late.release();
-        await second;
+        await whileReadHeld(() => updateSettings(newServer), () => updateSettings(newServer));
 
         expect(read('plex.json')).toMatchObject(newServer);
         await updateSettings(oldServer);
         expect(read('track_links.json')).toEqual(links);
+    });
+
+    it('keeps the new server when another save of the same server overlaps the switch', async () => {
+        write('track_links.json', links);
+
+        await whileReadHeld(() => updateSettings({ token: 'renewed' }), () => updateSettings(newServer));
+
+        expect(read('plex.json')).toMatchObject({ ...newServer, token: 'renewed' });
+        expect(read('track_links.json')).toEqual(unmatched);
+    });
+
+    it("keeps the new server's matches when they could not be put back, and brings them back on its next return", async () => {
+        write('track_links.json', links);
+        await updateSettings(newServer);
+        setManualTrackLink('t1', '/library/metadata/77');
+        const [pickedOnNew] = read('track_links.json');
+        await updateSettings(oldServer);
+
+        let writes = 0;
+        disk.failWrite = path => path.endsWith('track_links.json') && ++writes === 2;
+        await updateSettings(newServer);
+        disk.failWrite = undefined;
+
+        expect(read('plex.json')).toMatchObject(newServer);
+        expect(read('track_links.json')).toEqual(unmatched);
+
+        setManualTrackLink('t2', '/library/metadata/88');
+        const [, pickedSince] = read('track_links.json');
+        await updateSettings(oldServer);
+        await updateSettings(newServer);
+
+        expect(read('track_links.json')).toEqual([pickedOnNew, pickedSince, unmatched[2]]);
+    });
+
+    it('leaves out a match the sync dropped after the matches were put back', async () => {
+        write('track_links.json', links);
+        await updateSettings(newServer);
+        await updateSettings(oldServer);
+        // Plex no longer has t2's track, so the sync emptied its link
+        write('track_links.json', [links[0], { ...links[1], plex_id: [] }, links[2]]);
+
+        await updateSettings(newServer);
+        await updateSettings(oldServer);
+
+        expect(read('track_links.json')).toEqual([links[0], unmatched[1], links[2]]);
     });
 
     it('keeps the switch when the matches kept for the new server cannot be put back', async () => {

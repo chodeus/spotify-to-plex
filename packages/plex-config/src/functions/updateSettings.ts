@@ -58,18 +58,26 @@ async function switchServer(current: PlexSettings, updates: PlexSettingsUpdate &
     }
 }
 
+// Long enough for another save to finish, a server switch included
+const SAVE_WAIT_MS = 10_000;
+
 export async function updateSettings(updates: PlexSettingsUpdate) {
-    // A save that keeps the server takes no lock, so it never waits for a sync
-    const before = await getSettings(true);
-    if (!choosesAnotherServer(before, updates))
-        return save(before, updates);
+    // Every save holds this lock: one that read the settings while a switch ran would write the old server back
+    const release = await waitForLock('settings', SAVE_WAIT_MS);
+    if (!release)
+        throw new SyncRunningError('Another settings save is still running: try again in a moment');
 
-    const release = await lockKeySavingSyncs();
     try {
-        // Read again under the locks: a switch that ended in between may have chosen this server already
         const current = await getSettings(true);
+        if (!choosesAnotherServer(current, updates))
+            return await save(current, updates);
 
-        return choosesAnotherServer(current, updates) ? await switchServer(current, updates) : await save(current, updates);
+        const releaseSyncs = await lockKeySavingSyncs();
+        try {
+            return await switchServer(current, updates);
+        } finally {
+            releaseSyncs();
+        }
     } finally {
         release();
     }
