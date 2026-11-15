@@ -108,6 +108,17 @@ describe('getCachedPlexTracks', () => {
         expect(manualUnanswered).toBe(true);
     });
 
+    it('leaves an automatic link whose lookup failed to the search, with its key standing in', async () => {
+        writeLink({});
+        getByIdMock.mockRejectedValue(new Error('connect ECONNREFUSED'));
+
+        const { result, manualUnanswered, standIns } = await getCachedPlexTracks(config, playlist);
+
+        expect(result).toEqual([]);
+        expect(manualUnanswered).toBe(false);
+        expect([...standIns]).toEqual([['spotify-1', '/library/metadata/1']]);
+    });
+
     it('keeps a manual link while Plex is unreachable', async () => {
         writeLink({ manual: true });
         getByIdMock.mockRejectedValue(new Error('connect ECONNREFUSED'));

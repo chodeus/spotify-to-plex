@@ -6,26 +6,79 @@ import { renameCollection } from "@spotify-to-plex/plex-helpers/collection/renam
 import { sortCollectionByTitle } from "@spotify-to-plex/plex-helpers/collection/sortCollectionByTitle";
 import { storeCollection } from "@spotify-to-plex/plex-helpers/collection/storeCollection";
 import { putPlaylistPoster } from "@spotify-to-plex/plex-helpers/playlist/putPlaylistPoster";
-import { getLibraryItem } from "@spotify-to-plex/plex-helpers/utils/getLibraryItem";
+import { getLibraryItems, LibraryItem } from "@spotify-to-plex/plex-helpers/utils/getLibraryItems";
+import { ratingKeyOf } from "@spotify-to-plex/plex-helpers/utils/ratingKeyOf";
 import { PlexConnection } from "@spotify-to-plex/plex-helpers/utils/plexSettingsFor";
 import { addCollection } from "@spotify-to-plex/plex-config/functions/addCollection";
 import { getCollections } from "@spotify-to-plex/plex-config/functions/getCollections";
-import { SearchResponse } from "@spotify-to-plex/plex-music-search/types/SearchResponse";
+import { keepCollections } from "@spotify-to-plex/plex-config/functions/keepCollections";
 
-/** Brings the playlist's Plex collection in line with its matched tracks, under the playlist's title. */
-export async function putPlexCollection(settings: PlexConnection, id: string, result: SearchResponse[], title: string, thumb: string, removeDropped: boolean) {
-    const keys = [...new Set(result.map(item => item.result[0]?.id).filter((key): key is string => !!key))];
-    const [first] = keys;
-    // Nothing matched says nothing about what the collection should hold: leave it as it is
-    if (!first)
+type Target = { id: string, title: string, thumb: string, records: readonly { id: string, plex: string }[] };
+
+/** Brings the playlist's Plex collections in line with its matched tracks and title: one per music library it has tracks in. */
+export async function putPlexCollection(settings: PlexConnection, id: string, trackKeys: string[], title: string, thumb: string) {
+    const keys = [...new Set(trackKeys)];
+    // Nothing matched says nothing about what the collections should hold: leave them as they are
+    if (keys.length === 0)
         return;
 
+    const sections = await sectionsOf(settings, keys);
     const { data: records = [] } = await getCollections();
-    const recorded = records.find(item => item.id === id)?.plex;
-    const found = recorded ? await getLibraryItem(settings, `/library/metadata/${recorded}`) : undefined;
-    const collection = found?.type === 'collection' ? found : undefined;
-    const sectionId = collection?.librarySectionID ?? await sectionOf(settings, keys);
+    const recorded = records.filter(item => item.id === id).map(item => item.plex);
+    const recordedItems = await getLibraryItems(settings, recorded);
+    const owned = recordedItems.filter(item => item.type === 'collection');
+    if (owned.length < recorded.length)
+        await keepCollections(id, owned.map(item => item.ratingKey));
 
+    const target = { id, title, thumb, records };
+    // A clash or failure in one library is no reason to leave the others behind
+    const failures: unknown[] = [];
+    const attempt = (step: Promise<void>) => step.catch((error: unknown) => { failures.push(error) });
+
+    for (const [sectionId, sectionKeys] of sections)
+        await attempt(putSectionCollection(settings, target, sectionId, owned.find(item => item.librarySectionID === sectionId), sectionKeys));
+
+    // A library the playlist has no tracks in any more keeps its collection, emptied, under the title it had
+    for (const collection of owned.filter(item => item.librarySectionID === undefined || !sections.has(item.librarySectionID)))
+        await attempt(fillCollection(settings, collection.ratingKey, []));
+
+    if (failures.length === 1)
+        throw failures[0];
+
+    if (failures.length > 1)
+        throw new Error(failures.map(error => error instanceof Error ? error.message : String(error)).join('; '));
+}
+
+// Plex keeps a collection to one library, so the tracks go to the collection in their own library
+async function sectionsOf(settings: PlexConnection, keys: string[]) {
+    const items = await getLibraryItems(settings, keys);
+    const found = new Map(items.map(item => [item.ratingKey, item.librarySectionID]));
+    const sections = new Map<number, [string, ...string[]]>();
+    const gone: string[] = [];
+
+    for (const key of keys) {
+        const section = found.get(ratingKeyOf(key));
+        const held = section === undefined ? undefined : sections.get(section);
+        if (section === undefined)
+            gone.push(key);
+        else if (held)
+            held.push(key);
+        else
+            sections.set(section, [key]);
+    }
+
+    // A cached link can point at a track Plex has since replaced (a re-import gives it a new key)
+    if (sections.size === 0)
+        throw new Error(`Plex has none of the playlist's ${keys.length} matched track(s) in its library`);
+
+    if (gone.length > 0)
+        console.log(`* Plex does not have ${gone.length} matched track(s): ${gone.join(', ')}`);
+
+    return sections;
+}
+
+async function putSectionCollection(settings: PlexConnection, target: Target, sectionId: number, collection: LibraryItem | undefined, keys: [string, ...string[]]) {
+    const { id, title, thumb, records } = target;
     const others = await getSectionCollections(settings, sectionId);
     const own = collection ?? await adoptMade(settings, id, others);
     // Plex ties tracks to a collection by its title, ignoring case: two collections with one title share their tracks
@@ -36,11 +89,11 @@ export async function putPlexCollection(settings: PlexConnection, id: string, re
     if (clash)
         throw new Error(`Plex already has a collection named "${clash.title}" that spotify-to-plex has no record of: rename or delete it in Plex to sync this playlist as a collection`);
 
-    const collectionId = own?.ratingKey ?? await createCollection(settings, id, sectionId, title, first);
+    const collectionId = own?.ratingKey ?? await createCollection(settings, id, sectionId, title, keys[0]);
     if (own && own.title !== title)
         await renameCollection(settings, sectionId, collectionId, title);
 
-    await fillCollection(settings, collectionId, keys, removeDropped);
+    await fillCollection(settings, collectionId, keys);
     if (!thumb)
         return;
 
@@ -81,21 +134,17 @@ async function createCollection(settings: PlexConnection, id: string, sectionId:
     return collectionId;
 }
 
-async function fillCollection(settings: PlexConnection, collectionId: string, keys: string[], removeDropped: boolean) {
+async function fillCollection(settings: PlexConnection, collectionId: string, keys: string[]) {
     const held = new Set(await getCollectionItemKeys(settings, collectionId));
     const wanted = new Set(keys);
     const toAdd = keys.filter(key => !held.has(key));
     await addItemsToCollection(settings, collectionId, toAdd);
 
-    const dropped = [...held].filter(key => !wanted.has(key));
     // Every removal is tried, so one track Plex keeps refusing cannot hold back the rest
     const notRemoved: { key: string, error: unknown }[] = [];
-    if (removeDropped) {
-        for (const key of dropped)
-            await removeItemFromCollection(settings, collectionId, key).catch((error: unknown) => { notRemoved.push({ key, error }) });
-    } else if (dropped.length > 0) {
-        console.log(`* Plex did not answer for every track, so ${dropped.length} track(s) stay in the collection until a sync where it does`);
-    }
+
+    for (const key of [...held].filter(key => !wanted.has(key)))
+        await removeItemFromCollection(settings, collectionId, key).catch((error: unknown) => { notRemoved.push({ key, error }) });
 
     await logNotAdded(settings, collectionId, toAdd);
     const [refused] = notRemoved;
@@ -113,17 +162,6 @@ async function logNotAdded(settings: PlexConnection, collectionId: string, toAdd
     const notAdded = toAdd.filter(key => !now.has(key));
     if (notAdded.length > 0)
         console.log(`* Plex did not add ${notAdded.length} track(s) to the collection: ${notAdded.join(', ')}`);
-}
-
-// A cached link can point at a track Plex has since replaced (a re-import gives it a new key)
-async function sectionOf(settings: PlexConnection, keys: string[]) {
-    for (const key of keys) {
-        const item = await getLibraryItem(settings, key);
-        if (item?.librarySectionID)
-            return item.librarySectionID;
-    }
-
-    throw new Error(`Plex has none of the playlist's ${keys.length} matched track(s) in its library`);
 }
 
 // Folds widely on purpose: a false match only refuses the sync, a missed one would strip the other collection's tracks

@@ -21,16 +21,6 @@ export async function putPlaylistPoster(settings: PlexConnection, id: string, im
 
 }
 
-export async function getPlaylist(settings: PlexConnection, id: string) {
-    const { token, uri } = settings;
-    if (!token || !uri)
-        throw new Error('Plex settings not configured properly');
-
-    const url = getAPIUrl(uri, `/library/metadata/${id}`);
-    const currentPlaylist = await handleOneRetryAttempt(() => AxiosRequest.get<any>(url, token))
-
-    return currentPlaylist.data.MediaContainer.Metadata[0];
-}
 async function getPosters(settings: PlexConnection, id: string) {
     const { token, uri } = settings;
     if (!token || !uri)

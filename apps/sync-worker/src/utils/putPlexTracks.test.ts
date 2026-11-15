@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import type { Playlist } from '@spotify-to-plex/shared-types/plex/Playlist';
-import type { SearchResponse } from '@spotify-to-plex/plex-music-search/types/SearchResponse';
 
 vi.mock('@spotify-to-plex/plex-helpers/playlist/addItemsToPlaylist', () => ({ addItemsToPlaylist: vi.fn() }));
 vi.mock('@spotify-to-plex/plex-helpers/playlist/getPlaylistItemKeys', () => ({ getPlaylistItemKeys: vi.fn() }));
@@ -24,8 +23,7 @@ const removeMock = removeItemsFromPlaylist as unknown as Mock;
 const storeMock = storePlaylist as unknown as Mock;
 const updateMock = updatePlaylist as unknown as Mock;
 
-const matched = (id: string): SearchResponse => ({ id: `spotify-${id}`, title: id, artist: 'Artist', album: 'Album', result: [{ id: `/library/metadata/${id}`, guid: '', title: id, image: '', src: '', artist: { id: '', title: 'Artist' } }] });
-const unmatched: SearchResponse = { id: 'spotify-x', title: 'x', artist: 'Artist', album: 'Album', result: [] };
+const matched = (id: string) => ({ key: `/library/metadata/${id}` });
 const playlist = { ratingKey: '500', title: 'Playlist' } as Playlist;
 const keys = (...ids: string[]) => ids.map(id => `/library/metadata/${id}`);
 
@@ -43,7 +41,7 @@ describe('putPlexPlaylist', () => {
     it('rewrites an existing playlist with every matched track, the first included', async () => {
         keysMock.mockResolvedValue(keys('9'));
 
-        await putPlexPlaylist(plex, 'p', playlist, [matched('1'), unmatched, matched('2'), matched('3')], 'Playlist', '');
+        await putPlexPlaylist(plex, 'p', playlist, [matched('1'), matched('2'), matched('3')], 'Playlist', '');
 
         expect(removeMock).toHaveBeenCalledTimes(1);
         expect(addMock.mock.calls[0]?.[2].map((item: { key: string }) => item.key)).toEqual(keys('1', '2', '3'));
@@ -76,7 +74,7 @@ describe('putPlexPlaylist', () => {
     });
 
     it('leaves Plex alone when nothing matched', async () => {
-        await putPlexPlaylist(plex, 'p', playlist, [unmatched], 'Playlist', '');
+        await putPlexPlaylist(plex, 'p', playlist, [], 'Playlist', '');
 
         expect(keysMock).not.toHaveBeenCalled();
         expect(removeMock).not.toHaveBeenCalled();
