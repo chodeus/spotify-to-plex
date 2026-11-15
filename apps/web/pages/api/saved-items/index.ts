@@ -236,7 +236,7 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
 
                 if (plex_target !== undefined) {
                     if (saveItem.type !== 'spotify-playlist')
-                        return res.status(400).json({ error: `Only playlists can be synced as a Plex collection` })
+                        return res.status(400).json({ error: `plex_target applies to playlists only` })
 
                     saveItem.plex_target = plex_target
                 }

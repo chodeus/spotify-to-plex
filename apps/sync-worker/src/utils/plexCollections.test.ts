@@ -3,191 +3,34 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-// A fake Plex library that, like the real one, ties tracks to a collection by its title, ignoring case
-const { plex, plexTv, spotify } = vi.hoisted(() => ({
-    plex: {
-        collections: new Map<string, { title: string, section: number }>(),
-        tags: new Map<string, Set<string>>(),
-        playlists: new Map<string, string[]>(),
-        nextKey: 900,
-        ignored: new Set<string>(),
-        fail: undefined as undefined | ((method: string, path: string) => boolean),
-        requests: [] as string[],
-    },
+import { membersOf, plex, resetPlex, tag, untag } from './testing/fakePlexLibrary';
+
+const { plexTv, spotify } = vi.hoisted(() => ({
     plexTv: { get: vi.fn(), post: vi.fn() },
-    spotify: { tracks: [] as { id: string, plex?: number }[], image: '' },
+    spotify: { tracks: [] as { id: string, plex?: number }[], image: '', realCache: false },
 }));
-
-const httpError = (status: number) => Object.assign(new Error(`Request failed with status code ${status}`), { response: { status } });
-const ok = () => ({ data: {} });
-const created = (ratingKey: string) => ({ data: { MediaContainer: { size: 1, Metadata: [{ ratingKey }] } } });
-const route = (path: string, pattern: RegExp) => pattern.exec(path)?.[1];
-const libraryKey = (uri: string) => uri.slice(uri.indexOf('/library/'));
-
-function membersOf(ratingKey: string) {
-    const title = plex.collections.get(ratingKey)?.title.toLowerCase();
-
-    return [...plex.tags.entries()].filter(([, tags]) => !!title && tags.has(title)).map(([n]) => n)
-        .sort((a, b) => Number(a) - Number(b));
-}
-function tag(n: string, title: string) {
-    if (!plex.ignored.has(n))
-        plex.tags.set(n, (plex.tags.get(n) ?? new Set()).add(title.toLowerCase()));
-}
-function untag(n: string, title: string) {
-    plex.tags.get(n)?.delete(title.toLowerCase());
-}
-// Plex takes a comma list of ratingKeys; a URL naming too many is refused
-function keysIn(uri: string) {
-    const keys = uri.slice(uri.indexOf('/library/metadata/') + '/library/metadata/'.length).split(',');
-    if (keys.length > 100)
-        throw httpError(414);
-
-    return keys;
-}
-function request(method: string, url: string, token: string) {
-    const parsed = new URL(url);
-    plex.requests.push(`${method} ${parsed.pathname} ${token}`);
-    if (plex.fail?.(method, parsed.pathname))
-        throw httpError(401);
-
-    return parsed;
-}
-function libraryItem(n: string) {
-    const collection = plex.collections.get(n);
-    if (collection)
-        return { ratingKey: n, key: `/library/metadata/${n}`, type: 'collection', title: collection.title, librarySectionID: collection.section };
-
-    if (Number(n) < 900)
-        return { ratingKey: n, key: `/library/metadata/${n}`, type: 'track', title: `T${n}`, librarySectionID: 6 };
-
-    throw httpError(404);
-}
 
 vi.mock('@spotify-to-plex/http-client/plexTvClient', () => ({ plexTvClient: plexTv }));
-vi.mock('@spotify-to-plex/http-client/AxiosRequest', () => ({
-    AxiosRequest: {
-        get: async (url: string, token: string) => {
-            const { pathname } = request('GET', url, token);
-            if (pathname.endsWith('/posters'))
-                return { data: { MediaContainer: { size: 1 } } };
+vi.mock('@spotify-to-plex/http-client/AxiosRequest', async () => {
+    const { fakeAxiosRequest } = await import('./testing/fakePlexLibrary');
 
-            const item = route(pathname, /^\/library\/metadata\/(\d+)$/);
-            if (item)
-                return { data: { MediaContainer: { size: 1, Metadata: [libraryItem(item)] } } };
-
-            const section = route(pathname, /^\/library\/sections\/(\d+)\/collections$/);
-            if (section) {
-                const list = [...plex.collections].filter(([, c]) => String(c.section) === section).map(([ratingKey, c]) => ({ ratingKey, title: c.title }));
-
-                return { data: { MediaContainer: { size: list.length, ...(list.length > 0 ? { Metadata: list } : {}) } } };
-            }
-
-            const children = route(pathname, /^\/library\/collections\/(\d+)\/children$/);
-            if (children)
-                return { data: { MediaContainer: { Metadata: membersOf(children).map(n => ({ key: `/library/metadata/${n}` })) } } };
-
-            if (pathname === '/playlists')
-                return { data: { MediaContainer: { Metadata: [...plex.playlists.keys()].map(ratingKey => ({ ratingKey, title: 'Mix' })) } } };
-
-            const playlist = route(pathname, /^\/playlists\/(\d+)\/items$/);
-            if (playlist)
-                return { data: { MediaContainer: { Metadata: (plex.playlists.get(playlist) ?? []).map(key => ({ key })) } } };
-
-            throw new Error(`unexpected GET ${pathname}`);
-        },
-        post: async (url: string, token: string) => {
-            const parsed = request('POST', url, token);
-            if (parsed.pathname.endsWith('/posters'))
-                return ok();
-
-            const ratingKey = String(plex.nextKey++);
-            const uri = parsed.searchParams.get('uri') ?? '';
-            if (parsed.pathname === '/playlists') {
-                plex.playlists.set(ratingKey, [libraryKey(uri)]);
-
-                return created(ratingKey);
-            }
-
-            if (parsed.pathname === '/library/collections') {
-                const title = parsed.searchParams.get('title') ?? '';
-                plex.collections.set(ratingKey, { title, section: Number(parsed.searchParams.get('sectionId')) });
-
-                for (const n of keysIn(uri))
-                    tag(n, title);
-
-                return created(ratingKey);
-            }
-
-            throw new Error(`unexpected POST ${parsed.pathname}`);
-        },
-        put: async (url: string, token: string) => {
-            const parsed = request('PUT', url, token);
-            const items = route(parsed.pathname, /^\/library\/collections\/(\d+)\/items$/);
-            if (items) {
-                const title = plex.collections.get(items)?.title ?? '';
-
-                for (const n of keysIn(parsed.searchParams.get('uri') ?? ''))
-                    tag(n, title);
-
-                return ok();
-            }
-
-            if (route(parsed.pathname, /^\/library\/sections\/(\d+)\/all$/)) {
-                const id = parsed.searchParams.get('id') ?? '';
-                const collection = plex.collections.get(id);
-                const members = membersOf(id);
-                if (!collection)
-                    throw httpError(404);
-
-                for (const n of members)
-                    untag(n, collection.title);
-                collection.title = parsed.searchParams.get('title.value') ?? '';
-
-                for (const n of members)
-                    tag(n, collection.title);
-
-                return ok();
-            }
-
-            const playlist = route(parsed.pathname, /^\/playlists\/(\d+)\/items$/);
-            if (playlist) {
-                plex.playlists.get(playlist)?.push(libraryKey(parsed.searchParams.get('uri') ?? ''));
-
-                return ok();
-            }
-
-            if (/^\/playlists\/\d+$/.test(parsed.pathname) || parsed.pathname.endsWith('/poster'))
-                return ok();
-
-            throw new Error(`unexpected PUT ${parsed.pathname}`);
-        },
-        delete: async (url: string, token: string) => {
-            const parsed = request('DELETE', url, token);
-            const child = /^\/library\/collections\/(\d+)\/children\/(\d+)$/.exec(parsed.pathname);
-            if (child) {
-                untag(child[2] ?? '', plex.collections.get(child[1] ?? '')?.title ?? '');
-
-                return ok();
-            }
-
-            const playlist = route(parsed.pathname, /^\/playlists\/(\d+)\/items$/);
-            if (playlist) {
-                plex.playlists.set(playlist, []);
-
-                return ok();
-            }
-
-            throw new Error(`unexpected DELETE ${parsed.pathname}`);
-        },
-    }
-}));
+    return { AxiosRequest: fakeAxiosRequest };
+});
 const { loadSpotifyData } = vi.hoisted(() => ({ loadSpotifyData: vi.fn() }));
 vi.mock('./loadSpotifyData', () => ({ loadSpotifyData }));
-vi.mock('@spotify-to-plex/music-search/functions/getMusicSearchConfig', () => ({ getMusicSearchConfig: async () => ({ searchApproaches: [{ id: 'normal' }] }) }));
-vi.mock('./getCachedPlexTracks', () => ({ getCachedPlexTracks: async () => ({
-    result: spotify.tracks.map(track => ({ id: track.id, title: track.id, artist: 'A', album: 'B', result: track.plex === undefined ? [] : [{ id: `/library/metadata/${track.plex}` }] })),
-    add: vi.fn(), markChecked: vi.fn(), recheck: [] }) }));
+// The real cache, reading track_links.json, when a test sets spotify.realCache
+vi.mock('./getCachedPlexTracks', async importOriginal => {
+    const real = await importOriginal<typeof import('./getCachedPlexTracks')>();
+
+    return { getCachedPlexTracks: async (...args: Parameters<typeof real.getCachedPlexTracks>) => {
+        if (spotify.realCache)
+            return real.getCachedPlexTracks(...args);
+
+        const result = spotify.tracks.map(track => ({ id: track.id, title: track.id, artist: 'A', album: 'B', result: track.plex === undefined ? [] : [{ id: `/library/metadata/${track.plex}` }] }));
+
+        return { result, add: vi.fn(), markChecked: vi.fn(), recheck: [], manualUnanswered: false };
+    } };
+});
 vi.mock('./findMissingTidalTracks', () => ({ findMissingTidalTracks: async () => [] }));
 vi.mock('@/helpers/errors/generateError', async () => import('../../../web/src/helpers/errors/generateError'));
 
@@ -200,21 +43,16 @@ const collectionsNamed = (title: string) => [...plex.collections].filter(([, c])
 const tracks = (count: number) => Array.from({ length: count }, (_, i) => ({ id: `t${i + 1}`, plex: i + 1 }));
 const keys = (...ns: number[]) => ns.map(String);
 
-async function sync() {
+async function sync(force = true) {
     const { syncPlaylists } = await import('../jobs/playlists');
-    await syncPlaylists(true);
+    await syncPlaylists(force);
 }
 
 beforeEach(() => {
     dir = mkdtempSync(join(tmpdir(), 'plex-collections-'));
     process.env.STORAGE_DIR = dir;
-    plex.collections.clear();
-    plex.tags.clear();
-    plex.playlists.clear();
-    plex.ignored.clear();
-    plex.nextKey = 900;
-    plex.fail = undefined;
-    plex.requests = [];
+    resetPlex();
+    spotify.realCache = false;
     write('plex.json', { id: 'machine', uri: 'http://plex.test:32400', token: 'owner-account', serverToken: 'owner-server' });
     saved({ plex_target: 'collection' });
     spotify.tracks = tracks(3);
@@ -238,6 +76,7 @@ describe('playlist sync into a Plex collection', () => {
         expect(membersOf('900')).toEqual(keys(1, 2));
         expect(plex.playlists.size).toBe(0);
         expect(read('collections.json').data).toEqual([{ id: 'p1', plex: '900' }]);
+        expect(plex.sorts.get('900')).toBe('1');
         expect(errorOf('p1')).toBeUndefined();
     });
 
@@ -258,6 +97,7 @@ describe('playlist sync into a Plex collection', () => {
 
         expect(collectionsNamed('Mix')).toEqual(['900']);
         expect(membersOf('900')).toEqual(keys(2, 3, 4));
+        expect(plex.requests.filter(line => line.startsWith('PUT /library/metadata/900/prefs'))).toHaveLength(1);
     });
 
     it('renames the collection with the playlist, keeping its tracks', async () => {
@@ -279,16 +119,6 @@ describe('playlist sync into a Plex collection', () => {
         expect(membersOf(collectionsNamed('Mix')[0] ?? '')).toEqual(keys(1, 2, 3));
     });
 
-    it('with no target set, makes only the playlist and never touches collections', async () => {
-        saved();
-
-        await sync();
-
-        expect(plex.playlists.size).toBe(1);
-        expect(plex.requests.filter(line => line.includes('collection'))).toEqual([]);
-        expect(existsSync(join(dir, 'collections.json'))).toBe(false);
-    });
-
     it('leaves a collection it did not make alone when its title is taken, ignoring case, and still syncs the rest', async () => {
         plex.collections.set('800', { title: 'MIX', section: 6 });
         tag('7', 'MIX');
@@ -299,9 +129,7 @@ describe('playlist sync into a Plex collection', () => {
         expect([...plex.collections.keys()]).toEqual(['800']);
         expect(membersOf('800')).toEqual(keys(7));
         expect([...plex.playlists.values()]).toEqual([['/library/metadata/1', '/library/metadata/2', '/library/metadata/3']]);
-        expect(errorOf('p1')).toBe('Something went wrong while syncing: Plex already has a collection named "MIX"; rename it or this playlist to sync the playlist as a collection');
-        // The missing lists are rebuilt from this state, so the playlist's sync still counts
-        expect(Object.keys(read('playlists_sync_state.json'))).toEqual(['p1']);
+        expect(errorOf('p1')).toBe('Something went wrong while syncing: Plex already has a collection named "MIX" that spotify-to-plex has no record of: rename or delete it in Plex to sync this playlist as a collection');
     });
 
     it('keeps its collection as it was rather than rename it to a title another collection has', async () => {
@@ -346,14 +174,50 @@ describe('playlist sync into a Plex collection', () => {
         expect(membersOf('900')).toHaveLength(150);
     });
 
-    it('makes nothing when Plex does not answer with the collection list', async () => {
+    it('makes nothing when Plex does not answer with the collection list, and tries again on the next run before the interval is up', async () => {
+        saved({ plex_target: 'collection', sync_interval: '7' });
         plex.fail = (method, path) => method === 'GET' && path.endsWith('/collections');
+        await sync(false);
+        expect(errorOf('p1')).toBe('Something went wrong while syncing: Request failed with status code 401');
+        expect(plex.collections.size).toBe(0);
+        expect(existsSync(join(dir, 'collections.json'))).toBe(false);
+
+        plex.fail = undefined;
+        await sync(false);
+
+        expect(errorOf('p1')).toBeUndefined();
+        expect(membersOf('900')).toEqual(keys(1, 2, 3));
+    });
+
+    it("makes the collection when the first matched track's cached key is dead, and names the dead key", async () => {
+        plex.dead.add('1');
 
         await sync();
 
-        expect(plex.collections.size).toBe(0);
+        expect(errorOf('p1')).toBeUndefined();
+        expect(membersOf(collectionsNamed('Mix')[0] ?? '')).toEqual(keys(2, 3));
+        expect(console.log).toHaveBeenCalledWith('* Plex did not add 1 track(s) to the collection: /library/metadata/1');
+    });
+
+    it('keeps syncing when the only new track has a dead key', async () => {
+        await sync();
+        spotify.tracks = [...tracks(3), { id: 't4', plex: 4 }];
+        plex.dead.add('4');
+
+        await sync();
+
+        expect(errorOf('p1')).toBeUndefined();
+        expect(membersOf('900')).toEqual(keys(1, 2, 3));
+    });
+
+    it.each([undefined, 'Collection', null])('makes only the playlist, and never touches collections, when plex_target is %s', async plex_target => {
+        saved({ plex_target });
+
+        await sync();
+
+        expect(plex.playlists.size).toBe(1);
+        expect(plex.requests.filter(line => line.includes('collection'))).toEqual([]);
         expect(existsSync(join(dir, 'collections.json'))).toBe(false);
-        expect(errorOf('p1')).toBe('Something went wrong while syncing: Request failed with status code 401');
     });
 
     it('leaves the collection as it is when no track matched', async () => {
@@ -363,6 +227,25 @@ describe('playlist sync into a Plex collection', () => {
         await sync();
 
         expect(membersOf('900')).toEqual(keys(1, 2, 3));
+    });
+
+    it('reads the members once when the playlist has no new track', async () => {
+        await sync();
+        plex.requests = [];
+
+        await sync();
+
+        expect(plex.requests.filter(line => line.startsWith('GET /library/collections/900/children'))).toHaveLength(1);
+    });
+
+    it.each(['Mi\u0301x  Tape', 'mi\u0301x tape ', 'Mi\u0301x\u00A0Tape'])('refuses a title that only Unicode form or spacing sets apart from "%s"', async other => {
+        saved({ plex_target: 'collection', title: 'M\u00EDx Tape' });
+        plex.collections.set('500', { title: other, section: 6 });
+
+        await sync();
+
+        expect(errorOf('p1')).toMatch(/^Something went wrong while syncing: Plex already has a collection named/);
+        expect(plex.collections.size).toBe(1);
     });
 
     it('names each track Plex did not add once, even when the playlist has it twice', async () => {
@@ -402,41 +285,40 @@ describe('playlist sync into a Plex collection', () => {
     });
 });
 
-describe('PUT /api/saved-items plex_target', () => {
-    async function put(body: unknown) {
-        const { default: handler } = await import('../../../web/pages/api/saved-items/index');
-        let status = 200; let json: unknown;
-        const res = { status(n: number) { status = n;
+describe('collection sync through the real track cache and search', () => {
+    const links = (manual?: string) => write('track_links.json', tracks(3).map(track => ({ spotify_id: track.id, plex_id: [`/library/metadata/${track.plex}`], plex_checked_at: Date.now(), ...(track.id === manual ? { manual: true } : {}) })));
+    beforeEach(() => { spotify.realCache = true });
 
-            return res }, json(b: unknown) { json = b;
+    it('keeps a track whose cached link and search Plex both left unanswered this sync', async () => {
+        links();
+        await sync();
+        expect(membersOf('900')).toEqual(keys(1, 2, 3));
 
-            return res }, setHeader() { return res }, end() { return res } };
-        await handler({ method: 'PUT', url: '/api/saved-items', headers: {}, query: {}, body } as never, res as never);
+        plex.fail = (method, path) => method === 'GET' && (path === '/library/metadata/3' || path === '/hubs/search');
+        await sync();
 
-        return { status, json };
-    }
-
-    it('saves a valid choice on a playlist', async () => {
-        const { status } = await put({ ids: ['p1'], plex_target: 'both' });
-
-        expect(status).toBe(200);
-        expect(read('spotify_saved_items.json')[0].plex_target).toBe('both');
+        expect(membersOf('900')).toEqual(keys(1, 2, 3));
+        expect(console.log).toHaveBeenCalledWith('* Plex did not answer for every track, so 1 track(s) stay in the collection until a sync where it does');
     });
 
-    it('refuses a value it does not know and saves nothing', async () => {
-        const { status, json } = await put({ ids: ['p1'], plex_target: 'Collection', label: 'x' });
+    it('keeps a hand-picked track Plex left unanswered this sync', async () => {
+        links('t3');
+        await sync();
 
-        expect({ status, json }).toEqual({ status: 400, json: { error: 'plex_target must be one of: playlist, collection, both' } });
-        expect(read('spotify_saved_items.json')[0]).toMatchObject({ plex_target: 'collection' });
-        expect(read('spotify_saved_items.json')[0].label).toBeUndefined();
+        plex.fail = (method, path) => method === 'GET' && path === '/library/metadata/3';
+        await sync();
+
+        expect(membersOf('900')).toEqual(keys(1, 2, 3));
     });
 
-    it('refuses it for an album and saves nothing', async () => {
-        write('spotify_saved_items.json', [{ type: 'spotify-album', id: 'a1', title: 'Album', uri: 'spotify:album:a1', image: '' }]);
+    it('takes out a track the playlist dropped when Plex answered for every track', async () => {
+        links();
+        await sync();
 
-        const { status, json } = await put({ ids: ['a1'], plex_target: 'collection' });
+        spotify.tracks = tracks(2);
+        await sync();
 
-        expect({ status, json }).toEqual({ status: 400, json: { error: 'Only playlists can be synced as a Plex collection' } });
-        expect(read('spotify_saved_items.json')[0].plex_target).toBeUndefined();
+        expect(membersOf('900')).toEqual(keys(1, 2));
     });
 });
+

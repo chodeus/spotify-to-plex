@@ -2,7 +2,7 @@ import { errorBoundary } from "@/helpers/errors/errorBoundary";
 import { filterUnique } from "@spotify-to-plex/shared-utils/array/filterUnique";
 // MIGRATED: Updated to use shared utils package
 import { SavedItem } from "@spotify-to-plex/shared-types/spotify/SavedItem";
-import { PLEX_TARGETS } from "@spotify-to-plex/shared-types/spotify/PlexTargets";
+import { PLEX_TARGETS, plexTargetOf } from "@spotify-to-plex/shared-types/spotify/PlexTargets";
 // MIGRATED: Updated to use shared types package
 import CloseIcon from '@mui/icons-material/Close';
 import { Box, Button, Checkbox, Chip, CircularProgress, Divider, FormControlLabel, FormGroup, IconButton, Modal, Radio, RadioGroup, TextField, Typography } from "@mui/material";
@@ -112,7 +112,7 @@ export default function PlaylistItemSettings(props: Props) {
         if (firstItem) {
             setAutoSync(!!firstItem.sync)
             setDays(firstItem.sync_interval ?? "2")
-            setPlexTarget(firstItem.plex_target ?? 'playlist')
+            setPlexTarget(plexTargetOf(firstItem))
         }
 
         const labels = items
@@ -212,7 +212,7 @@ export default function PlaylistItemSettings(props: Props) {
                                 {PLEX_TARGETS.map(target => <FormControlLabel key={target} value={target} control={<Radio />} label={PLEX_TARGET_LABELS[target]} />)}
                             </RadioGroup>
                             <Typography variant="body2" color="text.secondary">
-                                A collection shows for every user of the music library, sorted by title.
+                                A collection belongs to the music library rather than to one Plex user, and lists its tracks by title.
                             </Typography>
                         </Box>
                     }

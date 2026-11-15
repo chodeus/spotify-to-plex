@@ -640,10 +640,10 @@ const config = [
         }
     },
     {
-        // Test files are excluded from each package's tsconfig.json so they never reach
-        // dist. Point typed linting at a sibling tsconfig.eslint.json that includes them
-        // instead, since the project service only knows about tsconfig.json.
-        files: ["**/*.test.ts", "**/*.test.tsx"],
+        // Test files, and test-only helpers under testing/, are excluded from each package's
+        // tsconfig.json so they never reach dist. Point typed linting at a sibling
+        // tsconfig.eslint.json that includes them instead, since the project service only knows about tsconfig.json.
+        files: ["**/*.test.ts", "**/*.test.tsx", "**/testing/**/*.ts"],
         languageOptions: {
             parserOptions: {
                 ecmaFeatures: {

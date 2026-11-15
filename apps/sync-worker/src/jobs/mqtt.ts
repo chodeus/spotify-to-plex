@@ -14,6 +14,7 @@ import { loadMQTTConfig } from '../services/mqtt/config';
 import { createMQTTClient } from '../services/mqtt/createMQTTClient';
 import { loadMQTTData } from '../services/mqtt/loadMQTTData';
 import { findPlaylistPlexId } from '../services/mqtt/findPlaylistPlexId';
+import { plexTargetOf } from '@spotify-to-plex/shared-types/spotify/PlexTargets';
 import { findAlbumPlexId } from '../services/mqtt/findAlbumPlexId';
 import { extractPlexMediaId } from '../services/mqtt/extractPlexMediaId';
 import { buildEntity } from '../services/mqtt/buildEntity';
@@ -160,7 +161,7 @@ async function runMQTT() {
 
             // Home Assistant plays a Plex playlist as the owner, who can't see one made as a Home user, and a collection-only
             // item has none: skipped before its label is counted, and its old entity is removed by the cleanup below
-            if (item.type === 'spotify-playlist' && (item.plex_target === 'collection' || await plexHomeUserOf(item.user))) {
+            if (item.type === 'spotify-playlist' && (plexTargetOf(item) === 'collection' || await plexHomeUserOf(item.user))) {
                 logComplete(itemLog);
                 continue;
             }
