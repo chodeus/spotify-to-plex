@@ -91,7 +91,7 @@ export default function Logs() {
             const result = await axios.get<GetLogsResponse>('/api/logs');
             setData(result.data);
         });
-        // errorBoundary never rethrows: this runs after a failure too
+        // errorBoundary catches a failed request: this runs after one too
         setLoading(false);
     }, []);
 
