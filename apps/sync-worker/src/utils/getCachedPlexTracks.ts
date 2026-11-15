@@ -108,17 +108,21 @@ export async function getCachedPlexTracks(plexSearchConfig: PlexMusicSearchConfi
             changed = true;
         }
 
-        // A manual pick whose lookups all failed is not evidence of a bad link.
-        // Keep it out of the automatic re-search so a plex hiccup cannot replace it
-        if (trackLink.manual && failed && tracks.length == 0)
+        if (tracks.length == 0) {
+            if (!failed)
+                continue;
+
+            const [standIn] = keptIds;
+            if (standIn)
+                standIns.set(searchItem.id, standIn);
+
+            // A manual pick whose lookups all failed is not evidence of a bad link.
+            // Keep it out of the automatic re-search so a plex hiccup cannot replace it
+            if (!trackLink.manual)
+                continue;
+
             manualUnanswered = true;
-
-        const [standIn] = keptIds;
-        if (failed && tracks.length == 0 && standIn)
-            standIns.set(searchItem.id, standIn);
-
-        if (tracks.length == 0 && !(trackLink.manual && failed))
-            continue;
+        }
 
         const response: SearchResponse = {
             id: searchItem.id,

@@ -207,17 +207,11 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
             if (!existsSync(savedItemsPath))
                 return res.status(400).json({ error: `No items found` })
 
+            const invalid = invalidUpdate(req.body)
+            if (invalid)
+                return res.status(400).json({ error: invalid })
+
             const { ids, label, sync, sync_interval, title, plex_target } = req.body
-            if (!Array.isArray(ids))
-                return res.status(400).json({ error: `Mutliple ids expected as an array` })
-
-            if (plex_target !== undefined && !PLEX_TARGETS.includes(plex_target))
-                return res.status(400).json({ error: `plex_target must be one of: ${PLEX_TARGETS.join(', ')}` })
-
-            // Plex would name the playlist or collection with nothing readable
-            if (typeof title === 'string' && !title.trim())
-                return res.status(400).json({ error: `The title cannot be blank` })
-
             const savedItems: SavedItem[] = JSON.parse(readFileSync(savedItemsPath, 'utf8'))
 
             for (let i = 0; i < ids.length; i++) {
@@ -252,6 +246,18 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
             return res.status(200).json(savedItems.reverse())
         }
     )
+
+// Faults in the edit itself, refused before any saved item is read
+function invalidUpdate({ ids, title, plex_target }: NextApiRequest['body']) {
+    if (!Array.isArray(ids))
+        return `Mutliple ids expected as an array`;
+
+    if (plex_target !== undefined && !PLEX_TARGETS.includes(plex_target))
+        return `plex_target must be one of: ${PLEX_TARGETS.join(', ')}`;
+
+    // Plex would name the playlist or collection with nothing readable
+    return typeof title === 'string' && !title.trim() ? `The title cannot be blank` : undefined;
+}
 
 export default router.handler({
     onError: (err: unknown, req: NextApiRequest, res: NextApiResponse) => {
