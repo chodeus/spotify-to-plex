@@ -134,6 +134,10 @@ export const fakeAxiosRequest = {
         if (children)
             return { data: { MediaContainer: { Metadata: membersOf(children).map(n => ({ key: `/library/metadata/${n}` })) } } };
 
+        // The settings route's check that a chosen connection answers
+        if (pathname === '/library/sections')
+            return { data: { MediaContainer: { size: 1 } } };
+
         if (pathname === '/playlists')
             return { data: { MediaContainer: { Metadata: [...plex.playlists.keys()].map(ratingKey => ({ ratingKey, title: 'Mix' })) } } };
 
