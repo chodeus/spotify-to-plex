@@ -279,69 +279,6 @@ const TrackAnalyzer = forwardRef<TrackAnalyzerHandles, unknown>((_props, ref) =>
                             </Fragment>
                         );
                     })}
-
-                    {/* <Divider sx={{ mt: 2, mb: 2 }} /> */}
-                    {/* {searchResponse?.result && searchResponse.result.length > 0 ? (
-                        <>
-                            <Typography variant="subtitle1" sx={{ mb: 1 }}>
-                                Matches Found
-                            </Typography>
-                            {searchResponse?.result.map(({ id, title, artist, matching }: PlexTrack) => {
-                                if (!matching)
-                                    return null;
-
-                                return <Fragment key={`analyze-${id}`}>
-                                    <Box>
-                                        <Typography variant="h6" sx={{ mb: 1 }}>Match</Typography>
-                                        <Typography variant="body1">{title}</Typography>
-                                        <Typography variant="body2">{artist.title}</Typography>
-                                    </Box>
-                                    <Box key={id} sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-                                        <Box>
-                                            <Typography variant="body1">Artist</Typography>
-                                            <Typography variant="body2">Match: {matching.artist.match ? "Yes" : "No"}</Typography>
-                                            <Typography variant="body2">Contains: {matching.artist.contains ? "Yes" : "No"}</Typography>
-                                            <Typography variant="body2">Similarity: {getRoundedSimilarity(matching.artist.similarity)}</Typography>
-                                        </Box>
-                                        <Box>
-                                            <Typography variant="body1">Artist in Title</Typography>
-                                            <Typography variant="body2">Match: {matching.artistInTitle.match ? "Yes" : "No"}</Typography>
-                                            <Typography variant="body2">Contains: {matching.artistInTitle.contains ? "Yes" : "No"}</Typography>
-                                            <Typography variant="body2">Similarity: {getRoundedSimilarity(matching.artistInTitle.similarity)}</Typography>
-                                        </Box>
-                                        <Box>
-                                            <Typography variant="body1">Artist with Title</Typography>
-                                            <Typography variant="body2">Match: {matching.artistWithTitle.match ? "Yes" : "No"}</Typography>
-                                            <Typography variant="body2">Contains: {matching.artistWithTitle.contains ? "Yes" : "No"}</Typography>
-                                            <Typography variant="body2">Similarity: {getRoundedSimilarity(matching.artistWithTitle.similarity)}</Typography>
-                                        </Box>
-                                        <Box>
-                                            <Typography variant="body1">Title</Typography>
-                                            <Typography variant="body2">Match: {matching.title.match ? "Yes" : "No"}</Typography>
-                                            <Typography variant="body2">Contains: {matching.title.contains ? "Yes" : "No"}</Typography>
-                                            <Typography variant="body2">Similarity: {getRoundedSimilarity(matching.title.similarity)}</Typography>
-                                        </Box>
-                                        <Box>
-                                            <Typography variant="body1">Album</Typography>
-                                            <Typography variant="body2">Match: {matching.album.match ? "Yes" : "No"}</Typography>
-                                            <Typography variant="body2">Contains: {matching.album.contains ? "Yes" : "No"}</Typography>
-                                            <Typography variant="body2">Similarity: {getRoundedSimilarity(matching.album.similarity)}</Typography>
-                                        </Box>
-                                    </Box>
-
-                                    <Divider sx={{ mt: 1, mb: 1 }} />
-                                </Fragment>
-                            })}
-                        </>
-                    ) : (
-                        <Box sx={{ p: 2, bgcolor: 'warning.light', borderRadius: 1 }}>
-                            <Typography variant="subtitle1" color="warning.dark">No Matches Found</Typography>
-                            <Typography variant="body2" color="warning.dark">
-                                None of the search queries above returned any results from your Plex library.
-                                The track may not exist in your library, or the naming might be significantly different.
-                            </Typography>
-                        </Box>
-                    )} */}
                 </>
             )}
         </Box>
