@@ -9,7 +9,7 @@ nav_order: 2
 SLSKD integration allows you to automatically download missing tracks using the Soulseek peer-to-peer network.
 
 {: .warning }
-This integration downloads single songs, not albums. If Lidarr downloads from the same slskd instance through the [Tubifarry](https://github.com/TypNull/Tubifarry) plugin with **Inclusive** turned on, Lidarr also picks up these songs and tries to import each one as an album, and most fail to match. In that setup, leave this integration's automatic sync off and let the [Lidarr integration](lidarr#downloading-from-soulseek-with-tubifarry) fetch whole albums instead.
+This integration downloads single songs, not albums. If Lidarr downloads from the same slskd instance through the [Tubifarry](https://github.com/TypNull/Tubifarry) plugin with **Inclusive** turned on, Lidarr also picks up these songs and tries to import each one as an album, and most fail to match. In that setup, turn off **Enable SLSKD Integration**, as its manual search downloads through slskd too, and let the [Lidarr integration](lidarr#downloading-from-soulseek-with-tubifarry) fetch whole albums instead. Otherwise turn **Inclusive** off, so Lidarr only tracks the downloads it starts.
 
 ---
 
