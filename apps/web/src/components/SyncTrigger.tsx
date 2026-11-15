@@ -132,12 +132,6 @@ export default function SyncTrigger() {
                 </Alert>
             }
 
-            {!!availability && !hasAvailableOptions &&
-                <Alert severity="info" sx={{ mb: 2 }}>
-                    No sync options are currently available. Please configure at least one sync option (Users, Lidarr, SLSKD or MQTT) to enable manual synchronization.
-                </Alert>
-            }
-
             <Grid container spacing={2}>
                 {availableOptions.map(option => (
                     <Grid size={{ xs: 12, sm: 6, md: 4 }} key={option.type}>
@@ -194,9 +188,11 @@ export default function SyncTrigger() {
                 }
             </Grid>
 
-            <Alert severity="info" sx={{ mt: 3 }}>
-                Sync processes run in the background. Check the Logs page to monitor progress and view results.
-            </Alert>
+            {!!hasAvailableOptions &&
+                <Alert severity="info" sx={{ mt: 3 }}>
+                    Sync processes run in the background. Check the Logs page to monitor progress and view results.
+                </Alert>
+            }
         </Box>
     );
 }
