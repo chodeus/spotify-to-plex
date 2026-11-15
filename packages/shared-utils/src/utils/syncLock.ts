@@ -181,10 +181,7 @@ export async function runExclusive<T>(name: string, run: () => Promise<T>): Prom
 
 const WAIT_POLL_MS = 250;
 
-/**
- * Takes the lock, waiting while another run holds it. Returns its release, or undefined when the
- * lock is still held after waitMs: the caller decides whether to go ahead without it.
- */
+/** Takes the lock, waiting while another run holds it; undefined when still held after waitMs */
 export async function waitForLock(name: string, waitMs: number) {
     const deadline = Date.now() + waitMs;
 

@@ -12,10 +12,8 @@ import { waitForLock } from "../utils/syncLock"
 // so one that is about to expire is refreshed now, rather than failing with a 401 partway through
 export const REFRESH_MARGIN_MS = 5 * 60 * 1000
 
-// The web app and the scheduler each refresh on their own. Two refreshes of one token send the
-// same refresh token twice: Spotify may have rotated it after the first, and the second then fails
-// or, where reuse is taken as theft, revokes the user's sign-in. One refresh at a time, across
-// processes, and the one that waited reads the file again and finds nothing left to refresh.
+// The web app and the scheduler each refresh, and a refresh token sent twice can revoke the sign-in:
+// one refresh at a time across processes; one that waited re-reads the file and finds nothing due
 const LOCK_NAME = 'spotify-token-refresh'
 // Long enough for a holder refreshing several users, each request capped at 15 s
 export const REFRESH_LOCK_WAIT_MS = 60_000

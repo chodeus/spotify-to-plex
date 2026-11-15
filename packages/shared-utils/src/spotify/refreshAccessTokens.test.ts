@@ -108,11 +108,17 @@ describe('refreshAccessTokens', () => {
 
     // Each playlist load calls this: calls made together must not each send the refresh token
     it('shares one refresh between calls made together', async () => {
+        vi.useFakeTimers();
         writeFileSync(path(), JSON.stringify([credential('expired', 0)]));
         postMock.mockResolvedValue({ data: { access_token: 'new', expires_in: 3600, token_type: 'Bearer' } });
 
-        await Promise.all([refreshAccessTokens(), refreshAccessTokens(), refreshAccessTokens()]);
+        let done = false;
+        const calls = Promise.all([refreshAccessTokens(), refreshAccessTokens(), refreshAccessTokens()]).then(() => { done = true });
+        // Short of the lock's 250 ms poll: a call that queued on the lock instead would still be waiting
+        await vi.advanceTimersByTimeAsync(200);
 
+        expect(done).toBe(true);
+        await calls;
         expect(postMock).toHaveBeenCalledTimes(1);
         expect(stored()[0]?.access_token.access_token).toBe('enc:new');
     });
@@ -150,6 +156,7 @@ describe('refreshAccessTokens', () => {
         await refreshing;
         release?.();
 
+        expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('refreshing anyway'));
         expect(postMock).toHaveBeenCalledTimes(1);
         expect(stored()[0]?.access_token.access_token).toBe('enc:new');
     });
