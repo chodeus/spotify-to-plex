@@ -6,12 +6,48 @@ import { join } from "node:path"
 import { decrypt } from "../security/decrypt";
 import { encrypt } from "../security/encrypt"
 import { writeJsonFileAtomic } from "../utils/writeJsonFileAtomic"
+import { waitForLock } from "../utils/syncLock"
 
 // A token is used for a while after it is read - paging a large playlist, searching its tracks -
 // so one that is about to expire is refreshed now, rather than failing with a 401 partway through
 export const REFRESH_MARGIN_MS = 5 * 60 * 1000
 
+// The web app and the scheduler each refresh on their own. Two refreshes of one token send the
+// same refresh token twice: Spotify may have rotated it after the first, and the second then fails
+// or, where reuse is taken as theft, revokes the user's sign-in. One refresh at a time, across
+// processes, and the one that waited reads the file again and finds nothing left to refresh.
+const LOCK_NAME = 'spotify-token-refresh'
+// Long enough for a holder refreshing several users, each request capped at 15 s
+export const REFRESH_LOCK_WAIT_MS = 60_000
+
+// Calls in this process share one refresh rather than queueing on the lock behind each other
+let inFlight: Promise<void> | undefined
+
 export async function refreshAccessTokens() {
+    inFlight ??= refreshLocked().finally(() => { inFlight = undefined })
+
+    return inFlight
+}
+
+async function refreshLocked() {
+    // A hung holder or a lock that can't be made must not stop every sync: refresh as before the lock
+    let release: (() => void) | undefined
+    try {
+        release = await waitForLock(LOCK_NAME, REFRESH_LOCK_WAIT_MS)
+        if (!release)
+            console.warn(`⚠️  Another token refresh still running after ${REFRESH_LOCK_WAIT_MS / 1000} s; refreshing anyway`)
+    } catch (e) {
+        console.warn(`⚠️  Token refresh lock unavailable; refreshing without it:`, e instanceof Error ? e.message : e)
+    }
+
+    try {
+        await refreshTokens()
+    } finally {
+        release?.()
+    }
+}
+
+async function refreshTokens() {
     const credentialsPath = join(getStorageDir(), 'spotify.json')
     if (!existsSync(credentialsPath))
         throw new Error("No users are currently connected.");

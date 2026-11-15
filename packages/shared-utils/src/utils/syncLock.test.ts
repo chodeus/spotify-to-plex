@@ -2,7 +2,7 @@ import { chmodSync, mkdtempSync, readdirSync, readFileSync, rmSync, utimesSync, 
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { isSyncRunning, runExclusive } from './syncLock';
+import { isSyncRunning, runExclusive, waitForLock } from './syncLock';
 
 // beforeClear: what another run does just before this one clears the lock at that path (fires once).
 // touchFails: every heartbeat touch throws
@@ -240,5 +240,36 @@ describe('isSyncRunning', () => {
         first.finish();
         await running;
         expect(isSyncRunning('lidarr')).toBe(false);
+    });
+});
+
+describe('waitForLock', () => {
+    it('takes the lock once its holder lets go', async () => {
+        const first = heldRun();
+        const running = runExclusive('lidarr', first.run);
+        setTimeout(() => first.finish(), 100);
+
+        const release = await waitForLock('lidarr', 5000);
+
+        expect(release).toBeDefined();
+        await running;
+        expect(isSyncRunning('lidarr')).toBe(true);
+        release?.();
+        expect(isSyncRunning('lidarr')).toBe(false);
+    });
+
+    it('gives up once the wait is over, leaving the holder its lock', async () => {
+        vi.useFakeTimers();
+        const first = heldRun();
+        const running = runExclusive('lidarr', first.run);
+
+        const waiting = waitForLock('lidarr', 10_000);
+        await vi.advanceTimersByTimeAsync(10_500);
+
+        await expect(waiting).resolves.toBeUndefined();
+        expect(isSyncRunning('lidarr')).toBe(true);
+
+        first.finish();
+        await running;
     });
 });
