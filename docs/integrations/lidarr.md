@@ -71,8 +71,8 @@ http://[IP-ADDRESS]:9030/api/sync/lidarr
 
 If Lidarr has the [Tubifarry](https://github.com/TypNull/Tubifarry) plugin with its Slskd indexer and download client, Lidarr can fetch the albums this integration sends from Soulseek. Lidarr downloads whole albums and imports them against MusicBrainz, so use this setup instead of the [SLSKD integration](slskd) in Spotify to Plex.
 
-1. In Spotify to Plex, enable the Lidarr integration and **Automatic sync**.
-2. In Spotify to Plex, turn off **Enable Automatic Sync** in **Advanced → SLSKD Integration**. Turn off the whole integration unless you use its manual search.
+1. In Spotify to Plex, go to **Advanced → Lidarr Integration** and turn on **Enable Lidarr Integration** and **Enable Automatic Synchronization**.
+2. In **Advanced → SLSKD Integration**, turn off **Enable Automatic Synchronization**. Turn off **Enable SLSKD Integration** too, unless you use its manual search.
 3. In Lidarr, go to **Settings → Indexers**, edit the **Slskd** indexer, and turn on **Enable Automatic Search**. When Spotify to Plex sends an album, it asks Lidarr to search for it, and Lidarr only runs that search on indexers with automatic search on.
 
 {: .warning }
