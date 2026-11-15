@@ -158,9 +158,9 @@ async function runMQTT() {
                     currentPublished.push(kept);
             };
 
-            // Home Assistant plays as the Plex owner, who can't see a playlist made as a Home user: skipped
-            // before its label is counted, and its old entity is removed by the cleanup below
-            if (item.type === 'spotify-playlist' && await plexHomeUserOf(item.user)) {
+            // Home Assistant plays a Plex playlist as the owner, who can't see one made as a Home user, and a collection-only
+            // item has none: skipped before its label is counted, and its old entity is removed by the cleanup below
+            if (item.type === 'spotify-playlist' && (item.plex_target === 'collection' || await plexHomeUserOf(item.user))) {
                 logComplete(itemLog);
                 continue;
             }

@@ -1,3 +1,5 @@
+import type { PLEX_TARGETS } from "./PlexTargets"
+
 export type SavedItem = {
     type: "spotify-album" | "spotify-playlist" | "plex-media"
     uri: string
@@ -11,4 +13,5 @@ export type SavedItem = {
     label?: string
     sync?: boolean
     sync_interval?: string
+    plex_target?: typeof PLEX_TARGETS[number]
 }

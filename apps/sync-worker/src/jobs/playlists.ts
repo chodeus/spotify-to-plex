@@ -15,6 +15,7 @@ import { updateSyncTypeProgress } from "../utils/updateSyncTypeProgress";
 import { loadSpotifyData } from "../utils/loadSpotifyData";
 import { matchByIsrc } from "../utils/matchByIsrc";
 import { putPlexPlaylist } from "../utils/putPlexTracks";
+import { putPlexCollection } from "../utils/putPlexCollection";
 import { plexSettingsForUser, withPlexConnection } from "@spotify-to-plex/plex-helpers/utils/plexSettingsFor";
 import { findPlaylist } from "@spotify-to-plex/plex-helpers/playlist/findPlaylist";
 import { getSettings } from "@spotify-to-plex/plex-config/functions/getSettings";
@@ -70,7 +71,7 @@ async function runPlaylists(force: boolean) {
             // Update progress
             updateSyncTypeProgress('playlists', i + 1, toSyncPlaylists.length);
 
-            const { id, title, uri, user, sync_interval } = item;
+            const { id, title, uri, user, sync_interval, plex_target = 'playlist' } = item;
             let days = Number(sync_interval)
             if (isNaN(days))
                 days = 0;
@@ -138,12 +139,14 @@ async function runPlaylists(force: boolean) {
                 // Put plex playlist
                 ////////////
                 // As the Spotify user's Plex Home user when one is set: playlists are per Plex account
-                await withPlexConnection(() => plexSettingsForUser(user), async plexConnection => {
-                    // Read again on a retry: the first run may have stored the playlist it created
-                    const { playlists } = await getPlexPlaylists()
-                    const plexPlaylist = await findPlaylist(plexConnection, playlists.find(playlist => playlist.id === id)?.plex)
-                    await putPlexPlaylist(plexConnection, id, plexPlaylist, result, title, data.image)
-                })
+                if (plex_target !== 'collection') {
+                    await withPlexConnection(() => plexSettingsForUser(user), async plexConnection => {
+                        // Read again on a retry: the first run may have stored the playlist it created
+                        const { playlists } = await getPlexPlaylists()
+                        const plexPlaylist = await findPlaylist(plexConnection, playlists.find(playlist => playlist.id === id)?.plex)
+                        await putPlexPlaylist(plexConnection, id, plexPlaylist, result, title, data.image)
+                    })
+                }
 
                 ////////////
                 // Handle missing tracks
@@ -159,6 +162,10 @@ async function runPlaylists(force: boolean) {
                     console.log(`Missing ${missingTracks.length} tracks`)
 
                 syncState.record(id, await missingListsFor(missingTracks))
+
+                // As the server owner, whatever the Plex Home user: a collection belongs to the library every user sees
+                if (plex_target !== 'playlist')
+                    await putPlexCollection(await plexSettingsForUser(), id, result, title, data.image)
 
                 /////////////////////////////
                 // Store logs
