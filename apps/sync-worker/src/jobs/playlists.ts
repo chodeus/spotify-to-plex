@@ -171,7 +171,7 @@ async function runPlaylists(force: boolean) {
                 // As the server owner, whatever the Plex Home user: a collection belongs to the library, not to one user.
                 // Before the record, so a failed collection is not recorded as a sync, like a failed playlist
                 if (plexTarget !== 'playlist')
-                    await putPlexCollection(await plexSettingsForUser(), id, items.map(item => item.key), plexTitle, data.image)
+                    await putPlexCollection(await plexSettingsForUser(), id, items.map(({ key }) => key), plexTitle, data.image)
 
                 syncState.record(id, await missingListsFor(missingTracks))
 
