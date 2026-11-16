@@ -20,6 +20,8 @@ vi.mock('@spotify-to-plex/http-client/AxiosRequest', async () => {
 vi.mock('./loadSpotifyData', () => ({ loadSpotifyData }));
 const { disk } = vi.hoisted(() => ({ disk: {
     failDelete: false,
+    refuseDelete: '',
+    deleting: 0,
     failWrite: undefined as ((path: string) => boolean) | undefined,
     holdRead: undefined as { reached: () => void, gate: Promise<void> } | undefined
 } }));
@@ -38,7 +40,19 @@ vi.mock('@spotify-to-plex/plex-config/utils/fileUtils', async importOriginal => 
 
     return {
         ...actual,
-        deleteJSON: async (name: string) => disk.failDelete ? Promise.reject(new Error('EACCES: permission denied')) : actual.deleteJSON(name),
+        deleteJSON: async (name: string) => {
+            if (disk.failDelete || disk.refuseDelete === name)
+                throw new Error('EACCES: permission denied');
+
+            disk.deleting++;
+            try {
+                // A delete that goes through answers later than a refused one
+                await new Promise(resolve => { setTimeout(resolve, 20) });
+                await actual.deleteJSON(name);
+            } finally {
+                disk.deleting--;
+            }
+        },
         // Holds one read of the settings after the file is read, as a slow disk would
         readJSON: async <T>(name: string) => {
             const value = await actual.readJSON<T>(name);
@@ -110,6 +124,8 @@ beforeEach(() => {
     process.env.STORAGE_DIR = dir;
     resetPlex();
     disk.failDelete = false;
+    disk.refuseDelete = '';
+    disk.deleting = 0;
     disk.holdRead = undefined;
     disk.failWrite = undefined;
     write('plex.json', { id: 'machine', uri: 'http://plex.test:32400', token: 'owner-account', serverToken: 'owner-server' });
@@ -203,6 +219,17 @@ describe('POST /api/settings choosing another Plex server', () => {
         await updateSettings(oldServer);
 
         expect(read('track_links.json')).toEqual(picked);
+    });
+
+    it('stops at the first delete that fails, with no other file change still running when it answers', async () => {
+        write('collections.json', { data: [{ id: 'p1', plex: '900' }] });
+        disk.refuseDelete = 'playlists.json';
+
+        const { status } = await post({ id: 'other-machine', uri: 'http://other.test:32400' });
+
+        expect(status).toBe(500);
+        expect(disk.deleting).toBe(0);
+        expect(read('collections.json').data).toEqual([{ id: 'p1', plex: '900' }]);
     });
 
     it('keeps each server its own matches when two switches to the same server overlap', async () => {

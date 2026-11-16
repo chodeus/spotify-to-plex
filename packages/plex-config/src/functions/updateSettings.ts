@@ -46,7 +46,9 @@ async function switchServer(current: PlexSettings, updates: PlexSettingsUpdate &
     // Matches leave first and come back last: a failed step never leaves a server with another server's matches
     forgetPlexMatches(current.id);
     try {
-        await Promise.all([deleteJSON('playlists.json'), deleteJSON('collections.json')]);
+        // One at a time: a failed delete leaves none still running once the locks are released
+        await deleteJSON('playlists.json');
+        await deleteJSON('collections.json');
         const updated = await save(current, updates);
         restoreKeptMatches(updates.id);
 
