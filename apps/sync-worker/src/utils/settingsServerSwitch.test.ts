@@ -1,6 +1,7 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { updateSettings } from '@spotify-to-plex/plex-config/functions/updateSettings';
@@ -174,6 +175,31 @@ describe('POST /api/settings choosing another Plex server', () => {
         const free = await Promise.all(['playlists', 'albums'].map(name => waitForLock(name, 0)));
         free.forEach(release => release?.());
         expect(free.map(Boolean)).toEqual([true, true]);
+    });
+
+    it('lets go of the playlist lock when the album lock cannot be read, and changes nothing', async () => {
+        write('track_links.json', links);
+        // Mirrors lockPath in syncLock.ts
+        const storage = createHash('sha256')
+            .update(resolve(dir))
+            .digest('hex')
+            .slice(0, 12);
+        const albumsLock = join(tmpdir(), 'spotify-to-plex-locks', storage, 'albums.lock');
+        mkdirSync(dirname(albumsLock), { recursive: true });
+        writeFileSync(albumsLock, '{}', { mode: 0o000 });
+        try {
+            const { status, json } = await post({ id: 'other-machine', uri: 'http://other.test:32400' });
+
+            expect({ status, json }).toEqual({ status: 500, json: { error: 'Failed to update settings' } });
+        } finally {
+            rmSync(albumsLock, { force: true });
+        }
+
+        expect(read('plex.json').id).toBe('machine');
+        expect(read('track_links.json')).toEqual(links);
+        const playlists = await waitForLock('playlists', 0);
+        playlists?.();
+        expect(playlists).toBeDefined();
     });
 
     it("forgets the old server's Plex matches, hand-picks included, and keeps the Tidal and slskd ones", async () => {

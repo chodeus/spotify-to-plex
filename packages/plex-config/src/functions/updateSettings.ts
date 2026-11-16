@@ -6,19 +6,28 @@ import { getSettings } from './getSettings';
 import { deleteJSON, writeJSON } from '../utils/fileUtils';
 import { SyncRunningError } from '../utils/SyncRunningError';
 
+const KEY_SAVING_SYNC_RUNS = 'A playlist or album sync is running: choose the new Plex server once it finishes';
+
 // The syncs that save Plex keys: one running now would save the old server's keys again
 async function lockKeySavingSyncs() {
     const playlists = await waitForLock('playlists', 0);
-    const albums = playlists ? await waitForLock('albums', 0) : undefined;
-    if (!playlists || !albums) {
-        playlists?.();
-        throw new SyncRunningError('A playlist or album sync is running: choose the new Plex server once it finishes');
-    }
+    if (!playlists)
+        throw new SyncRunningError(KEY_SAVING_SYNC_RUNS);
 
-    return () => {
-        albums();
+    // Released on any failure, a lock that cannot be read included: kept, it refuses playlist syncs until a restart
+    try {
+        const albums = await waitForLock('albums', 0);
+        if (!albums)
+            throw new SyncRunningError(KEY_SAVING_SYNC_RUNS);
+
+        return () => {
+            albums();
+            playlists();
+        };
+    } catch (error) {
         playlists();
-    };
+        throw error;
+    }
 }
 
 // Logged, not thrown: the tracks it could not put back are left to the next sync's search
