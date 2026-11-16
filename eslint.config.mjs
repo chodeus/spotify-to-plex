@@ -130,7 +130,6 @@ const config = [
                     'ClassBody.body > PropertyDefinition[decorators.length > 0] > .key'
                 ]
             }],
-            "@stylistic/jsx-indent": ["error", 4],
             "@stylistic/jsx-indent-props": ["error", 4],
             "comma-dangle": [
                 "error",
