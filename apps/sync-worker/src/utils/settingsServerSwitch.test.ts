@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -187,6 +187,8 @@ describe('POST /api/settings choosing another Plex server', () => {
         const albumsLock = join(tmpdir(), 'spotify-to-plex-locks', storage, 'albums.lock');
         mkdirSync(dirname(albumsLock), { recursive: true });
         writeFileSync(albumsLock, '{}', { mode: 0o000 });
+        const files = () => Object.fromEntries(readdirSync(dir).map(name => [name, readFileSync(join(dir, name), 'utf8')]));
+        const before = files();
         try {
             const { status, json } = await post({ id: 'other-machine', uri: 'http://other.test:32400' });
 
@@ -195,8 +197,7 @@ describe('POST /api/settings choosing another Plex server', () => {
             rmSync(albumsLock, { force: true });
         }
 
-        expect(read('plex.json').id).toBe('machine');
-        expect(read('track_links.json')).toEqual(links);
+        expect(files()).toEqual(before);
         const playlists = await waitForLock('playlists', 0);
         playlists?.();
         expect(playlists).toBeDefined();
