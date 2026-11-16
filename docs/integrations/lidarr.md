@@ -67,16 +67,16 @@ http://[IP-ADDRESS]:9030/api/sync/lidarr
 
 ---
 
-## Downloading from Soulseek with Tubifarry
+## Downloading from Soulseek through a Lidarr plugin
 
-If Lidarr has the [Tubifarry](https://github.com/TypNull/Tubifarry) plugin with its Slskd indexer and download client, Lidarr can fetch the albums this integration sends from Soulseek. Lidarr downloads whole albums and imports them against MusicBrainz, so use this setup instead of the [SLSKD integration](slskd) in Spotify to Plex.
+If Lidarr has a plugin that adds a slskd indexer and download client, Lidarr can fetch the albums this integration sends from Soulseek. Lidarr downloads whole albums and imports them against MusicBrainz, so use this setup instead of the [SLSKD integration](slskd) in Spotify to Plex.
 
 1. In Spotify to Plex, go to **Advanced → Lidarr Integration** and turn on **Enable Lidarr Integration** and **Enable Automatic Synchronization**.
-2. In **Advanced → SLSKD Integration**, turn off **Enable Automatic Synchronization**. Turn off **Enable SLSKD Integration** too, unless you use its manual search and keep Tubifarry's **Inclusive** setting off (see the warning below).
-3. In Lidarr, go to **Settings → Indexers**, edit the **Slskd** indexer, and turn on **Enable Automatic Search**. When Spotify to Plex sends an album, it asks Lidarr to search for it, and Lidarr only runs that search on indexers with automatic search on.
+2. In **Advanced → SLSKD Integration**, turn off **Enable Automatic Synchronization**. Turn off **Enable SLSKD Integration** too, unless you use its manual search and the plugin only picks up the downloads Lidarr starts (see the warning below).
+3. In Lidarr, go to **Settings → Indexers**, edit the plugin's slskd indexer, and turn on **Enable Automatic Search**. When Spotify to Plex sends an album, it asks Lidarr to search for it, and Lidarr only runs that search on indexers with automatic search on.
 
 {: .warning }
-The Tubifarry Slskd download client has an advanced **Inclusive** setting. When it's on, Lidarr picks up every download in slskd, including the single songs Spotify to Plex downloads through slskd, from its SLSKD sync or its manual search. Lidarr then tries to import each song as an album of its own, and most of those imports fail to match. While **Inclusive** is on, keep **Enable SLSKD Integration** off in Spotify to Plex. Otherwise turn **Inclusive** off, so Lidarr only tracks the downloads it starts.
+Some plugins' slskd download clients pick up every download in slskd, not only the ones Lidarr starts. Some always do; others have a setting for it, such as an advanced checkbox named **Inclusive**. Such a client also picks up the single songs Spotify to Plex downloads through slskd, from its SLSKD sync or its manual search. Lidarr then tries to import each song as an album of its own, and most of those imports fail to match. Check your plugin's download client settings and documentation. If it picks up every download, keep **Enable SLSKD Integration** off in Spotify to Plex. If it has a setting for this, you can turn the setting off instead, so Lidarr only tracks the downloads it starts.
 
 ---
 
