@@ -184,7 +184,7 @@ const PlexConnection = (props: Props) => {
                                 // if (item.connections.length < 2) return null;
 
                                 return [
-                                    <ListItem key={`header-${item.name}`}>
+                                    <ListItem key={`header-${item.id}`}>
                                         <Typography variant="caption" sx={{ textTransform: 'uppercase' }}>{item.name}</Typography>
                                     </ListItem>,
                                     ...item.connections.map(connection => (

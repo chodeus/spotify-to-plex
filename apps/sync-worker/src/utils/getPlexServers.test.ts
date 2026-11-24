@@ -32,7 +32,7 @@ describe('getPlexServers', () => {
         ]);
     });
 
-    it('keeps https on a server that requires it', async () => {
+    it('switches every connection to https on a server that requires it', async () => {
         plexTv.get.mockResolvedValue({ data: [server([
             { local: false, uri: 'http://203.0.113.7:32400' },
             { local: true, uri: 'http://192.168.1.10:32400' }
