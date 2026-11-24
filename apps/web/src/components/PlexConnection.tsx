@@ -167,8 +167,11 @@ const PlexConnection = (props: Props) => {
                 </Alert>
             ) : (
                 <>
-                    <Typography sx={{ mb: 2 }} variant="body1">
+                    <Typography sx={{ mb: 1 }} variant="body1">
                         Select and test the connection that you would like to use.
+                    </Typography>
+                    <Typography sx={{ mb: 2 }} variant="body2" color="text.secondary">
+                        Pick a local connection when this app runs on the same network as Plex. A remote one uses your public IP, which can change.
                     </Typography>
                     <Box
                         sx={{
@@ -185,7 +188,7 @@ const PlexConnection = (props: Props) => {
                                         <Typography variant="caption" sx={{ textTransform: 'uppercase' }}>{item.name}</Typography>
                                     </ListItem>,
                                     ...item.connections.map(connection => (
-                                        <MenuItem key={connection.uri} value={connection.uri}>{connection.uri}</MenuItem>
+                                        <MenuItem key={connection.uri} value={connection.uri}>{connection.uri} ({connection.local ? 'local' : 'remote'})</MenuItem>
                                     ))
                                 ];
                             })}

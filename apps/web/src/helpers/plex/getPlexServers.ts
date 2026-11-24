@@ -25,6 +25,10 @@ export async function getPlexServers(accountToken: string) {
             name,
             id: clientIdentifier,
             accessToken,
-            connections: connections.map(({ local, uri }) => ({ local, uri: httpsRequired ? uri.split('http://').join('https://') : uri }))
+            // Local connections first: a remote one goes through the public IP, which can change and often
+            // cannot be reached from inside the same network
+            connections: connections
+                .map(({ local, uri }) => ({ local, uri: httpsRequired ? uri.split('http://').join('https://') : uri }))
+                .sort((a, b) => Number(b.local) - Number(a.local))
         }));
 }
