@@ -155,6 +155,8 @@ export async function getSpotifyData(api: SpotifyApi, id: string, simplified: bo
     // ~350ms delay = ~171 requests/minute (under the ~180 req/min limit with safety margin)
     const BATCH_DELAY = 350;
     const MAX_RETRIES = 3;
+    // Set once the batch endpoint answers 403: it answers the same for every batch, so the rest go one by one
+    let batchForbidden = false;
 
     for (let i = 0; i < tracks.length; i += BATCH_SIZE) {
         const batch = tracks.slice(i, i + BATCH_SIZE);
@@ -165,6 +167,11 @@ export async function getSpotifyData(api: SpotifyApi, id: string, simplified: bo
 
         // Skip API call if no valid track IDs in batch
         if (trackIds.length === 0) {
+            continue;
+        }
+
+        if (batchForbidden) {
+            tracks.splice(i, BATCH_SIZE, ...await enrichTracksIndividually(api, batch, BATCH_DELAY));
             continue;
         }
 
@@ -238,7 +245,9 @@ export async function getSpotifyData(api: SpotifyApi, id: string, simplified: bo
                     // while single-track lookups still work - enrich one by one instead.
                     // Only 403 falls back: any other error is likely transient, and
                     // retrying it as 50 single calls would just multiply the failure
-                    console.error(`Batch enrichment forbidden - ${retryCount}/${MAX_RETRIES}: ${batchError.message}. Falling back to single-track lookups.`);
+                    // Expected for those apps, and handled: one plain line per playlist, not an error per batch
+                    console.log(`Spotify refused the batch track lookup (403), as it does for apps in development mode; looking the tracks up one at a time`);
+                    batchForbidden = true;
                     const enrichedBatch = await enrichTracksIndividually(api, batch, BATCH_DELAY);
                     tracks.splice(i, BATCH_SIZE, ...enrichedBatch);
                     success = true;

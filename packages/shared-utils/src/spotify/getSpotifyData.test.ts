@@ -120,4 +120,31 @@ describe('getSpotifyData enrichment', () => {
         expect(playlist?.tracks[0]?.isrc).toBe('XXA000000001');
     });
 
+    it('asks the batch endpoint once when it answers 403, and says so in one plain line', async () => {
+        vi.useFakeTimers();
+        const log = vi.spyOn(console, 'log').mockImplementation(() => { /* expected */ });
+        const batchCalls: string[][] = [];
+        const singleApi = {
+            ...api,
+            tracks: { get: (ids: string[] | string) => {
+                if (!Array.isArray(ids))
+                    return Promise.resolve(enriched);
+
+                batchCalls.push(ids);
+
+                return Promise.reject(new Error('Bad OAuth request (wrong consumer key, bad nonce, expired timestamp...). Body: {"error": {"status": 403, "message": "Forbidden" } }'));
+            } }
+        } as unknown as SpotifyApi;
+
+        // 100 tracks: two batches of 50
+        const loading = getSpotifyData(singleApi, 'spotify:playlist:p', false);
+        await vi.runAllTimersAsync();
+        const playlist = await loading;
+
+        expect(batchCalls).toHaveLength(1);
+        expect(playlist?.tracks.map(track => track.isrc)).toEqual(Array.from({ length: 100 }, () => 'XXA000000001'));
+        expect(log.mock.calls.filter(([line]) => String(line).includes('batch track lookup'))).toHaveLength(1);
+        expect(vi.mocked(console.error).mock.calls.filter(([line]) => String(line).includes('enrich'))).toEqual([]);
+    });
+
 });
