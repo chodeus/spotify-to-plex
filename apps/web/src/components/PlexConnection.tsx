@@ -171,7 +171,7 @@ const PlexConnection = (props: Props) => {
                         Select and test the connection that you would like to use.
                     </Typography>
                     <Typography sx={{ mb: 2 }} variant="body2" color="text.secondary">
-                        Pick a local connection when this app runs on the same network as Plex. A remote one uses your public IP, which can change.
+                        Pick a local connection when this app runs on the same network as Plex. A remote one may go through your public IP, which can change.
                     </Typography>
                     <Box
                         sx={{
