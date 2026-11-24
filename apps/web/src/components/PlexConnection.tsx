@@ -110,6 +110,7 @@ const PlexConnection = (props: Props) => {
                     setValidated(true);
                 } catch (error) {
                     setValidated(false);
+                    // eslint-disable-next-line no-console -- the page says only "can't connect"; this keeps the reason
                     console.warn("Plex server connection validation failed:", error);
                 }
             }
