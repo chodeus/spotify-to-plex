@@ -103,8 +103,21 @@ export async function getSpotifyPlaylist(api: SpotifyApi, id: string, simplified
         return playlist;
 
     } catch (e) {
+        // Spotify's own mixes and radios answer 404 to the Web API since late 2024. That is expected, and the
+        // caller reads them with SpotifyScraper, so it gets one plain line instead of an error with a stack trace
+        if (isNotFound(e)) {
+            console.log(`Playlist ${id} is not available through the Spotify API (404); reading it with SpotifyScraper`);
+
+            return null;
+        }
+
         console.error("❌ Error in getSpotifyPlaylist:", e);
 
         return null;
     }
+}
+
+// The SDK's response validator throws a plain Error, with the status only in its message
+function isNotFound(error: unknown) {
+    return error instanceof Error && /^Unrecognised response code: 404\b/.test(error.message);
 }

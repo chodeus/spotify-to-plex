@@ -92,4 +92,38 @@ describe('getSpotifyPlaylist', () => {
         expect(offsets).toEqual([]);
     });
 
+    function refusingApi(error: Error) {
+        return {
+            getAccessToken: () => Promise.resolve({ access_token: 'token' }),
+            playlists: { getPlaylist: () => Promise.reject(error) }
+        } as unknown as SpotifyApi;
+    }
+
+    // The message the SDK's response validator throws for a status it has no case for
+    const sdkError = (status: number, statusText = '') => new Error(`Unrecognised response code: ${status} - ${statusText}. Body: {"error": {"status": ${status}, "message": "Resource not found" } }`);
+
+    it('logs a 404, which Spotify gives its own mixes, as one plain line and leaves it to the scraper', async () => {
+        const log = vi.spyOn(console, 'log').mockImplementation(() => { /* expected */ });
+        const error = vi.spyOn(console, 'error').mockImplementation(() => { /* expected */ });
+
+        const playlist = await getSpotifyPlaylist(refusingApi(sdkError(404)), '37i9dQZF1EIfpZraphE7Ba', false);
+
+        expect(playlist).toBeNull();
+        expect(error).not.toHaveBeenCalled();
+        expect(log).toHaveBeenCalledExactlyOnceWith('Playlist 37i9dQZF1EIfpZraphE7Ba is not available through the Spotify API (404); reading it with SpotifyScraper');
+    });
+
+    it.each([
+        ['a server error', sdkError(500, 'Internal Server Error')],
+        ['a 404 in the body only', new Error('Unrecognised response code: 502 - . Body: 404')],
+        ['a network failure', new TypeError('fetch failed')]
+    ])('still reports %s as an error', async (_name, failure) => {
+        const error = vi.spyOn(console, 'error').mockImplementation(() => { /* expected */ });
+
+        const playlist = await getSpotifyPlaylist(refusingApi(failure), 'p', false);
+
+        expect(playlist).toBeNull();
+        expect(error).toHaveBeenCalledExactlyOnceWith('❌ Error in getSpotifyPlaylist:', failure);
+    });
+
 });
