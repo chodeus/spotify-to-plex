@@ -80,3 +80,15 @@ describe('/api/saved-items title', () => {
         expect(read('spotify_saved_items.json').find((item: { id: string }) => item.id === 'liked-u1')?.title).toBe('Liked Songs');
     });
 });
+
+describe('POST /api/saved-items search', () => {
+    it.each(['', '   '])('asks for a URL or URI when the search is blank (%j) and saves nothing', async search => {
+        vi.stubEnv('SPOTIFY_API_CLIENT_ID', 'client');
+        vi.stubEnv('SPOTIFY_API_CLIENT_SECRET', 'secret');
+
+        const { status, json } = await call('POST', { search });
+
+        expect({ status, json }).toEqual({ status: 400, json: { error: 'Enter a Spotify URL or URI to add' } });
+        expect(read('spotify_saved_items.json')).toHaveLength(1);
+    });
+});
