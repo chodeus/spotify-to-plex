@@ -26,6 +26,7 @@ import { readMissingSpotifyTrackIds } from "../utils/readMissingSpotifyTrackIds"
 import { emptyMissingLists, missingListsFor, writeMissingLists } from "../utils/missingLists";
 import { PLAYLISTS_STATE_FILE, clearSyncState, openSyncState } from "../utils/syncState";
 import { runExclusive } from "@spotify-to-plex/shared-utils/utils/syncLock";
+import { ensurePlexConnection } from "@spotify-to-plex/plex-helpers/utils/ensurePlexConnection";
 import { withoutHandMatched } from "../utils/handMatches";
 
 
@@ -56,6 +57,8 @@ async function runPlaylists(force: boolean) {
 
         const { putLog, logError, logComplete } = getNestedSyncLogsForType('playlists')
 
+        // A saved connection that stopped answering, after a new public IP say, is swapped for one that answers
+        await ensurePlexConnection();
         const settings = await getSettings();
         if (!settings.uri || !settings.token)
             throw new Error("No plex connection found")

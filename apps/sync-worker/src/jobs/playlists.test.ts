@@ -18,6 +18,7 @@ const { loadSpotifyData, plexTv } = vi.hoisted(() => ({ loadSpotifyData: vi.fn()
 vi.mock('@spotify-to-plex/http-client/plexTvClient', () => ({ plexTvClient: plexTv }));
 
 vi.mock('@spotify-to-plex/plex-config/functions/getSettings', () => ({ getSettings: async () => ({ uri: 'http://plex.test:32400', token: 'token', id: 'machine' }) }));
+vi.mock('@spotify-to-plex/plex-helpers/utils/ensurePlexConnection', () => ({ ensurePlexConnection: vi.fn() }));
 vi.mock('@spotify-to-plex/music-search/functions/getMusicSearchConfig', () => ({ getMusicSearchConfig: async () => ({ searchApproaches: [{ id: 'normal' }] }) }));
 vi.mock('@spotify-to-plex/http-client/AxiosRequest', () => ({ AxiosRequest: { get: vi.fn() } }));
 vi.mock('../utils/loadSpotifyData', () => ({ loadSpotifyData }));

@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@spotify-to-plex/plex-config/functions/getSettings', () => ({ getSettings: async () => ({ id: 'machine', uri: 'http://plex.test:32400', token: 'owner-server' }) }));
+vi.mock('@spotify-to-plex/plex-helpers/utils/ensurePlexConnection', () => ({ ensurePlexConnection: vi.fn() }));
 vi.mock('@spotify-to-plex/plex-music-search/functions/getById', () => ({ getById: async () => ({ image: '/thumb' }) }));
 
 const { syncMQTT } = await import('./mqtt');

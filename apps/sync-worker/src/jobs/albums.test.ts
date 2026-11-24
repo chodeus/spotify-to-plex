@@ -16,6 +16,7 @@ const albumData = (uri: string) => {
 const { loadSpotifyData, manualPicks, cache } = vi.hoisted(() => ({ loadSpotifyData: vi.fn(), manualPicks: [] as object[], cache: { manualUnanswered: false, add: vi.fn() } }));
 
 vi.mock('@spotify-to-plex/plex-config/functions/getSettings', () => ({ getSettings: async () => ({ uri: 'http://plex.test:32400', token: 'token' }) }));
+vi.mock('@spotify-to-plex/plex-helpers/utils/ensurePlexConnection', () => ({ ensurePlexConnection: vi.fn() }));
 vi.mock('@spotify-to-plex/music-search/functions/getMusicSearchConfig', () => ({ getMusicSearchConfig: async () => ({ searchApproaches: [{ id: 'normal' }] }) }));
 vi.mock('../utils/loadSpotifyData', () => ({ loadSpotifyData }));
 vi.mock('../utils/getCachedPlexTracks', () => ({ getCachedPlexTracks: async () => ({ add: cache.add, manual: manualPicks, manualUnanswered: cache.manualUnanswered }) }));

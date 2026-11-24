@@ -31,6 +31,7 @@ import { writeDryRunManifest } from '../services/mqtt/writeDryRunManifest';
 import { PublishedItem, TrackLink, MQTTEntity } from '../services/mqtt/types';
 import { PlexItemMissingError } from '@spotify-to-plex/plex-music-search/utils/PlexItemMissingError';
 import { runExclusive } from "@spotify-to-plex/shared-utils/utils/syncLock";
+import { ensurePlexConnection } from "@spotify-to-plex/plex-helpers/utils/ensurePlexConnection";
 
 /**
  * Main MQTT sync function
@@ -71,7 +72,8 @@ async function runMQTT() {
         // Load MQTT configuration
         const mqttConfig = loadMQTTConfig();
 
-        // Get Plex settings
+        // Get Plex settings, after swapping a saved connection that stopped answering for one that answers
+        await ensurePlexConnection();
         const settings = await getSettings();
         if (!settings.uri || !settings.token)
             throw new Error('No Plex connection found');
