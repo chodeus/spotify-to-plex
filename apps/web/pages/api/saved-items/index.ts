@@ -42,20 +42,16 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
         async (req, res) => {
             try {
                 const { search, user_id, label } = req.body;
-                if (typeof search !== 'string')
+                const query = typeof search === 'string' ? search.trim() : '';
+                if (!query)
                     return res.status(400).json({ error: "Search query missing" })
 
-                if (!process.env.SPOTIFY_API_CLIENT_ID || !process.env.SPOTIFY_API_CLIENT_SECRET)
-                    return res.status(400).json({ error: "Spotify Credentials missing. Please add the environment variables to use this feature." })
-
                 let savedItem: SavedItem | null = null;
-                if (typeof search === 'string' && search.trim().startsWith('/library')) {
-                    const plexMediaId = search.trim();
-
+                if (query.startsWith('/library')) {
                     const settings = await getSettings();
 
                     if (!settings.token || !settings.uri)
-                        return res.status(400).json({ msg: "Plex not configured" });
+                        return res.status(400).json({ error: "Plex not configured" });
 
                     const musicSearchConfig = await getMusicSearchConfig();
 
@@ -65,12 +61,12 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
                         musicSearchConfig
                     };
 
-                    const metaData = await getById(plexConfig, plexMediaId)
+                    const metaData = await getById(plexConfig, query)
                     if (metaData)
                         savedItem = { type: 'plex-media', uri: metaData.id, id: metaData.guid, title: metaData.title, image: `/api/plex/image?path=${encodeURIComponent(metaData.image)}` }
-                } else if (search.includes(':liked')) {
+                } else if (query.includes(':liked')) {
                     // Handle {username}:liked pattern
-                    const parts = search.trim().split(':');
+                    const parts = query.split(':');
 
                     // Validate format is exactly {username}:liked
                     if (parts.length !== 2 || parts[1]?.toLowerCase() !== 'liked') 
@@ -116,19 +112,22 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
                     if (typeof label === 'string')
                         savedItem.label = label;
                 } else {
+                    if (!process.env.SPOTIFY_API_CLIENT_ID || !process.env.SPOTIFY_API_CLIENT_SECRET)
+                        return res.status(400).json({ error: "Spotify Credentials missing. Please add the environment variables to use this feature." })
+
                     let id = '';
 
-                    if (search.indexOf('http') > -1) {
+                    if (query.indexOf('http') > -1) {
 
-                        const { path } = parse(search, true);
+                        const { path } = parse(query, true);
 
                         if (!path)
                             return res.status(400).json({ error: "Invalid URL" });
 
                         id = path.split("/").join(":");
                         id = `spotify${id}`;
-                    } else if (search.split(":").length === 3) {
-                        id = search;
+                    } else if (query.split(":").length === 3) {
+                        id = query;
                     } else {
                         return res.status(400).json({ error: "Invalid Spotify URI, expecting spotify:playlist:id" });
                     }

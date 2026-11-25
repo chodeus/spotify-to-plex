@@ -184,7 +184,7 @@ export default function ManagePlaylists() {
                                 sx={{
                                     mt: 1
                                 }}>
-                                <Button size="small" disabled={generating} onClick={onAddPlaylistClick}>Add item</Button>
+                                <Button size="small" disabled={generating || !searchInput.trim()} onClick={onAddPlaylistClick}>Add item</Button>
                             </Box>
                         </Box>
                     </Paper>
