@@ -1,7 +1,7 @@
 import React, { useRef, useCallback, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { Box, Paper, Alert, Typography } from '@mui/material';
 import Editor from '@monaco-editor/react';
-import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
+import type * as monaco from 'monaco-editor';
 
 // Whether the editor's text already holds this value, however it is formatted
 function holdsValue(text: string, value: unknown) {
@@ -54,7 +54,7 @@ const MonacoJsonEditor = forwardRef<MonacoJsonEditorHandle, MonacoJsonEditorProp
 
         // Configure JSON schema validation if provided
         if (schema) {
-            monacoInstance.languages.json.jsonDefaults.setDiagnosticsOptions({
+            monacoInstance.json.jsonDefaults.setDiagnosticsOptions({
                 validate: true,
                 schemaValidation: 'error',
                 schemas: [{
