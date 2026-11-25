@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const published: { topic: string; message: string; retain?: boolean }[] = [];
 const record = async (topic: string, message: string, options?: { retain?: boolean }) => { published.push({ topic, message, retain: options?.retain }) };
 const publish = vi.fn(record);
+vi.mock('@spotify-to-plex/http-client/AxiosRequest', async () => import('./testing/savedPlexAnswers'));
 vi.mock('../services/mqtt/createMQTTClient', () => ({
     createMQTTClient: () => ({ connect: vi.fn(), disconnect: vi.fn(), publish, isConnected: () => true })
 }));

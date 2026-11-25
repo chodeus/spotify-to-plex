@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const connect = vi.fn();
 const disconnect = vi.fn(async () => { /* nothing to close */ });
+vi.mock('@spotify-to-plex/http-client/AxiosRequest', async () => import('./testing/savedPlexAnswers'));
 vi.mock('../services/mqtt/createMQTTClient', () => ({
     createMQTTClient: () => ({ connect, disconnect, publish: vi.fn(), isConnected: () => false })
 }));
