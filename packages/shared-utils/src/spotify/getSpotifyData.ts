@@ -120,14 +120,14 @@ export async function getSpotifyData(api: SpotifyApi, id: string, simplified: bo
 
     const tracks = scraperData.tracks?.map((track) => {
 
-        const { artists, album, name, id, uri, duration_ms } = track;
+        const { artists, album, id, uri, duration_ms } = track;
         const splitArtists = artists.flatMap(artist =>
             artist.name.split(',').map(name => name.trim())
         );
 
         return {
             id: id || uri,
-            title: name || '',
+            title: track.name || '',
             album: album?.name || '',
             artists: splitArtists,
             album_id: 'unknown',
