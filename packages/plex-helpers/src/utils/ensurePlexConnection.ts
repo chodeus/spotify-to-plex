@@ -30,16 +30,11 @@ async function takesToken(uri: string, token: string) {
     }
 }
 
-// Identities are asked at once; the token goes only to those that answer as the server, one at a time in the list's order
-async function firstWorking(uris: string[], serverId: string, token: string) {
+// All asked at once; the first in the list's order wins
+async function firstAnswering(uris: string[], serverId: string) {
     const machines = await Promise.all(uris.map(uri => machineAt(uri)));
 
-    for (const uri of uris.filter((_, index) => machines[index] === serverId)) {
-        if (await takesToken(uri, token))
-            return uri;
-    }
-
-    return '';
+    return uris.find((_, index) => machines[index] === serverId) ?? '';
 }
 
 // True once another connection of the saved server is saved
@@ -54,30 +49,37 @@ async function recover(settings: PlexSettings, problem: string) {
     try {
         servers = await getPlexServers(settings.token);
     } catch (error) {
-        console.error(`${problem}, and plex.tv could not list its other connections: ${describeHttpError(error)}`);
+        console.error(`${problem}, and plex.tv could not list the saved server's other connections: ${describeHttpError(error)}`);
 
         return false;
     }
 
     const server = servers.find(item => item.id === settings.id);
     if (!server) {
-        console.error(`${problem}, and plex.tv does not list this server for the signed-in Plex account`);
+        console.error(`${problem}, and plex.tv does not list the saved server for the signed-in Plex account`);
 
         return false;
     }
 
-    // A connection plex.tv still lists is down for now, not gone: it stays the user's choice
+    // A connection plex.tv still lists stays the user's choice: it may be down only for now
     if (server.connections.some(item => item.uri === settings.uri)) {
-        console.error(`${problem}, a connection plex.tv still lists for this server, so it is kept`);
+        console.error(`${problem}, a connection plex.tv still lists for the saved server, so it is kept`);
 
         return false;
     }
 
     // A relay stays a choice made by hand: it is slow
     const direct = server.connections.filter(item => !item.relay).map(item => item.uri);
-    const uri = await firstWorking(direct, settings.id, server.accessToken);
+    const uri = await firstAnswering(direct, settings.id);
     if (!uri) {
-        console.error(`${problem}, and no direct connection plex.tv lists for this server works`);
+        console.error(`${problem}, and no direct connection plex.tv lists answers as the saved server`);
+
+        return false;
+    }
+
+    // The token goes to this one only: another host can answer with the same identity
+    if (!await takesToken(uri, server.accessToken)) {
+        console.error(`${problem}, and ${uri} answers as the saved server but refuses its token`);
 
         return false;
     }

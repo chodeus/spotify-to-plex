@@ -45,7 +45,7 @@ const NEW_WAN = 'http://198.51.100.2:32400';
 const LAN = 'http://192.168.1.10:32400';
 const RELAY = 'https://relay.plex.direct:8443';
 const SAVED = { id: 'machine', uri: OLD_WAN, token: 'account-token', serverToken: 'server-token' };
-const NONE_WORKS = `Plex did not answer at ${OLD_WAN}, and no direct connection plex.tv lists for this server works`;
+const NONE_ANSWERS = `Plex did not answer at ${OLD_WAN}, and no direct connection plex.tv lists answers as the saved server`;
 
 const resources = (connections: { local: boolean, relay?: boolean, uri: string }[], extra: object = {}) => ({ data: [
     { product: 'Plex Media Server', name: 'Other', clientIdentifier: 'other-machine', accessToken: 'other-token', connections: [{ local: true, uri: 'http://192.168.1.99:32400' }] },
@@ -116,7 +116,7 @@ describe('ensurePlexConnection', () => {
         await expect(ensurePlexConnection()).rejects.toThrow(`Another Plex server answers at ${OLD_WAN}: choose the Plex server again on the Settings page`);
 
         expect(saved()).toEqual(SAVED);
-        expect(errors).toHaveBeenCalledWith(`Another Plex server answers at ${OLD_WAN}, and no direct connection plex.tv lists for this server works`);
+        expect(errors).toHaveBeenCalledWith(`Another Plex server answers at ${OLD_WAN}, and no direct connection plex.tv lists answers as the saved server`);
     });
 
     it('keeps a saved connection plex.tv still lists, while it does not answer', async () => {
@@ -127,7 +127,7 @@ describe('ensurePlexConnection', () => {
 
         expect(saved()).toEqual(SAVED);
         expect(requests()).toEqual([[`${OLD_WAN}/identity`, '']]);
-        expect(errors).toHaveBeenCalledWith(`Plex did not answer at ${OLD_WAN}, a connection plex.tv still lists for this server, so it is kept`);
+        expect(errors).toHaveBeenCalledWith(`Plex did not answer at ${OLD_WAN}, a connection plex.tv still lists for the saved server, so it is kept`);
     });
 
     it('sends the server token only to an address that answered as the saved server', async () => {
@@ -166,10 +166,10 @@ describe('ensurePlexConnection', () => {
         await ensurePlexConnection();
 
         expect(saved()).toEqual(SAVED);
-        expect(errors).toHaveBeenCalledWith(NONE_WORKS);
+        expect(errors).toHaveBeenCalledWith(NONE_ANSWERS);
     });
 
-    it('does not take a connection that refuses the server token', async () => {
+    it('keeps the saved connection when the first that answers refuses the server token, and sends the token nowhere else', async () => {
         answering.set(LAN, 'machine');
         answering.set(NEW_WAN, 'machine');
         refusing.add(LAN);
@@ -177,7 +177,9 @@ describe('ensurePlexConnection', () => {
 
         await ensurePlexConnection();
 
-        expect(saved()).toEqual({ ...SAVED, uri: NEW_WAN, serverToken: 'fresh-server-token' });
+        expect(saved()).toEqual(SAVED);
+        expect(errors).toHaveBeenCalledWith(`Plex did not answer at ${OLD_WAN}, and ${LAN} answers as the saved server but refuses its token`);
+        expect(requests().filter(([url]) => url.endsWith('/library/sections'))).toEqual([[`${LAN}/library/sections`, 'fresh-server-token']]);
     });
 
     it('does not take a connection where another server answers', async () => {
@@ -187,7 +189,7 @@ describe('ensurePlexConnection', () => {
         await ensurePlexConnection();
 
         expect(saved()).toEqual(SAVED);
-        expect(errors).toHaveBeenCalledWith(NONE_WORKS);
+        expect(errors).toHaveBeenCalledWith(NONE_ANSWERS);
     });
 
     it('keeps https on a server that requires it', async () => {
@@ -240,7 +242,7 @@ describe('ensurePlexConnection', () => {
         await ensurePlexConnection();
 
         expect(saved()).toEqual(SAVED);
-        expect(errors).toHaveBeenCalledWith(`Plex did not answer at ${OLD_WAN}, and plex.tv does not list this server for the signed-in Plex account`);
+        expect(errors).toHaveBeenCalledWith(`Plex did not answer at ${OLD_WAN}, and plex.tv does not list the saved server for the signed-in Plex account`);
     });
 
     it('does not throw when plex.tv cannot be reached', async () => {
@@ -249,7 +251,7 @@ describe('ensurePlexConnection', () => {
         await expect(ensurePlexConnection()).resolves.toBeUndefined();
 
         expect(saved()).toEqual(SAVED);
-        expect(errors).toHaveBeenCalledWith(expect.stringContaining(`Plex did not answer at ${OLD_WAN}, and plex.tv could not list its other connections`));
+        expect(errors).toHaveBeenCalledWith(expect.stringContaining(`Plex did not answer at ${OLD_WAN}, and plex.tv could not list the saved server's other connections`));
     });
 
     it('does nothing before a server is chosen', async () => {
