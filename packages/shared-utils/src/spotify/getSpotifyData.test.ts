@@ -1,4 +1,4 @@
-import type { SpotifyApi } from '@spotify/web-api-ts-sdk';
+import { DefaultResponseValidator, type SpotifyApi } from '@spotify/web-api-ts-sdk';
 import axios from 'axios';
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import { getSpotifyData } from './getSpotifyData';
@@ -123,6 +123,10 @@ describe('getSpotifyData enrichment', () => {
     it('asks the batch endpoint once when it answers 403, and says so in one plain line', async () => {
         vi.useFakeTimers();
         const log = vi.spyOn(console, 'log').mockImplementation(() => { /* expected */ });
+        // The SDK's own validator makes the 403, so a change to its wording fails here
+        const forbidden = await new DefaultResponseValidator()
+            .validateResponse(new Response('{"error": {"status": 403, "message": "Forbidden" } }', { status: 403 }))
+            .then(() => new Error('the SDK accepted a 403'), (error: unknown) => error);
         const batchCalls: string[][] = [];
         const singleApi = {
             ...api,
@@ -132,7 +136,7 @@ describe('getSpotifyData enrichment', () => {
 
                 batchCalls.push(ids);
 
-                return Promise.reject(new Error('Bad OAuth request (wrong consumer key, bad nonce, expired timestamp...). Body: {"error": {"status": 403, "message": "Forbidden" } }'));
+                return Promise.reject(forbidden);
             } }
         } as unknown as SpotifyApi;
 

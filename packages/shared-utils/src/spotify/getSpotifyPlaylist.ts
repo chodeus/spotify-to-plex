@@ -20,7 +20,7 @@ async function fetchTracksPage(id: string, accessToken?: string): Promise<Page<P
         });
 
         if (!response.ok) {
-            // A 403 is Spotify withholding the tracks, which the scraper then reads: the caller says so in one line
+            // A 403 is Spotify withholding the tracks: the caller logs that in one plain line
             if (response.status !== 403)
                 console.error(`❌ Playlist ${id} tracks endpoint refused: ${response.status} ${response.statusText}`);
 
@@ -67,10 +67,9 @@ export async function getSpotifyPlaylist(api: SpotifyApi, id: string, simplified
         if (!tracksPage?.items)
             tracksPage = await fetchTracksPage(id, tokenInfo?.access_token);
 
-        // Spotify withholds the tracks of many playlists from the Web API, and from every client_credentials call.
-        // Expected, and the caller reads the playlist with SpotifyScraper instead
+        // Spotify withholds the tracks of many playlists from the Web API, and from every client_credentials call
         if (!tracksPage?.items) {
-            console.log(`Playlist ${id}: the Spotify API did not return its tracks; reading it with SpotifyScraper`);
+            console.log(`Playlist ${id}: the Spotify API did not return its tracks; falling back to SpotifyScraper if it is configured`);
 
             return null;
         }

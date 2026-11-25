@@ -88,7 +88,7 @@ describe('getSpotifyPlaylist', () => {
     async function withholdTracks(status: number) {
         const log = vi.spyOn(console, 'log').mockImplementation(() => { /* expected */ });
         const error = vi.spyOn(console, 'error').mockImplementation(() => { /* expected */ });
-        vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: false, status, statusText: status === 403 ? 'Forbidden' : 'Server Error', json: () => Promise.resolve({}) })));
+        vi.stubGlobal('fetch', vi.fn(async () => new Response('{}', { status, statusText: status === 403 ? 'Forbidden' : 'Server Error' })));
         const noTracks = {
             getAccessToken: () => Promise.resolve({ access_token: 'token' }),
             playlists: { getPlaylist: () => Promise.resolve({ id: 'p', name: 'Playlist', owner: { display_name: 'Owner' }, images: [] }) }
@@ -99,12 +99,12 @@ describe('getSpotifyPlaylist', () => {
         return { playlist, log, error };
     }
 
-    it('says in one plain line that the scraper will read a playlist whose tracks Spotify withholds (403)', async () => {
+    it('logs one plain line, with no error, for a playlist whose tracks Spotify withholds (403)', async () => {
         const { playlist, log, error } = await withholdTracks(403);
 
         expect(playlist).toBeNull();
         expect(error).not.toHaveBeenCalled();
-        expect(log).toHaveBeenCalledExactlyOnceWith('Playlist p: the Spotify API did not return its tracks; reading it with SpotifyScraper');
+        expect(log).toHaveBeenCalledExactlyOnceWith('Playlist p: the Spotify API did not return its tracks; falling back to SpotifyScraper if it is configured');
     });
 
     it('still reports any other answer from the tracks endpoint as an error', async () => {
