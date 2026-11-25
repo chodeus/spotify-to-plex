@@ -57,7 +57,7 @@ async function runPlaylists(force: boolean) {
 
         const { putLog, logError, logComplete } = getNestedSyncLogsForType('playlists')
 
-        // A dead saved connection plex.tv no longer lists, after a new public IP say, is swapped for a listed one that works
+        // A dead saved connection plex.tv no longer lists, after a new public IP say, is swapped for a listed direct one that works
         await ensurePlexConnection();
         const settings = await getSettings();
         if (!settings.uri || !settings.token)

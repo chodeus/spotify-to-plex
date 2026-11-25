@@ -176,6 +176,16 @@ describe('POST /api/settings choosing another Plex server', () => {
         expect(free.map(Boolean)).toEqual([true, true]);
     });
 
+    it('refuses a connection that does not take the server token, and changes nothing', async () => {
+        plex.fail = (method, path) => method === 'GET' && path === '/library/sections';
+        const before = read('plex.json');
+
+        const { status, json } = await post({ id: 'other-machine', uri: 'http://other.test:32400' });
+
+        expect({ status, json }).toEqual({ status: 502, json: { error: 'Plex did not answer at that connection' } });
+        expect(read('plex.json')).toEqual(before);
+    });
+
     it('lets go of the playlist lock when the album lock cannot be read, and changes nothing', async () => {
         write('track_links.json', links);
         // Mirrors lockPath in syncLock.ts

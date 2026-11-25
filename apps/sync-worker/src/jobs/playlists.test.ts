@@ -37,6 +37,7 @@ vi.mock('@spotify-to-plex/plex-music-search/functions/search', () => ({
 const { syncPlaylists } = await import('./playlists');
 const { putPlexPlaylist } = await import('../utils/putPlexTracks');
 const { AxiosRequest } = await import('@spotify-to-plex/http-client/AxiosRequest');
+const { ensurePlexConnection } = await import('@spotify-to-plex/plex-helpers/utils/ensurePlexConnection');
 
 let dir: string;
 const read = (file: string) => readFileSync(join(dir, file), 'utf8');
@@ -119,6 +120,17 @@ describe('syncPlaylists missing lists', () => {
 
         expect(readState()).toEqual({});
         expect(read('missing_tracks_spotify.txt')).toBe('');
+    });
+});
+
+describe('syncPlaylists connection check', () => {
+    it('writes nothing to Plex when the connection check stops the sync', async () => {
+        vi.mocked(putPlexPlaylist).mockClear();
+        vi.mocked(ensurePlexConnection).mockRejectedValueOnce(new Error('Another Plex server answers at http://plex.test:32400'));
+
+        await expect(syncPlaylists(false)).rejects.toThrow('Another Plex server answers at http://plex.test:32400');
+
+        expect(putPlexPlaylist).not.toHaveBeenCalled();
     });
 });
 

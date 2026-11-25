@@ -96,6 +96,27 @@ describe('ensurePlexConnection', () => {
 
         expect(saved()).toEqual({ ...SAVED, uri: LAN, serverToken: 'fresh-server-token' });
         expect(plexTv.get.mock.calls[0]?.[1]?.headers).toEqual({ 'X-Plex-Token': 'account-token' });
+        expect(requests().filter(([url]) => url.endsWith('/library/sections'))).toEqual([[`${LAN}/library/sections`, 'fresh-server-token']]);
+    });
+
+    it('switches away from a saved address where another Plex server answers now', async () => {
+        answering.set(OLD_WAN, 'someone-else');
+        answering.set(LAN, 'machine');
+        plexTv.get.mockResolvedValue(resources([{ local: true, uri: LAN }]));
+
+        await ensurePlexConnection();
+
+        expect(saved()).toEqual({ ...SAVED, uri: LAN, serverToken: 'fresh-server-token' });
+    });
+
+    it('stops the sync while another Plex server answers at the saved address', async () => {
+        answering.set(OLD_WAN, 'someone-else');
+        plexTv.get.mockResolvedValue(resources([{ local: true, uri: LAN }]));
+
+        await expect(ensurePlexConnection()).rejects.toThrow(`Another Plex server answers at ${OLD_WAN}: choose the Plex server again on the Settings page`);
+
+        expect(saved()).toEqual(SAVED);
+        expect(errors).toHaveBeenCalledWith(`Another Plex server answers at ${OLD_WAN}, and no direct connection plex.tv lists for this server works`);
     });
 
     it('keeps a saved connection plex.tv still lists, while it does not answer', async () => {

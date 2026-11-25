@@ -72,7 +72,7 @@ async function runMQTT() {
         // Load MQTT configuration
         const mqttConfig = loadMQTTConfig();
 
-        // Get Plex settings, after swapping a dead saved connection plex.tv no longer lists for a listed one that works
+        // Get Plex settings, after swapping a dead saved connection plex.tv no longer lists for a listed direct one that works
         await ensurePlexConnection();
         const settings = await getSettings();
         if (!settings.uri || !settings.token)
