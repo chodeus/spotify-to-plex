@@ -93,11 +93,20 @@ describe('getSpotifyData enrichment', () => {
     const enriched = { album: { id: 'album-1', name: 'Album' }, duration_ms: 1000, external_ids: { isrc: 'XXA000000001' } };
     const FORBIDDEN_BODY = '{"error": {"status": 403, "message": "Forbidden" } }';
 
-    // The SDK's own validator makes the 403, so a change to its wording fails here
-    async function sdkForbidden(body = FORBIDDEN_BODY) {
+    // The SDK's own validator makes the errors, so a change to its wording fails here
+    async function sdkError(status: number, body = '') {
         return new DefaultResponseValidator()
-            .validateResponse(new Response(body, { status: 403 }))
-            .then(() => new Error('the SDK accepted a 403'), (error: unknown) => error);
+            .validateResponse(new Response(body, { status }))
+            .then(() => new Error(`the SDK accepted a ${status}`), (error: unknown) => error);
+    }
+
+    const sdkForbidden = (body = FORBIDDEN_BODY) => sdkError(403, body);
+
+    // Batch lookups answer 403; one-by-one lookups answer as `single` says
+    function devModeApi(single: (call: number) => Promise<unknown>) {
+        let calls = 0;
+
+        return { ...api, tracks: { get: async (ids: string[] | string) => (Array.isArray(ids) ? Promise.reject(await sdkForbidden()) : single(++calls)) } } as unknown as SpotifyApi;
     }
 
     beforeEach(() => {
@@ -186,10 +195,75 @@ describe('getSpotifyData enrichment', () => {
         const playlist = await loading;
 
         expect(playlist?.tracks.filter(track => track.isrc)).toHaveLength(50);
-        expect(vi.mocked(console.error).mock.calls.filter(([line]) => String(line).includes('single-track'))).toEqual([
-            ["❌ 25 single-track lookups failed, so those tracks keep the scraper's data with no ISRC: Bad or expired token."],
-            ["❌ 25 single-track lookups failed, so those tracks keep the scraper's data with no ISRC: Bad or expired token."]
+        expect(vi.mocked(console.error).mock.calls.filter(([line]) => String(line).includes('single-track lookup failed'))).toEqual([
+            ["❌ Spotify's single-track lookup failed for 25 of 50 tracks, so they keep the scraper's data with no ISRC: Bad or expired token."],
+            ["❌ Spotify's single-track lookup failed for 25 of 50 tracks, so they keep the scraper's data with no ISRC: Bad or expired token."]
         ]);
+    });
+
+
+    it('stops the load on a 429 from a one-by-one lookup when rate-limit checks are on', async () => {
+        vi.useFakeTimers();
+        vi.spyOn(console, 'log').mockImplementation(() => { /* expected */ });
+        const rateLimited = await sdkError(429);
+
+        const loading = getSpotifyData(devModeApi(() => Promise.reject(rateLimited)), 'spotify:playlist:p', false);
+        const refused = expect(loading).rejects.toThrow('Rate Limit Exceeded, try with a different token.');
+        await vi.runAllTimersAsync();
+        await refused;
+    });
+
+    // Call 51 is the second batch's first lookup, which skips the batch endpoint after its 403
+    it('waits out a 429 from a one-by-one lookup when the caller skips rate-limit checks', async () => {
+        vi.useFakeTimers();
+        const log = vi.spyOn(console, 'log').mockImplementation(() => { /* expected */ });
+        const rateLimited = await sdkError(429);
+
+        const loading = getSpotifyData(devModeApi(call => (call === 51 ? Promise.reject(rateLimited) : Promise.resolve(enriched))), 'spotify:playlist:p', false, true);
+        await vi.runAllTimersAsync();
+        const playlist = await loading;
+
+        expect(playlist?.tracks.map(track => track.isrc)).toEqual(Array.from({ length: 100 }, () => 'XXA000000001'));
+        expect(log).toHaveBeenCalledWith('Rate limited. Waiting 2000ms before retry 1/3...');
+        expect(vi.mocked(console.error).mock.calls.filter(([line]) => String(line).includes('single-track lookup failed'))).toEqual([]);
+    });
+
+    it('leaves the rest of a batch to the next one once a lookup is still rate limited after three tries', async () => {
+        vi.useFakeTimers();
+        vi.spyOn(console, 'log').mockImplementation(() => { /* expected */ });
+        const rateLimited = await sdkError(429);
+        let calls = 0;
+
+        const loading = getSpotifyData(devModeApi(call => {
+            calls = call;
+
+            return call <= 3 ? Promise.reject(rateLimited) : Promise.resolve(enriched);
+        }), 'spotify:playlist:p', false, true);
+        await vi.runAllTimersAsync();
+        const playlist = await loading;
+
+        expect(calls).toBe(53);
+        expect(playlist?.tracks.slice(0, 50).filter(track => track.isrc)).toEqual([]);
+        expect(playlist?.tracks.slice(50).map(track => track.isrc)).toEqual(Array.from({ length: 50 }, () => 'XXA000000001'));
+        expect(vi.mocked(console.error).mock.calls.filter(([line]) => String(line).includes('single-track lookup failed'))).toEqual([
+            ["❌ Spotify's single-track lookup failed for 50 of 50 tracks, so they keep the scraper's data with no ISRC: The app has exceeded its rate limits."]
+        ]);
+    });
+
+
+    it('does not look up a local file one by one', async () => {
+        vi.useFakeTimers();
+        vi.spyOn(console, 'log').mockImplementation(() => { /* expected */ });
+        const response = scraperResponse(false);
+        response.data.tracks[0] = { ...scraperTrack(0), id: 'spotify:local:Artist:Album:Song:180' };
+        postMock.mockResolvedValue(response);
+
+        const loading = getSpotifyData(devModeApi(() => Promise.resolve(enriched)), 'spotify:playlist:p', false);
+        await vi.runAllTimersAsync();
+        const playlist = await loading;
+
+        expect(playlist?.tracks[0]?.isrc).toBeUndefined();
+        expect(playlist?.tracks[1]?.isrc).toBe('XXA000000001');
     });
 
 });

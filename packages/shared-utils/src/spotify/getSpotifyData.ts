@@ -154,7 +154,6 @@ export async function getSpotifyData(api: SpotifyApi, id: string, simplified: bo
     const BATCH_SIZE = 50;
     // ~350ms delay = ~171 requests/minute (under the ~180 req/min limit with safety margin)
     const BATCH_DELAY = 350;
-    const MAX_RETRIES = 3;
     // Set once the batch endpoint answers 403: the rest of the playlist goes one by one, without asking it again
     let batchForbidden = false;
 
@@ -171,7 +170,7 @@ export async function getSpotifyData(api: SpotifyApi, id: string, simplified: bo
         }
 
         if (batchForbidden) {
-            tracks.splice(i, BATCH_SIZE, ...await enrichTracksIndividually(api, batch, BATCH_DELAY));
+            tracks.splice(i, BATCH_SIZE, ...await enrichTracksIndividually(api, batch, BATCH_DELAY, skipRateLimitChecks));
             continue;
         }
 
@@ -212,12 +211,6 @@ export async function getSpotifyData(api: SpotifyApi, id: string, simplified: bo
             } catch (batchError: any) {
                 retryCount++;
 
-                // Check for rate limit errors (429) - SDK might wrap the status differently
-                const isRateLimit = batchError.status === 429 ||
-                    batchError.statusCode === 429 ||
-                    batchError.message?.includes('rate limit') ||
-                    batchError.message?.includes('429');
-
                 // Restricted-mode (development) apps get 403 on the batch endpoint
                 // while the single-track endpoint keeps working
                 // The SDK's 403 is a plain Error that starts this way; the body may be empty, and other errors carry theirs
@@ -225,18 +218,11 @@ export async function getSpotifyData(api: SpotifyApi, id: string, simplified: bo
                     batchError.statusCode === 403 ||
                     batchError.message?.startsWith('Bad OAuth request');
 
-                if (isRateLimit) {
-                    // Extract retry-after from various possible locations
-                    const retryAfter = parseInt(
-                        batchError.headers?.['retry-after'] ||
-                        batchError.response?.headers?.['retry-after'] ||
-                        '5',
-                        10
-                    );
-                    const backoffDelay = Math.min(retryAfter * 1000, 1000 * (2 ** retryCount));
+                if (isRateLimitError(batchError)) {
+                    const backoffDelay = rateLimitBackoff(batchError, retryCount);
 
                     if (!skipRateLimitChecks)
-                        throw new Error(`Rate Limit Exceeded, try with a different token.`)
+                        throw new RateLimitExceededError()
 
                     console.log(`Rate limited. Waiting ${backoffDelay}ms before retry ${retryCount}/${MAX_RETRIES}...`);
                     await new Promise(resolve => { setTimeout(resolve, backoffDelay) });
@@ -247,7 +233,7 @@ export async function getSpotifyData(api: SpotifyApi, id: string, simplified: bo
                     // retrying it as 50 single calls would just multiply the failure
                     console.log(`Spotify refused the batch track lookup (403); looking the tracks up one at a time (Spotify refuses that lookup to apps in development mode)`);
                     batchForbidden = true;
-                    const enrichedBatch = await enrichTracksIndividually(api, batch, BATCH_DELAY);
+                    const enrichedBatch = await enrichTracksIndividually(api, batch, BATCH_DELAY, skipRateLimitChecks);
                     tracks.splice(i, BATCH_SIZE, ...enrichedBatch);
                     success = true;
                 } else {
@@ -283,6 +269,51 @@ export async function getSpotifyData(api: SpotifyApi, id: string, simplified: bo
 
 }
 
+const MAX_RETRIES = 3;
+
+class RateLimitExceededError extends Error {
+    public constructor() {
+        super('Rate Limit Exceeded, try with a different token.');
+        this.name = 'RateLimitExceededError';
+    }
+}
+
+// The SDK's 429 is a plain Error ("The app has exceeded its rate limits."); other clients may set a status
+function isRateLimitError(error: any) {
+    return error?.status === 429 ||
+        error?.statusCode === 429 ||
+        error?.message?.includes('rate limit') ||
+        error?.message?.includes('429');
+}
+
+function rateLimitBackoff(error: any, attempt: number) {
+    const retryAfter = Number.parseInt(error?.headers?.['retry-after'] || error?.response?.headers?.['retry-after'] || '5', 10);
+
+    return Math.min(retryAfter * 1000, 1000 * (2 ** attempt));
+}
+
+// The batch loop's 429 rule for one track: wait and retry only when the caller skips rate-limit checks
+async function getTrack(api: SpotifyApi, id: string, skipRateLimitChecks: boolean) {
+    for (let attempt = 1; ; attempt++) {
+        try {
+            return await api.tracks.get(id);
+        } catch (error) {
+            if (!isRateLimitError(error))
+                throw error;
+
+            if (!skipRateLimitChecks)
+                throw new RateLimitExceededError();
+
+            if (attempt >= MAX_RETRIES)
+                throw error;
+
+            const backoffDelay = rateLimitBackoff(error, attempt);
+            console.log(`Rate limited. Waiting ${backoffDelay}ms before retry ${attempt}/${MAX_RETRIES}...`);
+            await new Promise(resolve => { setTimeout(resolve, backoffDelay) });
+        }
+    }
+}
+
 type EnrichableTrack = {
     id: string;
     album: string;
@@ -292,18 +323,17 @@ type EnrichableTrack = {
     isrc?: string;
 };
 
-async function enrichTracksIndividually<T extends EnrichableTrack>(api: SpotifyApi, batch: T[], delayMs: number): Promise<T[]> {
+async function enrichTracksIndividually<T extends EnrichableTrack>(api: SpotifyApi, batch: T[], delayMs: number, skipRateLimitChecks: boolean): Promise<T[]> {
     const result = [...batch];
+    const lookups = result.flatMap((track, index) => (track?.id && !track.id.startsWith('spotify:local:') ? [index] : []));
     let failed = 0;
     let firstError: unknown;
 
-    for (let i = 0; i < result.length; i++) {
-        const track = result[i];
-        if (!track?.id || track.id.startsWith('spotify:local:'))
-            continue;
+    for (const [done, i] of lookups.entries()) {
+        const track = result[i]!;
 
         try {
-            const enrichedTrack = await api.tracks.get(track.id.replace('spotify:track:', ''));
+            const enrichedTrack = await getTrack(api, track.id.replace('spotify:track:', ''), skipRateLimitChecks);
             result[i] = {
                 ...track,
                 album: enrichedTrack.album.name,
@@ -313,16 +343,25 @@ async function enrichTracksIndividually<T extends EnrichableTrack>(api: SpotifyA
                 isrc: enrichedTrack.external_ids?.isrc
             };
         } catch (error) {
+            if (error instanceof RateLimitExceededError)
+                throw error;
+
             // Keep the scraper data for tracks that fail individually
             failed++;
             firstError ??= error;
+
+            // Still rate limited after the retries: the rest of this batch would wait the same way, so the next batch tries
+            if (isRateLimitError(error)) {
+                failed += lookups.length - done - 1;
+                break;
+            }
         }
 
         await new Promise(resolve => { setTimeout(resolve, delayMs) });
     }
 
     if (failed)
-        console.error(`❌ ${failed} single-track lookups failed, so those tracks keep the scraper's data with no ISRC: ${firstError instanceof Error ? firstError.message : String(firstError)}`);
+        console.error(`❌ Spotify's single-track lookup failed for ${failed} of ${lookups.length} tracks, so they keep the scraper's data with no ISRC: ${firstError instanceof Error ? firstError.message : String(firstError)}`);
 
     return result;
 }
