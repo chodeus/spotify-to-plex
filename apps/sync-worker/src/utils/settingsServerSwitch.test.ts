@@ -74,7 +74,6 @@ vi.mock('./getCachedPlexTracks', () => ({ getCachedPlexTracks: async () => ({
     add: vi.fn(), markChecked: vi.fn(), recheck: [], standIns: new Map<string, string>()
 }) }));
 vi.mock('./findMissingTidalTracks', () => ({ findMissingTidalTracks: async () => [] }));
-vi.mock('@/helpers/plex/getPlexServers', async () => import('../../../web/src/helpers/plex/getPlexServers'));
 vi.mock('@/helpers/errors/generateError', async () => import('../../../web/src/helpers/errors/generateError'));
 
 let dir: string;

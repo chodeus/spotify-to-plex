@@ -1,5 +1,5 @@
 import { generateError } from '@/helpers/errors/generateError';
-import { getPlexServers } from '@/helpers/plex/getPlexServers';
+import { getPlexServers } from '@spotify-to-plex/plex-helpers/utils/getPlexServers';
 import { AxiosRequest } from '@spotify-to-plex/http-client/AxiosRequest';
 import { describeHttpError } from '@spotify-to-plex/http-client/describeHttpError';
 import { getAPIUrl } from '@spotify-to-plex/shared-utils/utils/getAPIUrl';

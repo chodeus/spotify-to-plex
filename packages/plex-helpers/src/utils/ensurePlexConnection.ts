@@ -1,23 +1,16 @@
 import { AxiosRequest } from '@spotify-to-plex/http-client/AxiosRequest';
 import { describeHttpError } from '@spotify-to-plex/http-client/describeHttpError';
-import { plexTvClient } from '@spotify-to-plex/http-client/plexTvClient';
 import { getSettings } from '@spotify-to-plex/plex-config/functions/getSettings';
 import { updateSettings } from '@spotify-to-plex/plex-config/functions/updateSettings';
 import { getAPIUrl } from '@spotify-to-plex/shared-utils/utils/getAPIUrl';
-
-type PlexResource = {
-    clientIdentifier: string
-    accessToken?: string
-    httpsRequired?: boolean
-    connections?: { local: boolean, relay?: boolean, uri: string }[]
-}
+import { getPlexServers } from './getPlexServers';
 
 type Identity = { MediaContainer?: { machineIdentifier?: string } }
 
-// The saved server answering, not just something at that address: another server there would get this one's keys
-async function answersAs(uri: string, token: string, serverId: string) {
+// No token: /identity answers without one, and a host must not get it before it answers as the saved server
+async function answersAs(uri: string, serverId: string) {
     try {
-        const result = await AxiosRequest.get<Identity>(getAPIUrl(uri, '/identity'), token);
+        const result = await AxiosRequest.get<Identity>(getAPIUrl(uri, '/identity'), '');
 
         return result.data?.MediaContainer?.machineIdentifier === serverId;
     } catch {
@@ -25,26 +18,13 @@ async function answersAs(uri: string, token: string, serverId: string) {
     }
 }
 
-// Local first, then remote, relays last: a remote address goes through the public IP, which changes
-function candidatesOf(server: PlexResource, current: string) {
-    return (server.connections ?? [])
-        .map(({ local, relay, uri }) => ({ local, relay: !!relay, uri: server.httpsRequired ? uri.split('http://').join('https://') : uri }))
-        .filter(item => item.uri !== current)
-        .sort((a, b) => Number(b.local) - Number(a.local) || Number(a.relay) - Number(b.relay));
-}
-
-/**
- * Checks that the saved Plex connection still answers. When it does not, asks plex.tv for the
- * server's current connections and saves the first one that answers as the same server.
- * Never throws: with nothing better found, the saved connection stays and the sync reports its own errors.
- */
+/** Before a sync: when the saved Plex connection does not answer, saves another direct connection of the same server that does. */
 export async function ensurePlexConnection() {
     const settings = await getSettings(true);
-    const token = settings.serverToken || settings.token;
-    if (!settings.uri || !settings.id || !token)
+    if (!settings.uri || !settings.id)
         return;
 
-    if (await answersAs(settings.uri, token, settings.id))
+    if (await answersAs(settings.uri, settings.id))
         return;
 
     if (!settings.token) {
@@ -53,37 +33,39 @@ export async function ensurePlexConnection() {
         return;
     }
 
-    let server: PlexResource | undefined;
+    let servers;
     try {
-        const result = await plexTvClient.get<PlexResource[]>('https://plex.tv/api/v2/resources', {
-            params: {
-                "X-Plex-Product": "Spotify to Plex",
-                "X-Plex-Client-Identifier": process.env.PLEX_APP_ID,
-            },
-            headers: { "X-Plex-Token": settings.token },
-        });
-        server = result.data.find(item => item.clientIdentifier === settings.id);
+        servers = await getPlexServers(settings.token);
     } catch (error) {
         console.error(`Plex did not answer at ${settings.uri}, and plex.tv could not list its other connections: ${describeHttpError(error)}`);
 
         return;
     }
 
-    const serverToken = server?.accessToken || token;
-
-    for (const candidate of server ? candidatesOf(server, settings.uri) : []) {
-        if (!await answersAs(candidate.uri, serverToken, settings.id))
-            continue;
-
-        try {
-            await updateSettings({ uri: candidate.uri, ...(server?.accessToken ? { serverToken: server.accessToken } : {}) });
-            console.log(`Plex did not answer at ${settings.uri}; switched to ${candidate.uri}`);
-        } catch (error) {
-            console.error(`Plex answers at ${candidate.uri}, but the connection could not be saved: ${error instanceof Error ? error.message : String(error)}`);
-        }
+    const server = servers.find(item => item.id === settings.id);
+    if (!server) {
+        console.error(`Plex did not answer at ${settings.uri}, and plex.tv does not list this server for the signed-in Plex account`);
 
         return;
     }
 
-    console.error(`Plex did not answer at ${settings.uri}, nor at any other connection plex.tv lists for this server`);
+    // The saved one is asked again: one missed answer must not replace it. A relay stays a choice made by hand, it is slow
+    const uris = [settings.uri, ...server.connections.filter(item => !item.relay && item.uri !== settings.uri).map(item => item.uri)];
+    const answers = await Promise.all(uris.map(uri => answersAs(uri, settings.id)));
+    const uri = uris.find((_, index) => answers[index]);
+    if (uri === settings.uri)
+        return;
+
+    if (!uri) {
+        console.error(`Plex did not answer at ${settings.uri}, nor at any other direct connection plex.tv lists for this server`);
+
+        return;
+    }
+
+    try {
+        await updateSettings({ uri, ...(server.accessToken ? { serverToken: server.accessToken } : {}) }, settings);
+        console.log(`Plex did not answer at ${settings.uri}; switched to ${uri}`);
+    } catch (error) {
+        console.error(`Plex answers at ${uri}, but the connection could not be saved: ${error instanceof Error ? error.message : String(error)}`);
+    }
 }

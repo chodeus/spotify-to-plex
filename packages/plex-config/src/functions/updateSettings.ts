@@ -72,7 +72,8 @@ async function switchServer(current: PlexSettings, updates: PlexSettingsUpdate &
 // Long enough for another save to finish, a server switch included
 const SAVE_WAIT_MS = 10_000;
 
-export async function updateSettings(updates: PlexSettingsUpdate) {
+// basedOn: the server and connection the updates were worked out from; another save may have changed them since
+export async function updateSettings(updates: PlexSettingsUpdate, basedOn?: Pick<PlexSettings, 'id' | 'uri'>) {
     // Every save holds this lock: one that read the settings while a switch ran would write the old server back
     const release = await waitForLock('settings', SAVE_WAIT_MS);
     if (!release)
@@ -80,6 +81,9 @@ export async function updateSettings(updates: PlexSettingsUpdate) {
 
     try {
         const current = await getSettings(true);
+        if (basedOn && (current.id !== basedOn.id || current.uri !== basedOn.uri))
+            throw new Error('Another Plex server or connection was chosen meanwhile, and it is kept');
+
         if (!choosesAnotherServer(current, updates))
             return await save(current, updates);
 
