@@ -110,7 +110,7 @@ describe('getSpotifyPlaylist', () => {
         throw new Error(`the SDK accepted status ${status}`);
     }
 
-    it('logs a 404, which Spotify gives its own mixes, as one plain line and leaves it to the scraper', async () => {
+    it('logs a 404, which Spotify gives its own mixes, as one plain line with no error, and returns null', async () => {
         const log = vi.spyOn(console, 'log').mockImplementation(() => { /* expected */ });
         const error = vi.spyOn(console, 'error').mockImplementation(() => { /* expected */ });
 
@@ -118,7 +118,7 @@ describe('getSpotifyPlaylist', () => {
 
         expect(playlist).toBeNull();
         expect(error).not.toHaveBeenCalled();
-        expect(log).toHaveBeenCalledExactlyOnceWith('Playlist 37i9dQZF1EIfpZraphE7Ba is not available through the Spotify API (404); it is left to SpotifyScraper');
+        expect(log).toHaveBeenCalledExactlyOnceWith('Playlist 37i9dQZF1EIfpZraphE7Ba is not available through the Spotify API (404); falling back to SpotifyScraper if it is configured');
     });
 
     it.each([

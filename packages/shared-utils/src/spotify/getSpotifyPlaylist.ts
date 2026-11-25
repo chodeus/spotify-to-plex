@@ -103,9 +103,9 @@ export async function getSpotifyPlaylist(api: SpotifyApi, id: string, simplified
         return playlist;
 
     } catch (e) {
-        // Spotify's own mixes and radios answer 404 to the Web API: expected, and the caller's scraper step takes them
+        // Spotify's own mixes and radios answer 404 to the Web API; the caller falls back to SpotifyScraper when configured
         if (isNotFound(e)) {
-            console.log(`Playlist ${id} is not available through the Spotify API (404); it is left to SpotifyScraper`);
+            console.log(`Playlist ${id} is not available through the Spotify API (404); falling back to SpotifyScraper if it is configured`);
 
             return null;
         }
