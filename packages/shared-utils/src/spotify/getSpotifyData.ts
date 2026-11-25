@@ -278,12 +278,11 @@ class RateLimitExceededError extends Error {
     }
 }
 
-// The SDK's 429 is a plain Error ("The app has exceeded its rate limits."); other clients may set a status
+// The SDK's 429 is a plain Error with this whole message; other errors carry the response body, so match no substring
 function isRateLimitError(error: any) {
     return error?.status === 429 ||
         error?.statusCode === 429 ||
-        error?.message?.includes('rate limit') ||
-        error?.message?.includes('429');
+        error?.message === 'The app has exceeded its rate limits.';
 }
 
 function rateLimitBackoff(error: any, attempt: number) {

@@ -266,4 +266,42 @@ describe('getSpotifyData enrichment', () => {
         expect(playlist?.tracks[1]?.isrc).toBe('XXA000000001');
     });
 
+
+    it('keeps the scraper data for a 500 whose body mentions a rate limit, rather than stopping the load', async () => {
+        vi.useFakeTimers();
+        vi.spyOn(console, 'log').mockImplementation(() => { /* expected */ });
+        const serverError = await sdkError(500, '{"error": {"status": 500, "message": "rate limit backend unavailable (429)" } }');
+
+        const loading = getSpotifyData(devModeApi(call => (call === 1 ? Promise.reject(serverError) : Promise.resolve(enriched))), 'spotify:playlist:p', false);
+        await vi.runAllTimersAsync();
+        const playlist = await loading;
+
+        expect(playlist?.tracks[0]?.isrc).toBeUndefined();
+        expect(playlist?.tracks.slice(1).every(track => track.isrc === 'XXA000000001')).toBe(true);
+    });
+
+
+    it.each([[false, 'stops the load'], [true, 'waits and retries']])('on a 429 from the batch endpoint with skipRateLimitChecks %s, %s', async skip => {
+        vi.useFakeTimers();
+        const log = vi.spyOn(console, 'log').mockImplementation(() => { /* expected */ });
+        const rateLimited = await sdkError(429);
+        let batchCalls = 0;
+        const batchApi = { ...api, tracks: { get: (ids: string[]) => (++batchCalls === 1 ? Promise.reject(rateLimited) : Promise.resolve(ids.map(() => enriched))) } } as unknown as SpotifyApi;
+
+        const loading = getSpotifyData(batchApi, 'spotify:playlist:p', false, skip);
+        if (!skip) {
+            const refused = expect(loading).rejects.toThrow('Rate Limit Exceeded, try with a different token.');
+            await vi.runAllTimersAsync();
+            await refused;
+
+            return;
+        }
+
+        await vi.runAllTimersAsync();
+        const playlist = await loading;
+
+        expect(log).toHaveBeenCalledWith('Rate limited. Waiting 2000ms before retry 1/3...');
+        expect(playlist?.tracks.map(track => track.isrc)).toEqual(Array.from({ length: 100 }, () => 'XXA000000001'));
+    });
+
 });
