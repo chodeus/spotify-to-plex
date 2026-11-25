@@ -22,7 +22,7 @@
 
 - Sync any Spotify playlist with Plex (including Spotify-owned playlists)
 - Advanced track matching with multiple search strategies
-- Download missing tracks via Lidarr, SLSKD, or Tidal
+- Download missing tracks via Lidarr or SLSKD, or export them as Tidal links for the [companion Tidal downloader](https://chodeus.github.io/spotify-to-plex/integrations/tidal)
 - Multiple Spotify user support
 - Scheduled automatic synchronization
 - Smart caching for faster syncs
