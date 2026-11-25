@@ -84,6 +84,36 @@ describe('getSpotifyPlaylist', () => {
         expect(playlist).toBeNull();
     });
 
+    // The playlist comes back without its tracks, and the dedicated endpoint answers `status`
+    async function withholdTracks(status: number) {
+        const log = vi.spyOn(console, 'log').mockImplementation(() => { /* expected */ });
+        const error = vi.spyOn(console, 'error').mockImplementation(() => { /* expected */ });
+        vi.stubGlobal('fetch', vi.fn(async () => new Response('{}', { status, statusText: status === 403 ? 'Forbidden' : 'Server Error' })));
+        const noTracks = {
+            getAccessToken: () => Promise.resolve({ access_token: 'token' }),
+            playlists: { getPlaylist: () => Promise.resolve({ id: 'p', name: 'Playlist', owner: { display_name: 'Owner' }, images: [] }) }
+        } as unknown as SpotifyApi;
+
+        const playlist = await getSpotifyPlaylist(noTracks, 'p', false);
+
+        return { playlist, log, error };
+    }
+
+    it('logs one plain line, with no error, for a playlist whose tracks Spotify withholds (403)', async () => {
+        const { playlist, log, error } = await withholdTracks(403);
+
+        expect(playlist).toBeNull();
+        expect(error).not.toHaveBeenCalled();
+        expect(log).toHaveBeenCalledExactlyOnceWith('Playlist p: the Spotify API did not return its tracks; falling back to SpotifyScraper if it is configured');
+    });
+
+    it('still reports any other answer from the tracks endpoint as an error', async () => {
+        const { playlist, error } = await withholdTracks(500);
+
+        expect(playlist).toBeNull();
+        expect(error).toHaveBeenCalledExactlyOnceWith('❌ Playlist p tracks endpoint refused: 500 Server Error');
+    });
+
     it('stops at the embedded page when simplified', async () => {
         const offsets = stubFetch(250);
         const playlist = await getSpotifyPlaylist(fakeApi(250), 'p', true);
