@@ -45,9 +45,8 @@ const router = createRouter<NextApiRequest, NextApiResponse>()
                 if (typeof search !== 'string')
                     return res.status(400).json({ error: "Search query missing" })
 
-                // Blank fell through to the URI check, which blamed a format nobody had typed
                 if (!search.trim())
-                    return res.status(400).json({ error: "Enter a Spotify URL or URI to add" })
+                    return res.status(400).json({ error: "Enter a Spotify URL/URI or Plex ID to add" })
 
                 if (!process.env.SPOTIFY_API_CLIENT_ID || !process.env.SPOTIFY_API_CLIENT_SECRET)
                     return res.status(400).json({ error: "Spotify Credentials missing. Please add the environment variables to use this feature." })
