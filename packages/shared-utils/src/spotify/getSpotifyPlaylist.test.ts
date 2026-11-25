@@ -1,4 +1,4 @@
-import type { SpotifyApi } from '@spotify/web-api-ts-sdk';
+import { DefaultResponseValidator, type SpotifyApi } from '@spotify/web-api-ts-sdk';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { getSpotifyPlaylist } from './getSpotifyPlaylist';
 
@@ -99,25 +99,34 @@ describe('getSpotifyPlaylist', () => {
         } as unknown as SpotifyApi;
     }
 
-    // The message the SDK's response validator throws for a status it has no case for
-    const sdkError = (status: number, statusText = '') => new Error(`Unrecognised response code: ${status} - ${statusText}. Body: {"error": {"status": ${status}, "message": "Resource not found" } }`);
+    // The SDK's own validator makes each error, so a change to its wording fails here
+    async function sdkError(status: number, body = `{"error": {"status": ${status}, "message": "Resource not found" } }`) {
+        try {
+            await new DefaultResponseValidator().validateResponse(new Response(body, { status }));
+        } catch (error) {
+            return error as Error;
+        }
+
+        throw new Error(`the SDK accepted status ${status}`);
+    }
 
     it('logs a 404, which Spotify gives its own mixes, as one plain line and leaves it to the scraper', async () => {
         const log = vi.spyOn(console, 'log').mockImplementation(() => { /* expected */ });
         const error = vi.spyOn(console, 'error').mockImplementation(() => { /* expected */ });
 
-        const playlist = await getSpotifyPlaylist(refusingApi(sdkError(404)), '37i9dQZF1EIfpZraphE7Ba', false);
+        const playlist = await getSpotifyPlaylist(refusingApi(await sdkError(404)), '37i9dQZF1EIfpZraphE7Ba', false);
 
         expect(playlist).toBeNull();
         expect(error).not.toHaveBeenCalled();
-        expect(log).toHaveBeenCalledExactlyOnceWith('Playlist 37i9dQZF1EIfpZraphE7Ba is not available through the Spotify API (404); reading it with SpotifyScraper');
+        expect(log).toHaveBeenCalledExactlyOnceWith('Playlist 37i9dQZF1EIfpZraphE7Ba is not available through the Spotify API (404); it is left to SpotifyScraper');
     });
 
     it.each([
-        ['a server error', sdkError(500, 'Internal Server Error')],
-        ['a 404 in the body only', new Error('Unrecognised response code: 502 - . Body: 404')],
-        ['a network failure', new TypeError('fetch failed')]
-    ])('still reports %s as an error', async (_name, failure) => {
+        ['a server error', () => sdkError(500)],
+        ['a 404 in the body only', () => sdkError(502, '404')],
+        ['a network failure', async () => new TypeError('fetch failed')]
+    ])('still reports %s as an error', async (_name, make) => {
+        const failure = await make();
         const error = vi.spyOn(console, 'error').mockImplementation(() => { /* expected */ });
 
         const playlist = await getSpotifyPlaylist(refusingApi(failure), 'p', false);
