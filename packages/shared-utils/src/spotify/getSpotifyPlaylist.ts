@@ -67,7 +67,7 @@ export async function getSpotifyPlaylist(api: SpotifyApi, id: string, simplified
         if (!tracksPage?.items)
             tracksPage = await fetchTracksPage(id, tokenInfo?.access_token);
 
-        // Spotify withholds the tracks of many playlists from the Web API, and from every client_credentials call
+        // No tracks page: withheld (Spotify does that for many playlists, and for every client_credentials call), refused or unreachable
         if (!tracksPage?.items) {
             console.log(`Playlist ${id}: the Spotify API did not return its tracks; falling back to SpotifyScraper if it is configured`);
 

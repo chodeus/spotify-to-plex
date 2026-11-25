@@ -53,6 +53,12 @@ describe('getSpotifyData scraper fallback', () => {
         vi.restoreAllMocks();
     });
 
+    it('says the API returned no tracks when the scraper is not configured', async () => {
+        vi.stubEnv('SPOTIFY_SCRAPER_URL', '');
+
+        await expect(getSpotifyData(api, 'spotify:playlist:p', false)).rejects.toThrow("The Spotify API did not return this playlist's tracks, and SpotifyScraper is not configured. Set the SPOTIFY_SCRAPER_URL environment variable.");
+    });
+
     it('refuses a full load the scraper flagged as truncated', async () => {
         postMock.mockResolvedValue(scraperResponse(true));
 
@@ -85,6 +91,14 @@ describe('getSpotifyData scraper fallback', () => {
 
 describe('getSpotifyData enrichment', () => {
     const enriched = { album: { id: 'album-1', name: 'Album' }, duration_ms: 1000, external_ids: { isrc: 'XXA000000001' } };
+    const FORBIDDEN_BODY = '{"error": {"status": 403, "message": "Forbidden" } }';
+
+    // The SDK's own validator makes the 403, so a change to its wording fails here
+    async function sdkForbidden(body = FORBIDDEN_BODY) {
+        return new DefaultResponseValidator()
+            .validateResponse(new Response(body, { status: 403 }))
+            .then(() => new Error('the SDK accepted a 403'), (error: unknown) => error);
+    }
 
     beforeEach(() => {
         vi.stubEnv('SPOTIFY_SCRAPER_URL', 'http://scraper');
@@ -108,9 +122,10 @@ describe('getSpotifyData enrichment', () => {
 
     it('carries the ISRC from the one-by-one lookup a 403 falls back to', async () => {
         vi.useFakeTimers();
+        const forbidden = await sdkForbidden();
         const singleApi = {
             ...api,
-            tracks: { get: (ids: string[] | string) => (Array.isArray(ids) ? Promise.reject(new Error('403 Forbidden')) : Promise.resolve(enriched)) }
+            tracks: { get: (ids: string[] | string) => (Array.isArray(ids) ? Promise.reject(forbidden) : Promise.resolve(enriched)) }
         } as unknown as SpotifyApi;
 
         const loading = getSpotifyData(singleApi, 'spotify:playlist:p', false);
@@ -120,13 +135,10 @@ describe('getSpotifyData enrichment', () => {
         expect(playlist?.tracks[0]?.isrc).toBe('XXA000000001');
     });
 
-    it('asks the batch endpoint once when it answers 403, and says so in one plain line', async () => {
+    it.each([['Spotify\'s body', FORBIDDEN_BODY], ['an empty body', '']])('asks the batch endpoint once when it answers 403 with %s, and says so in one plain line', async (_name, body) => {
         vi.useFakeTimers();
         const log = vi.spyOn(console, 'log').mockImplementation(() => { /* expected */ });
-        // The SDK's own validator makes the 403, so a change to its wording fails here
-        const forbidden = await new DefaultResponseValidator()
-            .validateResponse(new Response('{"error": {"status": 403, "message": "Forbidden" } }', { status: 403 }))
-            .then(() => new Error('the SDK accepted a 403'), (error: unknown) => error);
+        const forbidden = await sdkForbidden(body);
         const batchCalls: string[][] = [];
         const singleApi = {
             ...api,
@@ -149,6 +161,35 @@ describe('getSpotifyData enrichment', () => {
         expect(playlist?.tracks.map(track => track.isrc)).toEqual(Array.from({ length: 100 }, () => 'XXA000000001'));
         expect(log.mock.calls.filter(([line]) => String(line).includes('batch track lookup'))).toHaveLength(1);
         expect(vi.mocked(console.error).mock.calls.filter(([line]) => String(line).includes('enrich'))).toEqual([]);
+    });
+
+
+    it('says how many one-by-one lookups failed, in one error per batch', async () => {
+        vi.useFakeTimers();
+        vi.spyOn(console, 'log').mockImplementation(() => { /* expected */ });
+        const forbidden = await sdkForbidden();
+        let single = 0;
+        const failingApi = {
+            ...api,
+            tracks: { get: (ids: string[] | string) => {
+                if (Array.isArray(ids))
+                    return Promise.reject(forbidden);
+
+                single++;
+
+                return single % 2 ? Promise.reject(new Error('Bad or expired token.')) : Promise.resolve(enriched);
+            } }
+        } as unknown as SpotifyApi;
+
+        const loading = getSpotifyData(failingApi, 'spotify:playlist:p', false);
+        await vi.runAllTimersAsync();
+        const playlist = await loading;
+
+        expect(playlist?.tracks.filter(track => track.isrc)).toHaveLength(50);
+        expect(vi.mocked(console.error).mock.calls.filter(([line]) => String(line).includes('single-track'))).toEqual([
+            ["❌ 25 single-track lookups failed, so those tracks keep the scraper's data with no ISRC: Bad or expired token."],
+            ["❌ 25 single-track lookups failed, so those tracks keep the scraper's data with no ISRC: Bad or expired token."]
+        ]);
     });
 
 });

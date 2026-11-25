@@ -53,7 +53,7 @@ export async function getSpotifyData(api: SpotifyApi, id: string, simplified: bo
     ////////////////////////////////////////
 
     // Anything else Spotify-flavoured (artist, track, show, ...) would be sliced
-    // into a mangled id below and then reported as a failed curated playlist.
+    // into a mangled id below and then reported as a playlist the scraper could not read.
     const spotifyType = id.startsWith('spotify:') ? id.split(':')[1] : undefined;
     if (spotifyType && spotifyType !== 'playlist')
         throw new Error(`This is a Spotify ${spotifyType} link. Only playlists and albums can be imported.`);
@@ -66,7 +66,7 @@ export async function getSpotifyData(api: SpotifyApi, id: string, simplified: bo
 
     const scraperUrl = process.env.SPOTIFY_SCRAPER_URL?.trim();
     if (!scraperUrl)
-        throw new Error(`This was a Spotify curated playlist, and SpotifyScraper is not configured. Set SPOTIFY_SCRAPER_URL environment variable.`);
+        throw new Error(`The Spotify API did not return this playlist's tracks, and SpotifyScraper is not configured. Set the SPOTIFY_SCRAPER_URL environment variable.`);
 
     let response: AxiosResponse<GetSpotifyScraperData>;
     try {
@@ -90,11 +90,11 @@ export async function getSpotifyData(api: SpotifyApi, id: string, simplified: bo
         else
             detail = error instanceof Error ? error.message : String(error);
 
-        throw new Error(`This was a Spotify curated playlist and scraping it failed. ${detail}`)
+        throw new Error(`The Spotify API did not return this playlist's tracks, and scraping it failed. ${detail}`)
     }
 
     if (!response.data) {
-        throw new Error(`This was a Spotify curated playlist. Unfortuantely even SpotifyScraper couldn't find it.`)
+        throw new Error(`The Spotify API did not return this playlist's tracks, and SpotifyScraper could not find it either.`)
     }
 
     const scraperData = response.data
@@ -155,7 +155,7 @@ export async function getSpotifyData(api: SpotifyApi, id: string, simplified: bo
     // ~350ms delay = ~171 requests/minute (under the ~180 req/min limit with safety margin)
     const BATCH_DELAY = 350;
     const MAX_RETRIES = 3;
-    // Set once the batch endpoint answers 403: it answers the same for every batch, so the rest go one by one
+    // Set once the batch endpoint answers 403: the rest of the playlist goes one by one, without asking it again
     let batchForbidden = false;
 
     for (let i = 0; i < tracks.length; i += BATCH_SIZE) {
@@ -220,10 +220,10 @@ export async function getSpotifyData(api: SpotifyApi, id: string, simplified: bo
 
                 // Restricted-mode (development) apps get 403 on the batch endpoint
                 // while the single-track endpoint keeps working
+                // The SDK's 403 is a plain Error that starts this way; the body may be empty, and other errors carry theirs
                 const isForbidden = batchError.status === 403 ||
                     batchError.statusCode === 403 ||
-                    batchError.message?.includes('403') ||
-                    batchError.message?.includes('Forbidden');
+                    batchError.message?.startsWith('Bad OAuth request');
 
                 if (isRateLimit) {
                     // Extract retry-after from various possible locations
@@ -245,7 +245,7 @@ export async function getSpotifyData(api: SpotifyApi, id: string, simplified: bo
                     // while single-track lookups still work - enrich one by one instead.
                     // Only 403 falls back: any other error is likely transient, and
                     // retrying it as 50 single calls would just multiply the failure
-                    console.log(`Spotify refused the batch track lookup (403), as it does for apps in development mode; looking the tracks up one at a time`);
+                    console.log(`Spotify refused the batch track lookup (403); looking the tracks up one at a time (Spotify refuses that lookup to apps in development mode)`);
                     batchForbidden = true;
                     const enrichedBatch = await enrichTracksIndividually(api, batch, BATCH_DELAY);
                     tracks.splice(i, BATCH_SIZE, ...enrichedBatch);
@@ -294,6 +294,8 @@ type EnrichableTrack = {
 
 async function enrichTracksIndividually<T extends EnrichableTrack>(api: SpotifyApi, batch: T[], delayMs: number): Promise<T[]> {
     const result = [...batch];
+    let failed = 0;
+    let firstError: unknown;
 
     for (let i = 0; i < result.length; i++) {
         const track = result[i];
@@ -310,12 +312,17 @@ async function enrichTracksIndividually<T extends EnrichableTrack>(api: SpotifyA
                 duration_ms: track.duration_ms ?? enrichedTrack.duration_ms,
                 isrc: enrichedTrack.external_ids?.isrc
             };
-        } catch (_e) {
+        } catch (error) {
             // Keep the scraper data for tracks that fail individually
+            failed++;
+            firstError ??= error;
         }
 
         await new Promise(resolve => { setTimeout(resolve, delayMs) });
     }
+
+    if (failed)
+        console.error(`❌ ${failed} single-track lookups failed, so those tracks keep the scraper's data with no ISRC: ${firstError instanceof Error ? firstError.message : String(firstError)}`);
 
     return result;
 }
