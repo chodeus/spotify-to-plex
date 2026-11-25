@@ -5,6 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@/helpers/errors/generateError', async () => import('../../../web/src/helpers/errors/generateError'));
 vi.mock('@/helpers/plex/playlistWriteError', async () => import('../../../web/src/helpers/plex/playlistWriteError'));
+const { getSpotifyData } = vi.hoisted(() => ({ getSpotifyData: vi.fn() }));
+vi.mock('@spotify-to-plex/shared-utils/spotify/getSpotifyData', () => ({ getSpotifyData }));
 
 let dir: string;
 const write = (name: string, data: unknown) => { writeFileSync(join(dir, name), JSON.stringify(data)) };
@@ -78,5 +80,36 @@ describe('/api/saved-items title', () => {
 
         expect(status).toBe(200);
         expect(read('spotify_saved_items.json').find((item: { id: string }) => item.id === 'liked-u1')?.title).toBe('Liked Songs');
+    });
+});
+
+describe('POST /api/saved-items search', () => {
+    it.each(['', '   '])('refuses a blank search (%j) and saves nothing', async search => {
+        const { status, json } = await call('POST', { search });
+
+        expect({ status, json }).toEqual({ status: 400, json: { error: 'Search query missing' } });
+        expect(read('spotify_saved_items.json')).toHaveLength(1);
+    });
+
+    it('looks up a pasted URI without the spaces around it', async () => {
+        vi.stubEnv('SPOTIFY_API_CLIENT_ID', 'client');
+        vi.stubEnv('SPOTIFY_API_CLIENT_SECRET', 'secret');
+        getSpotifyData.mockResolvedValueOnce({ type: 'spotify-playlist', id: 'p2', title: 'New', image: '' });
+
+        const { status } = await call('POST', { search: ' spotify:playlist:p2 ' });
+
+        expect(status).toBe(200);
+        expect(getSpotifyData.mock.calls[0]?.[1]).toBe('spotify:playlist:p2');
+        expect(read('spotify_saved_items.json').find((item: { id: string }) => item.id === 'p2')?.uri).toBe('spotify:playlist:p2');
+    });
+
+    it('tells a Plex ID without Plex set up that Plex is not configured, with no Spotify credentials needed', async () => {
+        vi.stubEnv('SPOTIFY_API_CLIENT_ID', '');
+        vi.stubEnv('SPOTIFY_API_CLIENT_SECRET', '');
+
+        const { status, json } = await call('POST', { search: '/library/metadata/12345' });
+
+        expect({ status, json }).toEqual({ status: 400, json: { error: 'Plex not configured' } });
+        expect(read('spotify_saved_items.json')).toHaveLength(1);
     });
 });

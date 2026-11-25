@@ -57,6 +57,6 @@ This project started because I'm using Home Assistant together with Plex and Son
 **What makes this different:**
 - Web interface with detailed match information
 - Works with Spotify-owned playlists that other tools can't access
-- Multiple download integrations (Lidarr, SLSKD, Tidal)
+- Multiple download integrations (Lidarr, SLSKD), plus Tidal link lists for the [companion Tidal downloader](integrations/tidal)
 - Multiple Spotify user support
 - Complete transparency in how songs are matched

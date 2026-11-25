@@ -15,6 +15,7 @@ import { getSettings } from "@spotify-to-plex/plex-config/functions/getSettings"
 import { emptyMissingLists, missingAlbumListsFor, writeMissingLists } from "../utils/missingLists";
 import { ALBUMS_STATE_FILE, clearSyncState, openSyncState } from "../utils/syncState";
 import { runExclusive } from "@spotify-to-plex/shared-utils/utils/syncLock";
+import { ensurePlexConnection } from "@spotify-to-plex/plex-helpers/utils/ensurePlexConnection";
 import { withoutHandMatched } from "../utils/handMatches";
 import { preferHandPicks } from "@spotify-to-plex/plex-music-search/utils/preferHandPicks";
 
@@ -45,6 +46,8 @@ async function runAlbums(force: boolean) {
 
         const { putLog, logError, logComplete } = getNestedSyncLogsForType('albums')
 
+        // A dead saved connection plex.tv no longer lists, after a new public IP say, is swapped for a listed direct one that works
+        await ensurePlexConnection();
         const settings = await getSettings();
         if (!settings.uri || !settings.token)
             throw new Error("No plex connection found")
