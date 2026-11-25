@@ -3,7 +3,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('@spotify-to-plex/plex-config/functions/getSettings', () => ({ getSettings: async () => ({ id: 'machine', uri: 'http://plex.test:32400', token: 'owner-server' }) }));
+const { connection } = vi.hoisted(() => ({ connection: { checked: false } }));
+// The job finds its Plex connection only after the connection check has run
+vi.mock('@spotify-to-plex/plex-config/functions/getSettings', () => ({ getSettings: async () => ({ id: 'machine', uri: connection.checked ? 'http://plex.test:32400' : '', token: 'owner-server' }) }));
+vi.mock('@spotify-to-plex/plex-helpers/utils/ensurePlexConnection', () => ({ ensurePlexConnection: vi.fn(async () => { connection.checked = true }) }));
 vi.mock('@spotify-to-plex/plex-music-search/functions/getById', () => ({ getById: async () => ({ image: '/thumb' }) }));
 
 const { syncMQTT } = await import('./mqtt');
@@ -18,6 +21,7 @@ const write = (name: string, data: unknown) => { writeFileSync(join(dir, name), 
 const manifest = () => JSON.parse(readFileSync(join(dir, 'mqtt_dry_run_manifest.json'), 'utf8')) as Manifest;
 
 beforeEach(() => {
+    connection.checked = false;
     dir = mkdtempSync(join(tmpdir(), 'mqtt-job-'));
     process.env.STORAGE_DIR = dir;
     process.env.MQTT_DRY_RUN = 'true';

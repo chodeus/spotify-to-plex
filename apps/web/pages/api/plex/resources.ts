@@ -1,5 +1,5 @@
 import { generateError } from '@/helpers/errors/generateError';
-import { getPlexServers } from '@/helpers/plex/getPlexServers';
+import { getPlexServers } from '@spotify-to-plex/plex-helpers/utils/getPlexServers';
 import { describeHttpError } from '@spotify-to-plex/http-client/describeHttpError';
 import { getSettings } from '@spotify-to-plex/plex-config/functions/getSettings';
 import type { NextApiRequest, NextApiResponse } from 'next';

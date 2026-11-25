@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 // The real mqtt.js client against a local broker: only Plex is stubbed
 const getById = vi.fn();
 vi.mock('@spotify-to-plex/plex-music-search/functions/getById', () => ({ getById }));
+vi.mock('@spotify-to-plex/http-client/AxiosRequest', async () => import('../utils/testing/savedPlexAnswers'));
 
 const { createStateTopic } = await import('../services/mqtt/createStateTopic');
 const { syncMQTT } = await import('./mqtt');

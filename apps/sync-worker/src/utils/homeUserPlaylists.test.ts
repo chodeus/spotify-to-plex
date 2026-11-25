@@ -19,6 +19,8 @@ const unauthorized = () => Object.assign(new Error('Request failed with status c
 const keyOf = (uri: string) => uri.slice(uri.indexOf('/library/'));
 
 vi.mock('@spotify-to-plex/http-client/plexTvClient', () => ({ plexTvClient: plexTv }));
+// Its plex.tv and /identity calls are not part of this fake Plex
+vi.mock('@spotify-to-plex/plex-helpers/utils/ensurePlexConnection', () => ({ ensurePlexConnection: vi.fn() }));
 vi.mock('@spotify-to-plex/http-client/AxiosRequest', () => ({
     AxiosRequest: {
         get: async (url: string, token: string) => {

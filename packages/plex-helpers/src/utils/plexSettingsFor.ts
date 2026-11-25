@@ -4,6 +4,7 @@ import { getSettings } from '@spotify-to-plex/plex-config/functions/getSettings'
 import { SavedItem } from '@spotify-to-plex/shared-types/spotify/SavedItem';
 import { SpotifyCredentials } from '@spotify-to-plex/shared-types/spotify/SpotifyCredentials';
 import { readJSON } from '@spotify-to-plex/plex-config/utils/fileUtils';
+import { plexTvRequest } from './plexTvRequest';
 
 // homeUser is the Plex Home user's uuid when the token is theirs, not the owner's
 export type PlexConnection = { id: string, uri: string, token: string, homeUser?: string }
@@ -11,17 +12,6 @@ export type PlexHomeUser = { uuid: string, title: string, admin: boolean, protec
 
 const TOKEN_TTL_MS = 60 * 60 * 1000;
 const homeUserTokens = new Map<string, { token: string, at: number }>();
-
-// The token goes in a header, never the URL, where request logs would keep it
-function plexTvRequest(token: string) {
-    return {
-        params: {
-            "X-Plex-Product": "Spotify to Plex",
-            "X-Plex-Client-Identifier": process.env.PLEX_APP_ID,
-        },
-        headers: { "X-Plex-Token": token },
-    };
-}
 
 /** The Plex connection a Spotify user's playlists are read and written with: the owner's unless a Home user is set. */
 export async function plexSettingsForUser(spotifyUserId?: string): Promise<PlexConnection> {
