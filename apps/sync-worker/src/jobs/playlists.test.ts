@@ -14,11 +14,12 @@ const playlistTracks: Record<string, typeof tracks> = {
 };
 const spotifyData = (uri: string) => ({ title: 'Playlist', image: '', tracks: playlistTracks[uri] ?? [] });
 
-const { loadSpotifyData, plexTv } = vi.hoisted(() => ({ loadSpotifyData: vi.fn(), plexTv: { get: vi.fn(), post: vi.fn() } }));
+const { loadSpotifyData, plexTv, connection } = vi.hoisted(() => ({ loadSpotifyData: vi.fn(), plexTv: { get: vi.fn(), post: vi.fn() }, connection: { checked: false } }));
 vi.mock('@spotify-to-plex/http-client/plexTvClient', () => ({ plexTvClient: plexTv }));
 
-vi.mock('@spotify-to-plex/plex-config/functions/getSettings', () => ({ getSettings: async () => ({ uri: 'http://plex.test:32400', token: 'token', id: 'machine' }) }));
-vi.mock('@spotify-to-plex/plex-helpers/utils/ensurePlexConnection', () => ({ ensurePlexConnection: vi.fn() }));
+// The job finds its Plex connection only after the connection check has run
+vi.mock('@spotify-to-plex/plex-config/functions/getSettings', () => ({ getSettings: async () => ({ uri: connection.checked ? 'http://plex.test:32400' : '', token: 'token', id: 'machine' }) }));
+vi.mock('@spotify-to-plex/plex-helpers/utils/ensurePlexConnection', () => ({ ensurePlexConnection: vi.fn(async () => { connection.checked = true }) }));
 vi.mock('@spotify-to-plex/music-search/functions/getMusicSearchConfig', () => ({ getMusicSearchConfig: async () => ({ searchApproaches: [{ id: 'normal' }] }) }));
 vi.mock('@spotify-to-plex/http-client/AxiosRequest', () => ({ AxiosRequest: { get: vi.fn() } }));
 vi.mock('../utils/loadSpotifyData', () => ({ loadSpotifyData }));
@@ -52,6 +53,7 @@ const spotifyList = () => read('missing_tracks_spotify.txt')
     .map(line => line.split('/track/')[1]);
 
 beforeEach(() => {
+    connection.checked = false;
     dir = mkdtempSync(join(tmpdir(), 'playlists-job-'));
     process.env.STORAGE_DIR = dir;
     enrol({ id: 'p1', interval: '0' });

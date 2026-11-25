@@ -46,7 +46,7 @@ async function runAlbums(force: boolean) {
 
         const { putLog, logError, logComplete } = getNestedSyncLogsForType('albums')
 
-        // A saved connection that stopped answering, after a new public IP say, is swapped for one that answers
+        // A dead saved connection plex.tv no longer lists, after a new public IP say, is swapped for a listed one that works
         await ensurePlexConnection();
         const settings = await getSettings();
         if (!settings.uri || !settings.token)

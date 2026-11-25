@@ -13,10 +13,11 @@ const albumData = (uri: string) => {
     return { type: 'spotify-album', id, title: id, image: '', tracks: albumTracks[id] ?? [] };
 };
 
-const { loadSpotifyData, manualPicks, cache } = vi.hoisted(() => ({ loadSpotifyData: vi.fn(), manualPicks: [] as object[], cache: { manualUnanswered: false, add: vi.fn() } }));
+const { loadSpotifyData, manualPicks, cache, connection } = vi.hoisted(() => ({ loadSpotifyData: vi.fn(), manualPicks: [] as object[], cache: { manualUnanswered: false, add: vi.fn() }, connection: { checked: false } }));
 
-vi.mock('@spotify-to-plex/plex-config/functions/getSettings', () => ({ getSettings: async () => ({ uri: 'http://plex.test:32400', token: 'token' }) }));
-vi.mock('@spotify-to-plex/plex-helpers/utils/ensurePlexConnection', () => ({ ensurePlexConnection: vi.fn() }));
+// The job finds its Plex connection only after the connection check has run
+vi.mock('@spotify-to-plex/plex-config/functions/getSettings', () => ({ getSettings: async () => ({ uri: connection.checked ? 'http://plex.test:32400' : '', token: 'token' }) }));
+vi.mock('@spotify-to-plex/plex-helpers/utils/ensurePlexConnection', () => ({ ensurePlexConnection: vi.fn(async () => { connection.checked = true }) }));
 vi.mock('@spotify-to-plex/music-search/functions/getMusicSearchConfig', () => ({ getMusicSearchConfig: async () => ({ searchApproaches: [{ id: 'normal' }] }) }));
 vi.mock('../utils/loadSpotifyData', () => ({ loadSpotifyData }));
 vi.mock('../utils/getCachedPlexTracks', () => ({ getCachedPlexTracks: async () => ({ add: cache.add, manual: manualPicks, manualUnanswered: cache.manualUnanswered }) }));
@@ -45,6 +46,7 @@ const albumList = () => read('missing_albums_spotify.txt')
     .map(line => line.split('/album/')[1]);
 
 beforeEach(() => {
+    connection.checked = false;
     dir = mkdtempSync(join(tmpdir(), 'albums-job-'));
     process.env.STORAGE_DIR = dir;
     enrol({ id: 'a1', interval: '0' }, { id: 'a2', interval: '0' });

@@ -72,8 +72,15 @@ async function switchServer(current: PlexSettings, updates: PlexSettingsUpdate &
 // Long enough for another save to finish, a server switch included
 const SAVE_WAIT_MS = 10_000;
 
-// basedOn: the server and connection the updates were worked out from; another save may have changed them since
-export async function updateSettings(updates: PlexSettingsUpdate, basedOn?: Pick<PlexSettings, 'id' | 'uri'>) {
+const BASIS = ['id', 'uri', 'token', 'serverToken'] as const;
+type Basis = Pick<PlexSettings, typeof BASIS[number]>
+
+function sameBasis(a: Partial<Basis>, b: Partial<Basis>) {
+    return BASIS.every(key => a[key] === b[key]);
+}
+
+// basedOn: the settings the updates were worked out from; another save may have changed them since
+export async function updateSettings(updates: PlexSettingsUpdate, basedOn?: Basis) {
     // Every save holds this lock: one that read the settings while a switch ran would write the old server back
     const release = await waitForLock('settings', SAVE_WAIT_MS);
     if (!release)
@@ -81,8 +88,13 @@ export async function updateSettings(updates: PlexSettingsUpdate, basedOn?: Pick
 
     try {
         const current = await getSettings(true);
-        if (basedOn && (current.id !== basedOn.id || current.uri !== basedOn.uri))
-            throw new Error('Another Plex server or connection was chosen meanwhile, and it is kept');
+        if (basedOn && !sameBasis(current, basedOn)) {
+            // Another save made this same change, two syncs recovering at once say
+            if (sameBasis(current, { ...basedOn, ...updates }))
+                return current;
+
+            throw new Error('Another Plex server, connection or sign-in was saved meanwhile, and it is kept');
+        }
 
         if (!choosesAnotherServer(current, updates))
             return await save(current, updates);
