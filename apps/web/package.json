@@ -16,8 +16,8 @@
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@monaco-editor/react": "^4.7.0",
-    "@mui/icons-material": "^9.5.0",
-    "@mui/material": "^9.5.0",
+    "@mui/icons-material": "^9.6.0",
+    "@mui/material": "^9.6.0",
     "@spotify-to-plex/http-client": "workspace:*",
     "@spotify-to-plex/plex-config": "workspace:*",
     "@spotify-to-plex/plex-helpers": "workspace:*",
@@ -38,9 +38,9 @@
     "sass": "^1.108.2"
   },
   "devDependencies": {
-    "@types/node": "^26.6.6",
+    "@types/node": "^26.6.11",
     "@types/qs": "^6.15.1",
-    "@types/react": "^19.3.0",
+    "@types/react": "^19.3.3",
     "@types/react-dom": "^19.3.0",
     "eslint": "^10.15.0",
     "typescript": "~6.0.3"

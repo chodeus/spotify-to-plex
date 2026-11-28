@@ -40,9 +40,9 @@
         "@spotify-to-plex/shared-utils": "workspace:*"
     },
     "devDependencies": {
-        "@types/node": "^26.6.6",
+        "@types/node": "^26.6.11",
         "typescript": "~6.0.3",
         "vite": "^8.3.8",
-        "vitest": "^5.1.1"
+        "vitest": "^5.1.2"
     }
 }
